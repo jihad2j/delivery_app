@@ -1,0 +1,1 @@
+{"sessionId": "restaurant-product-objectid", "runId": "post-fix", "hypothesisId": "A", "location": "controller_ProductController.js:createProduct", "msg": "[DEBUG] Create product request received", "data": {"restaurantId": "dummy", "productId": null, "userId": "6a4ecc0a059ca2eba708dce7", "role": "restaurant", "name": "zxkco[pzx"}, "ts": 1783549530177}
