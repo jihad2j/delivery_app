@@ -21,10 +21,14 @@ class DriverHomeScreen extends StatefulWidget {
   _DriverHomeScreenState createState() => _DriverHomeScreenState();
 }
 
-class _DriverHomeScreenState extends State<DriverHomeScreen> {
+class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerProviderStateMixin {
   LatLng? _driverLatLng;
   bool _isDialogShowing = false;
   Timer? _driverLocationTimer;
+  Timer? _orderSearchTimer;
+  bool _followDriver = true;
+  bool _isTogglingAvailability = false;
+  late AnimationController _pulseController;
 
   // Real-time Routing properties (Merged from DeliveryMapScreen)
   List<LatLng> _routePoints = [];
@@ -39,6 +43,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
   @override
   void initState() {
     super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat();
     Future.microtask(() {
       final orderProv = Provider.of<OrderProvider>(context, listen: false);
       orderProv.loadOrders();
@@ -52,6 +60,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
       _fetchCurrentLocation().then((_) {
         if (isAvailable) {
           _startDriverLocationUpdates();
+          _startOrderSearchTimer();
         }
       });
     });
@@ -127,6 +136,32 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     });
   }
 
+  void _startOrderSearchTimer() {
+    _orderSearchTimer?.cancel();
+    _orderSearchTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
+      if (!mounted) { timer.cancel(); return; }
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      final isAvailable = auth.currentUser?.driverInfo?.availability ?? false;
+      if (!isAvailable) { timer.cancel(); return; }
+
+      // Check if driver has active order already
+      final orderProv = Provider.of<OrderProvider>(context, listen: false);
+      final driverId = auth.currentUser?.id;
+      final hasActive = orderProv.orders.any((o) =>
+        o.driverIdStr == driverId &&
+        ['delivery_accepted', 'preparing', 'ready', 'onTheWay', 'delivered_pending'].contains(o.status)
+      );
+      if (hasActive) return; // Don't search when already delivering
+
+      await orderProv.loadAvailableOrders();
+    });
+  }
+
+  void _stopOrderSearchTimer() {
+    _orderSearchTimer?.cancel();
+    _orderSearchTimer = null;
+  }
+
   Future<void> _fetchCurrentLocation() async {
     try {
       final err = await LocationHelper.checkAndRequestPermissions();
@@ -136,9 +171,17 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
         desiredAccuracy: LocationAccuracy.high,
       );
       if (mounted) {
+        final newLatLng = LatLng(pos.latitude, pos.longitude);
         setState(() {
-          _driverLatLng = LatLng(pos.latitude, pos.longitude);
+          _driverLatLng = newLatLng;
         });
+
+        // Auto-follow: move map camera to driver location
+        if (_followDriver) {
+          try {
+            _mapController.move(newLatLng, _mapController.camera.zoom);
+          } catch (_) {}
+        }
 
         // Recalculate route if active order is present
         final auth = Provider.of<AuthProvider>(context, listen: false);
@@ -178,6 +221,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
   @override
   void dispose() {
     _driverLocationTimer?.cancel();
+    _orderSearchTimer?.cancel();
+    _pulseController.dispose();
     try {
       final orderProv = Provider.of<OrderProvider>(context, listen: false);
       orderProv.removeListener(_onOrderProviderChange);
@@ -194,51 +239,59 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
   void _onOrderProviderChange() {
     if (!mounted || _isDialogShowing) return;
     final auth = Provider.of<AuthProvider>(context, listen: false);
-    if (auth.currentUser?.driverInfo?.availability == true) {
-      final orderProv = Provider.of<OrderProvider>(context, listen: false);
-      final driverId = auth.currentUser?.id;
+    final orderProv = Provider.of<OrderProvider>(context, listen: false);
+    final driverId = auth.currentUser?.id;
 
-      final activeOrders = orderProv.orders
-          .where(
-            (o) =>
-                o.driverIdStr == driverId &&
-                [
-                  'delivery_accepted',
-                  'preparing',
-                  'ready',
-                  'onTheWay',
-                  'delivered_pending',
-                ].contains(o.status),
-          )
-          .toList();
+    final activeOrders = orderProv.orders
+        .where(
+          (o) =>
+              o.driverIdStr == driverId &&
+              [
+                'delivery_accepted',
+                'preparing',
+                'ready',
+                'onTheWay',
+                'delivered_pending',
+              ].contains(o.status),
+        )
+        .toList();
 
-      if (activeOrders.isNotEmpty) {
-        _currentlyTrackedOrderId = activeOrders.first.id;
-        _fetchRouteForOrder(activeOrders.first);
-      } else {
-        // If we were previously tracking an active delivery and activeOrders is now empty:
-        if (_currentlyTrackedOrderId != null) {
-          final lastId = _currentlyTrackedOrderId;
-          _currentlyTrackedOrderId = null;
-          final completed = orderProv.orders.where((o) => o.id == lastId && o.status == 'delivered').toList();
-          if (completed.isNotEmpty) {
-            _triggerDeliveryConfirmedSuccess();
-            return;
-          }
+    if (activeOrders.isNotEmpty) {
+      final activeOrder = activeOrders.first;
+      _currentlyTrackedOrderId = activeOrder.id;
+      SocketService.joinOrderRoom(activeOrder.id);
+
+      // Ensure location updates are active when delivering
+      if (_driverLocationTimer == null || !_driverLocationTimer!.isActive) {
+        _startDriverLocationUpdates();
+      }
+
+      _fetchRouteForOrder(activeOrder);
+    } else {
+      // If we were previously tracking an active delivery and activeOrders is now empty:
+      if (_currentlyTrackedOrderId != null) {
+        final lastId = _currentlyTrackedOrderId;
+        _currentlyTrackedOrderId = null;
+        final completed = orderProv.orders.where((o) => o.id == lastId && o.status == 'delivered').toList();
+        if (completed.isNotEmpty) {
+          _triggerDeliveryConfirmedSuccess();
+          return;
         }
+      }
 
-        // Clear polyline route if no active order is left
-        if (_routePoints.isNotEmpty) {
-          setState(() {
-            _routePoints.clear();
-            _distanceKm = 0.0;
-            _durationMin = 0.0;
-            _lastRoutedOrderId = null;
-            _lastRoutedOrderStatus = null;
-          });
-        }
+      // Clear polyline route if no active order is left
+      if (_routePoints.isNotEmpty) {
+        setState(() {
+          _routePoints.clear();
+          _distanceKm = 0.0;
+          _durationMin = 0.0;
+          _lastRoutedOrderId = null;
+          _lastRoutedOrderStatus = null;
+        });
+      }
 
-        // Only offer new orders if driver has NO active delivery
+      // Only offer new orders if driver is available and has NO active delivery
+      if (auth.currentUser?.driverInfo?.availability == true) {
         final availableOrders = orderProv.availableOrders
             .where((o) => !_dismissedOrderIds.contains(o.id))
             .toList();
@@ -719,12 +772,14 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     if (err == null) {
       if (active) {
         _startDriverLocationUpdates();
+        _startOrderSearchTimer();
         Provider.of<OrderProvider>(
           context,
           listen: false,
         ).loadAvailableOrders();
       } else {
         _driverLocationTimer?.cancel();
+        _stopOrderSearchTimer();
       }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -806,6 +861,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
 
   // OSRM Realtime Routing integration (drawn directly on the main map)
   Future<void> _fetchRouteForOrder(model.Order order) async {
+    if (_driverLatLng == null) {
+      await _fetchCurrentLocation();
+    }
     if (_driverLatLng == null) return;
 
     LatLng? targetLatLng;
@@ -1088,27 +1146,51 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
       }
     }
 
-    // Always overlay driver's current marker
+    // Always overlay driver's current marker with pulse animation
     if (_driverLatLng != null) {
       mapMarkers.add(
         Marker(
           point: _driverLatLng!,
-          width: 48,
-          height: 48,
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.blue,
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 3),
-              boxShadow: const [
-                BoxShadow(color: Colors.black26, blurRadius: 6),
-              ],
-            ),
-            child: const Icon(
-              Icons.directions_car_rounded,
-              color: Colors.white,
-              size: 24,
-            ),
+          width: 64,
+          height: 64,
+          child: AnimatedBuilder(
+            animation: _pulseController,
+            builder: (context, child) {
+              final scale = 1.0 + (_pulseController.value * 0.4);
+              final opacity = 1.0 - _pulseController.value;
+              return Stack(
+                alignment: Alignment.center,
+                children: [
+                  // Pulse ring
+                  Container(
+                    width: 48 * scale,
+                    height: 48 * scale,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: (isAvailable ? Colors.green : Colors.blue).withValues(alpha: 0.3 * opacity),
+                    ),
+                  ),
+                  // Driver dot
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: isAvailable ? Colors.green : Colors.blue,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 3),
+                      boxShadow: [
+                        BoxShadow(color: Colors.black.withValues(alpha: 0.25), blurRadius: 8),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.directions_car_rounded,
+                      color: Colors.white,
+                      size: 22,
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ),
       );
@@ -1127,7 +1209,15 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
           Positioned.fill(
             child: FlutterMap(
               mapController: _mapController,
-              options: MapOptions(initialCenter: mapCenter, initialZoom: 13.0),
+              options: MapOptions(
+                initialCenter: mapCenter,
+                initialZoom: 13.0,
+                onPositionChanged: (pos, hasGesture) {
+                  if (hasGesture) {
+                    _followDriver = false;
+                  }
+                },
+              ),
               children: [
                 TileLayer(
                   urlTemplate: mapTileUrl,
@@ -1137,13 +1227,11 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                 if (activeOrders.isNotEmpty && _routePoints.isNotEmpty)
                   PolylineLayer(
                     polylines: [
-                      // Outer Glow Polyline
                       Polyline(
                         points: _routePoints,
-                        color: AppTheme.primary.withValues(alpha: 0.3),
-                        strokeWidth: 9.0,
+                        color: AppTheme.primary.withValues(alpha: 0.25),
+                        strokeWidth: 10.0,
                       ),
-                      // Inner Vibrant Polyline
                       Polyline(
                         points: _routePoints,
                         color: AppTheme.primary,
@@ -1156,33 +1244,34 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
             ),
           ),
 
-          // 2. Interactive Map Controls (Recenter & Zoom)
+          // 2. Map Controls (Left side)
           Positioned(
-            bottom: 220,
+            bottom: activeOrders.isNotEmpty ? 260 : 200,
             left: 16,
             child: SafeArea(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  FloatingActionButton.small(
+                  _buildMapControlBtn(
                     heroTag: 'recenter_map_btn',
-                    backgroundColor: Theme.of(context).cardColor,
-                    foregroundColor: AppTheme.primary,
+                    icon: _followDriver ? Icons.gps_fixed_rounded : Icons.gps_not_fixed_rounded,
+                    color: _followDriver ? Colors.green : AppTheme.primary,
                     onPressed: () {
+                      setState(() => _followDriver = true);
                       if (_driverLatLng != null) {
                         _mapController.move(_driverLatLng!, 15.5);
                       }
                     },
-                    child: const Icon(Icons.my_location_rounded),
                   ),
                   if (_routePoints.length >= 2) ...[
                     const SizedBox(height: 6),
-                    FloatingActionButton.small(
+                    _buildMapControlBtn(
                       heroTag: 'fit_bounds_btn',
-                      backgroundColor: Theme.of(context).cardColor,
-                      foregroundColor: AppTheme.secondary,
+                      icon: Icons.fit_screen_rounded,
+                      color: AppTheme.secondary,
                       onPressed: () {
                         try {
+                          setState(() => _followDriver = false);
                           final bounds = LatLngBounds.fromPoints(_routePoints);
                           _mapController.fitCamera(
                             CameraFit.bounds(
@@ -1192,211 +1281,280 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                           );
                         } catch (_) {}
                       },
-                      child: const Icon(Icons.fit_screen_rounded),
                     ),
                   ],
                   const SizedBox(height: 6),
-                  FloatingActionButton.small(
+                  _buildMapControlBtn(
                     heroTag: 'zoom_in_map_btn',
-                    backgroundColor: Theme.of(context).cardColor,
-                    foregroundColor: Theme.of(context).textTheme.bodyLarge?.color,
+                    icon: Icons.add_rounded,
                     onPressed: () {
-                      final currentZoom = _mapController.camera.zoom;
-                      _mapController.move(_mapController.camera.center, currentZoom + 1);
+                      final z = _mapController.camera.zoom;
+                      _mapController.move(_mapController.camera.center, z + 1);
                     },
-                    child: const Icon(Icons.add),
                   ),
                   const SizedBox(height: 6),
-                  FloatingActionButton.small(
+                  _buildMapControlBtn(
                     heroTag: 'zoom_out_map_btn',
-                    backgroundColor: Theme.of(context).cardColor,
-                    foregroundColor: Theme.of(context).textTheme.bodyLarge?.color,
+                    icon: Icons.remove_rounded,
                     onPressed: () {
-                      final currentZoom = _mapController.camera.zoom;
-                      _mapController.move(_mapController.camera.center, currentZoom - 1);
+                      final z = _mapController.camera.zoom;
+                      _mapController.move(_mapController.camera.center, z - 1);
                     },
-                    child: const Icon(Icons.remove),
                   ),
                 ],
               ),
             ),
           ),
 
-          // 2. Top-left drawer menu trigger button
+          // 3. Top Bar: Semi-transparent Menu (Right) + Destination Box (Center) + Status Toggle (Left)
           Positioned(
-            top: 16,
-            right: 16,
+            top: 0,
+            left: 0,
+            right: 0,
             child: SafeArea(
-              child: Builder(
-                builder: (context) => FloatingActionButton(
-                  heroTag: 'drawer_menu_btn',
-                  backgroundColor: Colors.white,
-                  onPressed: () {
-                    Scaffold.of(context).openDrawer();
-                  },
-                  child: const Icon(Icons.menu, color: Colors.black87),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                child: Row(
+                  children: [
+                    // Drawer Menu Button (Right side)
+                    Builder(
+                      builder: (context) => Material(
+                        elevation: 2,
+                        borderRadius: BorderRadius.circular(14),
+                        color: Theme.of(context).cardColor.withValues(alpha: 0.85),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(14),
+                          onTap: () => Scaffold.of(context).openDrawer(),
+                          child: Container(
+                            width: 44,
+                            height: 44,
+                            alignment: Alignment.center,
+                            child: Icon(
+                              Icons.menu_rounded,
+                              color: Theme.of(context).textTheme.bodyLarge?.color,
+                              size: 22,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+
+                    // Destination Box (Center)
+                    Expanded(
+                      child: Material(
+                        elevation: 2,
+                        borderRadius: BorderRadius.circular(14),
+                        color: Theme.of(context).cardColor.withValues(alpha: 0.85),
+                        child: Container(
+                          height: 44,
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          alignment: Alignment.center,
+                          child: activeOrders.isNotEmpty
+                              ? Row(
+                                  children: [
+                                    Icon(
+                                      ['delivery_accepted', 'preparing', 'ready'].contains(activeOrders.first.status)
+                                          ? Icons.restaurant_rounded
+                                          : Icons.person_pin_circle_rounded,
+                                      color: ['delivery_accepted', 'preparing', 'ready'].contains(activeOrders.first.status)
+                                          ? Colors.orange
+                                          : Colors.red,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            ['delivery_accepted', 'preparing', 'ready'].contains(activeOrders.first.status)
+                                                ? 'التوجه للمطعم'
+                                                : 'التوجه للعميل',
+                                            style: const TextStyle(
+                                              fontFamily: 'Outfit',
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 11.5,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          _isLoadingRoute
+                                              ? const Text(
+                                                  'جاري المسار...',
+                                                  style: TextStyle(color: Colors.grey, fontSize: 10),
+                                                )
+                                              : Text(
+                                                  '${_distanceKm.toStringAsFixed(1)} كم • ${_durationMin.toStringAsFixed(0)} د',
+                                                  style: const TextStyle(
+                                                    fontFamily: 'Outfit',
+                                                    color: Colors.blue,
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 10.5,
+                                                  ),
+                                                ),
+                                        ],
+                                      ),
+                                    ),
+                                    InkWell(
+                                      onTap: () {
+                                        _lastRoutedOrderId = null;
+                                        _fetchRouteForOrder(activeOrders.first);
+                                      },
+                                      child: const Padding(
+                                        padding: EdgeInsets.all(4),
+                                        child: Icon(Icons.refresh_rounded, color: Colors.green, size: 18),
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : const Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.near_me_rounded, color: AppTheme.primary, size: 18),
+                                    SizedBox(width: 6),
+                                    Text(
+                                      'الوجهة: بانتظار طلب',
+                                      style: TextStyle(
+                                        fontFamily: 'Outfit',
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+
+                    // Compact & Semi-transparent Status Button (Left side)
+                    Material(
+                      elevation: 2,
+                      borderRadius: BorderRadius.circular(14),
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(14),
+                        onTap: _isTogglingAvailability
+                            ? null
+                            : () async {
+                                setState(() => _isTogglingAvailability = true);
+                                await _toggleAvailability(auth, !isAvailable);
+                                if (mounted) setState(() => _isTogglingAvailability = false);
+                              },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 300),
+                          height: 44,
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(14),
+                            color: !isAvailable
+                                ? Colors.red.shade700.withValues(alpha: 0.85)
+                                : Colors.green.shade600.withValues(alpha: 0.85),
+                            boxShadow: [
+                              BoxShadow(
+                                color: (!isAvailable ? Colors.red : Colors.green).withValues(alpha: 0.25),
+                                blurRadius: 8,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (_isTogglingAvailability)
+                                const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              else
+                                Icon(
+                                  !isAvailable
+                                      ? Icons.power_settings_new_rounded
+                                      : activeOrders.isNotEmpty
+                                          ? Icons.delivery_dining_rounded
+                                          : Icons.wifi_tethering_rounded,
+                                  color: Colors.white,
+                                  size: 18,
+                                ),
+                              const SizedBox(width: 4),
+                              Text(
+                                !isAvailable
+                                    ? 'متوقف'
+                                    : activeOrders.isNotEmpty
+                                        ? 'نشط'
+                                        : 'جاهز',
+                                style: const TextStyle(
+                                  fontFamily: 'Outfit',
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
           ),
 
-          // 3. Merged Top Bar showing Destination details (if driving)
-          if (activeOrders.isNotEmpty)
-            Positioned(
-              top: 16,
-              left: 80,
-              right: 16,
-              child: SafeArea(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).cardColor.withValues(alpha: 0.95),
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.15),
-                        blurRadius: 10,
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        [
-                              'delivery_accepted',
-                              'preparing',
-                              'ready',
-                            ].contains(activeOrders.first.status)
-                            ? Icons.restaurant
-                            : Icons.person_pin_circle,
-                        color:
-                            [
-                              'delivery_accepted',
-                              'preparing',
-                              'ready',
-                            ].contains(activeOrders.first.status)
-                            ? Colors.orange
-                            : Colors.red,
-                        size: 28,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              [
-                                    'delivery_accepted',
-                                    'preparing',
-                                    'ready',
-                                  ].contains(activeOrders.first.status)
-                                  ? 'التوجه للمطعم لاستلام الطلب'
-                                  : 'التوجه لتسليم الطلب للعميل',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            _isLoadingRoute
-                                ? const Text(
-                                    'جاري حساب المسار...',
-                                    style: TextStyle(
-                                      color: Colors.grey,
-                                      fontSize: 11,
-                                    ),
-                                  )
-                                : Text(
-                                    'المسافة: ${_distanceKm.toStringAsFixed(1)} كم • الزمن: ${_durationMin.toStringAsFixed(0)} دقيقة',
-                                    style: const TextStyle(
-                                      color: Colors.blue,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 11,
-                                    ),
-                                  ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(
-                          Icons.refresh,
-                          color: Colors.green,
-                          size: 20,
-                        ),
-                        onPressed: () {
-                          _lastRoutedOrderId = null; // force OSRM recalculation
-                          _fetchRouteForOrder(activeOrders.first);
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-          // 4. Quick navigation FABs (right side, only shown when active order exists)
+          // 5. Quick nav FABs (right side, active order)
           if (activeOrders.isNotEmpty)
             Positioned(
               right: 16,
-              bottom: 240,
+              bottom: 260,
               child: Column(
                 children: [
-                  FloatingActionButton.small(
+                  _buildMapControlBtn(
                     heroTag: 'home_center_driver',
-                    backgroundColor: Colors.white,
+                    icon: Icons.my_location_rounded,
+                    color: Colors.blue,
                     onPressed: () {
+                      setState(() => _followDriver = true);
                       if (_driverLatLng != null) {
                         _mapController.move(_driverLatLng!, 15.0);
                       }
                     },
-                    child: const Icon(Icons.my_location, color: Colors.blue),
                   ),
                   const SizedBox(height: 8),
-                  FloatingActionButton.small(
+                  _buildMapControlBtn(
                     heroTag: 'home_center_destination',
-                    backgroundColor: Colors.white,
+                    icon: Icons.flag_rounded,
+                    color: Colors.red,
                     onPressed: () {
+                      setState(() => _followDriver = false);
                       LatLng? target;
                       final o = activeOrders.first;
-                      if ([
-                        'delivery_accepted',
-                        'preparing',
-                        'ready',
-                      ].contains(o.status)) {
+                      if (['delivery_accepted', 'preparing', 'ready'].contains(o.status)) {
                         if (o.restaurantId is Map) {
                           final rMap = o.restaurantId as Map;
                           final addr = rMap['address'];
                           if (addr != null && addr['location'] != null) {
-                            final coords =
-                                addr['location']['coordinates'] as List;
+                            final coords = addr['location']['coordinates'] as List;
                             if (coords.length >= 2) {
-                              target = LatLng(
-                                coords[1].toDouble(),
-                                coords[0].toDouble(),
-                              );
+                              target = LatLng(coords[1].toDouble(), coords[0].toDouble());
                             }
                           }
                         }
                         if (target == null) {
-                          final rests = restProv.restaurants
-                              .where((r) => r.id == o.restaurantIdStr)
-                              .toList();
-                          if (rests.isNotEmpty &&
-                              rests.first.address?.location?.coordinates !=
-                                  null) {
-                            final coords =
-                                rests.first.address!.location!.coordinates;
+                          final rests = restProv.restaurants.where((r) => r.id == o.restaurantIdStr).toList();
+                          if (rests.isNotEmpty && rests.first.address?.location?.coordinates != null) {
+                            final coords = rests.first.address!.location!.coordinates;
                             target = LatLng(coords[1], coords[0]);
                           }
                         }
                       } else {
                         if (o.deliveryAddress.location != null) {
-                          final coords =
-                              o.deliveryAddress.location!.coordinates;
+                          final coords = o.deliveryAddress.location!.coordinates;
                           target = LatLng(coords[1], coords[0]);
                         }
                       }
@@ -1404,135 +1562,134 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                         _mapController.move(target, 15.0);
                       }
                     },
-                    child: const Icon(Icons.flag_rounded, color: Colors.red),
                   ),
                 ],
               ),
             ),
 
-          // 5. Card overlays at the bottom (Merged options)
-          Positioned(
-            bottom: 16,
-            left: 16,
-            right: 16,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+          // 6. Bottom card overlay (only active order)
+          if (activeOrders.isNotEmpty)
+            Positioned(
+              bottom: 16,
+              left: 16,
+              right: 16,
+              child: _buildActiveOrderCard(orderProv, activeOrders.first),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMapControlBtn({
+    required String heroTag,
+    required IconData icon,
+    Color? color,
+    required VoidCallback onPressed,
+  }) {
+    return Material(
+      elevation: 3,
+      borderRadius: BorderRadius.circular(12),
+      color: Theme.of(context).cardColor,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onPressed,
+        child: Container(
+          width: 40, height: 40,
+          alignment: Alignment.center,
+          child: Icon(icon, size: 20, color: color ?? Theme.of(context).textTheme.bodyLarge?.color),
+        ),
+      ),
+    );
+  }
+
+
+  Widget _buildActiveOrderCard(OrderProvider orderProv, model.Order order) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        color: Theme.of(context).cardColor,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Header strip
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              gradient: LinearGradient(
+                colors: [AppTheme.primary, AppTheme.primary.withValues(alpha: 0.8)],
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                if (!isAvailable)
-                  Card(
-                    color: Colors.red.shade900.withValues(alpha: 0.95),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 16,
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.offline_bolt,
-                            color: Colors.white,
-                            size: 28,
-                          ),
-                          SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'أنت متوقف عن العمل حالياً. قم بتفعيل "جاهز للعمل" من القائمة للبدء باستقبال الطلبات.',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ),
-                        ],
+                Row(
+                  children: [
+                    const Icon(Icons.delivery_dining_rounded, color: Colors.white, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      'طلب نشط #${order.id.substring(order.id.length - 6)}',
+                      style: const TextStyle(
+                        fontFamily: 'Outfit',
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        fontSize: 14,
                       ),
                     ),
-                  )
-                else if (isAvailable && activeOrders.isEmpty)
-                  Card(
-                    color: Colors.teal.shade900.withValues(alpha: 0.95),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 16,
-                      ),
-                      child: Row(
-                        children: [
-                          SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          ),
-                          SizedBox(width: 16),
-                          Expanded(
-                            child: Text(
-                              'أنت متصل بالخريطة وبانتظار طلبات جديدة... 📡',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                else if (activeOrders.isNotEmpty)
-                  Card(
-                    elevation: 8,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'طلب نشط #${activeOrders.first.id.substring(activeOrders.first.id.length - 6)}',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
-                              Text(
-                                '${activeOrders.first.totalAmount} ل.س',
-                                style: const TextStyle(
-                                  color: AppTheme.primary,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'العنوان: ${activeOrders.first.deliveryAddress.city ?? ""} - ${activeOrders.first.deliveryAddress.street ?? ""}',
-                            style: const TextStyle(fontSize: 14),
-                          ),
-                          const Divider(height: 20),
-                          _buildOrderActionButtons(
-                            orderProv,
-                            activeOrders.first,
-                          ),
-                        ],
-                      ),
+                  ],
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '${order.deliveryFee.toStringAsFixed(0)} ل.س',
+                    style: const TextStyle(
+                      fontFamily: 'Outfit',
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      fontSize: 13,
                     ),
                   ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.location_on_rounded, size: 16, color: Colors.grey[600]),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        '${order.deliveryAddress.city ?? ""} - ${order.deliveryAddress.street ?? ""}',
+                        style: TextStyle(
+                          fontFamily: 'Outfit',
+                          fontSize: 13,
+                          color: Theme.of(context).textTheme.bodyMedium?.color,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _buildOrderActionButtons(orderProv, order),
               ],
             ),
           ),
