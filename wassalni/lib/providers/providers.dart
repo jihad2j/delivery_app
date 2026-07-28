@@ -140,6 +140,7 @@ class AuthProvider extends ChangeNotifier {
     String? name,
     String? phone,
     Address? address,
+    List<Address>? addresses,
     RestaurantInfo? restaurantInfo,
   }) async {
     _isLoading = true;
@@ -149,6 +150,9 @@ class AuthProvider extends ChangeNotifier {
       if (name != null) updates['name'] = name;
       if (phone != null) updates['phone'] = phone;
       if (address != null) updates['address'] = address.toJson();
+      if (addresses != null) {
+        updates['addresses'] = addresses.map((a) => a.toJson()).toList();
+      }
       if (restaurantInfo != null) {
         updates['description'] = restaurantInfo.description;
         updates['logo'] = restaurantInfo.logo;

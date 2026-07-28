@@ -81,6 +81,10 @@ class WassalniApp extends StatelessWidget {
             return MaterialPageRoute(builder: (_) => const ManageMenuScreen());
           case '/add-product':
             return MaterialPageRoute(builder: (_) => const AddProductScreen());
+          case '/completed-orders':
+            return MaterialPageRoute(
+              builder: (_) => const CompletedOrdersScreen(),
+            );
           case '/profile':
             return MaterialPageRoute(builder: (_) => const ProfileScreen());
           default:

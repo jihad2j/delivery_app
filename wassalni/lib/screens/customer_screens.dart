@@ -54,14 +54,47 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('تطبيق وصلني'),
+        centerTitle: false,
+        title: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: AppTheme.primary.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: AppTheme.primary.withValues(alpha: 0.25),
+              width: 1.2,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.account_balance_wallet_rounded,
+                color: AppTheme.primary,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'الرصيد: ${auth.currentUser?.balance.toStringAsFixed(0)} ل.س',
+                style: const TextStyle(
+                  fontFamily: 'Outfit',
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: AppTheme.primary,
+                ),
+              ),
+            ],
+          ),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.receipt_long_rounded),
+            tooltip: 'طلباتي',
             onPressed: () => Navigator.pushNamed(context, '/customer-orders'),
           ),
           IconButton(
             icon: const Icon(Icons.person_outline_rounded),
+            tooltip: 'الملف الشخصي',
             onPressed: () => Navigator.pushNamed(context, '/profile'),
           ),
         ],
@@ -74,47 +107,8 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Welcome Card with Balance
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(24),
-                decoration: AppTheme.premiumGradientDeco().copyWith(
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'أهلاً بك، ${auth.currentUser?.name} 👋',
-                      style: const TextStyle(
-                        fontFamily: 'Outfit',
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'الرصيد الحالي:',
-                      style: TextStyle(
-                        fontFamily: 'Outfit',
-                        color: Colors.white70,
-                        fontSize: 14,
-                      ),
-                    ),
-                    Text(
-                      '${auth.currentUser?.balance.toStringAsFixed(0)} ل.س',
-                      style: const TextStyle(
-                        fontFamily: 'Outfit',
-                        color: Colors.white,
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
+              // Welcome Header Card
+              const SizedBox(height: 44),
               // Category filter pills
               SizedBox(
                 height: 40,
@@ -185,7 +179,12 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                         if (info == null) return const SizedBox();
 
                         return Card(
-                          margin: const EdgeInsets.only(bottom: 16),
+                          margin: const EdgeInsets.only(bottom: 20),
+                          clipBehavior: Clip.antiAlias,
+                          elevation: 4,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(22),
+                          ),
                           child: InkWell(
                             onTap: () {
                               Navigator.pushNamed(
@@ -194,108 +193,262 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                                 arguments: rest,
                               );
                             },
-                            borderRadius: BorderRadius.circular(20),
-                            child: Padding(
-                              padding: const EdgeInsets.all(12.0),
-                              child: Row(
-                                children: [
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(16),
-                                    child: Image.network(
-                                      info.logo,
-                                      width: 80,
-                                      height: 80,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (c, e, s) => Container(
-                                        width: 80,
-                                        height: 80,
-                                        color: Colors.grey[300],
-                                        child: const Icon(
-                                          Icons.restaurant,
-                                          color: Colors.grey,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // 1. Full Width Restaurant Image
+                                Stack(
+                                  children: [
+                                    SizedBox(
+                                      height: 170,
+                                      width: double.infinity,
+                                      child: Image.network(
+                                        info.logo,
+                                        width: double.infinity,
+                                        height: 170,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (c, e, s) => Container(
+                                          color: Colors.grey[300],
+                                          child: const Center(
+                                            child: Icon(
+                                              Icons.restaurant_rounded,
+                                              size: 50,
+                                              color: Colors.grey,
+                                            ),
+                                          ),
                                         ),
                                       ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          rest.name,
-                                          style: const TextStyle(
-                                            fontFamily: 'Outfit',
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
+                                    // Gradient Overlay
+                                    Positioned.fill(
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            begin: Alignment.topCenter,
+                                            end: Alignment.bottomCenter,
+                                            colors: [
+                                              Colors.black.withValues(
+                                                alpha: 0.15,
+                                              ),
+                                              Colors.transparent,
+                                              Colors.black.withValues(
+                                                alpha: 0.4,
+                                              ),
+                                            ],
                                           ),
                                         ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          '${info.cuisineType} • ${info.description ?? 'لا يوجد وصف'}',
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: Theme.of(
-                                            context,
-                                          ).textTheme.bodyMedium,
+                                      ),
+                                    ),
+                                    // Top-Right Status Badge (مفتوح / مغلق)
+                                    Positioned(
+                                      top: 12,
+                                      right: 12,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 6,
                                         ),
-                                        const SizedBox(height: 8),
-                                        Row(
-                                          children: [
-                                            Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 8,
-                                                    vertical: 4,
-                                                  ),
-                                              decoration: BoxDecoration(
-                                                color: info.status == 'open'
-                                                    ? Colors.green.withValues(alpha:
-                                                        0.1,
-                                                      )
-                                                    : Colors.red.withValues(alpha:
-                                                        0.1,
-                                                      ),
-                                                borderRadius:
-                                                    BorderRadius.circular(8),
-                                              ),
-                                              child: Text(
-                                                info.status == 'open'
-                                                    ? 'مفتوح'
-                                                    : 'مغلق',
-                                                style: TextStyle(
-                                                  fontFamily: 'Outfit',
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: info.status == 'open'
-                                                      ? Colors.green
-                                                      : Colors.red,
+                                        decoration: BoxDecoration(
+                                          color: info.status == 'open'
+                                              ? Colors.green.withValues(
+                                                  alpha: 0.9,
+                                                )
+                                              : Colors.red.withValues(
+                                                  alpha: 0.9,
                                                 ),
-                                              ),
+                                          borderRadius: BorderRadius.circular(
+                                            20,
+                                          ),
+                                          boxShadow: const [
+                                            BoxShadow(
+                                              color: Colors.black26,
+                                              blurRadius: 4,
+                                              offset: Offset(0, 2),
                                             ),
-                                            const SizedBox(width: 12),
-                                            const Icon(
-                                              Icons.delivery_dining_rounded,
-                                              size: 16,
-                                              color: AppTheme.primary,
+                                          ],
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              info.status == 'open'
+                                                  ? Icons.check_circle_rounded
+                                                  : Icons.cancel_rounded,
+                                              color: Colors.white,
+                                              size: 14,
                                             ),
                                             const SizedBox(width: 4),
                                             Text(
-                                              '${info.deliveryFee.toStringAsFixed(0)} ل.س',
+                                              info.status == 'open'
+                                                  ? 'مفتوح'
+                                                  : 'مغلق',
                                               style: const TextStyle(
                                                 fontFamily: 'Outfit',
                                                 fontSize: 12,
-                                                fontWeight: FontWeight.w600,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.white,
                                               ),
                                             ),
                                           ],
                                         ),
-                                      ],
+                                      ),
                                     ),
+                                    // Cuisine Chip on Image
+                                    Positioned(
+                                      bottom: 12,
+                                      right: 12,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withValues(
+                                            alpha: 0.6,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(
+                                              Icons.restaurant_menu_rounded,
+                                              color: Colors.orangeAccent,
+                                              size: 14,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              info.cuisineType,
+                                              style: const TextStyle(
+                                                fontFamily: 'Outfit',
+                                                fontSize: 12,
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+
+                                // 2. Underneath Image: Name, Cuisine, Address, Status & Delivery Info
+                                Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      // Restaurant Name
+                                      Text(
+                                        rest.name,
+                                        style: const TextStyle(
+                                          fontFamily: 'Outfit',
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      // Type of Cuisine & Description
+                                      Row(
+                                        children: [
+                                          const Icon(
+                                            Icons.fastfood_outlined,
+                                            size: 16,
+                                            color: AppTheme.primary,
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Expanded(
+                                            child: Text(
+                                              'نوع الطعام: ${info.cuisineType} • ${info.description ?? "أشهى الوجبات والمأكولات"}',
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodyMedium
+                                                  ?.copyWith(fontSize: 13),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 6),
+                                      // Restaurant Address
+                                      Row(
+                                        children: [
+                                          const Icon(
+                                            Icons.location_on_rounded,
+                                            size: 16,
+                                            color: Colors.redAccent,
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Expanded(
+                                            child: Text(
+                                              'العنوان: ${rest.address?.city ?? "دمشق"} - ${rest.address?.street ?? "الشارع الرئيسي"}',
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodyMedium
+                                                  ?.copyWith(fontSize: 13),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 12),
+                                      const Divider(height: 1),
+                                      const SizedBox(height: 12),
+                                      // Footer: Delivery fee + Action
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              const Icon(
+                                                Icons.delivery_dining_rounded,
+                                                size: 20,
+                                                color: AppTheme.primary,
+                                              ),
+                                              const SizedBox(width: 6),
+                                              Text(
+                                                'توصيل: ${info.deliveryFee.toStringAsFixed(0)} ل.س',
+                                                style: const TextStyle(
+                                                  fontFamily: 'Outfit',
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: AppTheme.primary,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const Row(
+                                            children: [
+                                              Text(
+                                                'عرض المنيو والطلب',
+                                                style: TextStyle(
+                                                  fontFamily: 'Outfit',
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: AppTheme.secondary,
+                                                ),
+                                              ),
+                                              SizedBox(width: 4),
+                                              Icon(
+                                                Icons.arrow_forward_ios_rounded,
+                                                size: 12,
+                                                color: AppTheme.secondary,
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ],
                                   ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
                           ),
                         );
@@ -410,23 +563,7 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                     info.description ?? 'لا يوجد وصف للمطعم',
                     style: Theme.of(context).textTheme.bodyLarge,
                   ),
-                  const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'الحد الأدنى للطلب: ${info.minOrderAmount.toStringAsFixed(0)} ل.س',
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                      Text(
-                        'رسوم التوصيل: ${info.deliveryFee.toStringAsFixed(0)} ل.س',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const Divider(height: 32),
+                  const Divider(height: 22),
                   const Text(
                     'قائمة المأكولات',
                     style: TextStyle(
@@ -435,7 +572,7 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 2),
                 ],
               ),
             ),
@@ -453,115 +590,241 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                     ),
                   ),
                 )
-              : SliverList(
-                  delegate: SliverChildBuilderDelegate((context, index) {
-                    final prod = availableMenu[index];
-                    return Card(
-                      margin: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(12.0),
-                        child: Row(
-                          children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: Image.network(
-                                prod.image,
-                                width: 70,
-                                height: 70,
-                                fit: BoxFit.cover,
-                                errorBuilder: (c, e, s) => Container(
-                                  width: 70,
-                                  height: 70,
-                                  color: Colors.grey[200],
-                                  child: const Icon(
-                                    Icons.fastfood,
-                                    color: Colors.grey,
+              : SliverPadding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      final prod = availableMenu[index];
+                      final isRestaurantOpen = info.status == 'open';
+
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 20),
+                        clipBehavior: Clip.antiAlias,
+                        elevation: 5,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(22),
+                        ),
+                        child: SizedBox(
+                          height: 220,
+                          width: double.infinity,
+                          child: Stack(
+                            children: [
+                              // 1. Food Image covering the ENTIRE card
+                              Positioned.fill(
+                                child: Image.network(
+                                  prod.image,
+                                  width: double.infinity,
+                                  height: 220,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (c, e, s) => Container(
+                                    color: Colors.grey[800],
+                                    child: const Center(
+                                      child: Icon(
+                                        Icons.fastfood_rounded,
+                                        size: 60,
+                                        color: Colors.white38,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    prod.name,
-                                    style: const TextStyle(
-                                      fontFamily: 'Outfit',
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
+
+                              // 2. Dark Gradient Overlay over image for text contrast
+                              Positioned.fill(
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                      colors: [
+                                        Colors.black.withValues(alpha: 0.4),
+                                        Colors.black.withValues(alpha: 0.1),
+                                        Colors.black.withValues(alpha: 0.88),
+                                      ],
                                     ),
                                   ),
-                                  if (prod.description != null) ...[
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      prod.description!,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: Theme.of(
-                                        context,
-                                      ).textTheme.bodyMedium,
-                                    ),
-                                  ],
-                                  const SizedBox(height: 8),
-                                  Text(
+                                ),
+                              ),
+
+                              // 3. Top-Right Corner Badge: Price (السعر)
+                              Positioned(
+                                top: 14,
+                                right: 14,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.primary,
+                                    borderRadius: BorderRadius.circular(20),
+                                    boxShadow: const [
+                                      BoxShadow(
+                                        color: Colors.black38,
+                                        blurRadius: 6,
+                                        offset: Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Text(
                                     '${prod.price.toStringAsFixed(0)} ل.س',
                                     style: const TextStyle(
                                       fontFamily: 'Outfit',
-                                      color: AppTheme.primary,
+                                      color: Colors.white,
                                       fontWeight: FontWeight.bold,
+                                      fontSize: 14,
                                     ),
                                   ),
-                                ],
+                                ),
                               ),
-                            ),
-                            IconButton(
-                              icon: const Icon(
-                                Icons.add_circle_outline_rounded,
-                                color: AppTheme.primary,
-                                size: 28,
+
+                              // 4. Top-Left Corner: Add to Cart Icon Button (زر أيقونة إضافة للسلة)
+                              Positioned(
+                                top: 14,
+                                left: 14,
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(30),
+                                    onTap: () {
+                                      if (!isRestaurantOpen) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              'المطعم مغلق حالياً ولا يقبل الطلبات',
+                                            ),
+                                          ),
+                                        );
+                                        return;
+                                      }
+                                      final success = cart.addItem(prod);
+                                      if (success) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).hideCurrentSnackBar();
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              'تمت إضافة "${prod.name}" إلى السلة 🛒',
+                                            ),
+                                            duration: const Duration(
+                                              seconds: 2,
+                                            ),
+                                            action: SnackBarAction(
+                                              label: 'السلة',
+                                              textColor: Colors.amber,
+                                              onPressed: () {
+                                                Navigator.pushNamed(
+                                                  context,
+                                                  '/cart',
+                                                );
+                                              },
+                                            ),
+                                          ),
+                                        );
+                                      } else {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              'لا يمكنك إضافة منتجات من مطاعم مختلفة إلى نفس السلة. يرجى إفراغ السلة أولاً.',
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: isRestaurantOpen
+                                            ? AppTheme.primary
+                                            : Colors.grey,
+                                        shape: BoxShape.circle,
+                                        boxShadow: const [
+                                          BoxShadow(
+                                            color: Colors.black38,
+                                            blurRadius: 6,
+                                            offset: Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: const Icon(
+                                        Icons.add_shopping_cart_rounded,
+                                        color: Colors.white,
+                                        size: 22,
+                                      ),
+                                    ),
+                                  ),
+                                ),
                               ),
-                              onPressed: () {
-                                if (info.status != 'open') {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'المطعم مغلق حالياً ولا يقبل الطلبات',
+
+                              // 5. Bottom Overlay: Name (اسم الوجبة) & Description (الوصف)
+                              Positioned(
+                                bottom: 14,
+                                left: 16,
+                                right: 16,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      prod.name,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontFamily: 'Outfit',
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                        shadows: [
+                                          Shadow(
+                                            color: Colors.black54,
+                                            blurRadius: 4,
+                                            offset: Offset(0, 1),
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                  );
-                                  return;
-                                }
-                                final success = cart.addItem(prod);
-                                if (success) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'تمت إضافة ${prod.name} إلى السلة',
+                                    if (prod.description != null &&
+                                        prod.description!.isNotEmpty) ...[
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        prod.description!,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontFamily: 'Outfit',
+                                          fontSize: 13,
+                                          color: Colors.white.withValues(
+                                            alpha: 0.85,
+                                          ),
+                                          shadows: const [
+                                            Shadow(
+                                              color: Colors.black54,
+                                              blurRadius: 4,
+                                              offset: Offset(0, 1),
+                                            ),
+                                          ],
+                                        ),
                                       ),
-                                      duration: const Duration(seconds: 1),
-                                    ),
-                                  );
-                                } else {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'لا يمكنك إضافة منتجات من مطاعم مختلفة إلى نفس السلة. يرجى إفراغ السلة أولاً.',
-                                      ),
-                                    ),
-                                  );
-                                }
-                              },
-                            ),
-                          ],
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    );
-                  }, childCount: availableMenu.length),
+                      );
+                    }, childCount: availableMenu.length),
+                  ),
                 ),
         ],
       ),
@@ -1190,9 +1453,14 @@ class _CustomerOrdersScreenState extends State<CustomerOrdersScreen> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 5,
+                                  ),
                                   decoration: BoxDecoration(
-                                    color: AppTheme.primary.withValues(alpha: 0.12),
+                                    color: AppTheme.primary.withValues(
+                                      alpha: 0.12,
+                                    ),
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                   child: Text(
@@ -1219,13 +1487,19 @@ class _CustomerOrdersScreenState extends State<CustomerOrdersScreen> {
                             const SizedBox(height: 12),
                             // Items summary
                             Text(
-                              order.items.map((it) => '${it.name} \u00d7${it.quantity}').join(' \u2022 '),
+                              order.items
+                                  .map(
+                                    (it) => '${it.name} \u00d7${it.quantity}',
+                                  )
+                                  .join(' \u2022 '),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 fontFamily: 'Outfit',
                                 fontSize: 13,
-                                color: Theme.of(context).textTheme.bodyMedium?.color,
+                                color: Theme.of(
+                                  context,
+                                ).textTheme.bodyMedium?.color,
                               ),
                             ),
                             const SizedBox(height: 12),
@@ -1233,7 +1507,10 @@ class _CustomerOrdersScreenState extends State<CustomerOrdersScreen> {
                             Row(
                               children: [
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 5,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: statusColor.withValues(alpha: 0.12),
                                     borderRadius: BorderRadius.circular(20),
@@ -1241,7 +1518,11 @@ class _CustomerOrdersScreenState extends State<CustomerOrdersScreen> {
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(statusIcon, size: 14, color: statusColor),
+                                      Icon(
+                                        statusIcon,
+                                        size: 14,
+                                        color: statusColor,
+                                      ),
                                       const SizedBox(width: 6),
                                       Text(
                                         _getStatusText(order.status),
@@ -1259,7 +1540,9 @@ class _CustomerOrdersScreenState extends State<CustomerOrdersScreen> {
                                 Icon(
                                   Icons.arrow_forward_ios_rounded,
                                   size: 16,
-                                  color: Theme.of(context).textTheme.bodyMedium?.color,
+                                  color: Theme.of(
+                                    context,
+                                  ).textTheme.bodyMedium?.color,
                                 ),
                               ],
                             ),
@@ -1892,7 +2175,9 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
                           foregroundColor: AppTheme.secondary,
                           onPressed: () {
                             try {
-                              final bounds = LatLngBounds.fromPoints(_routePoints);
+                              final bounds = LatLngBounds.fromPoints(
+                                _routePoints,
+                              );
                               _mapController.fitCamera(
                                 CameraFit.bounds(
                                   bounds: bounds,
@@ -1932,7 +2217,9 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).cardColor.withValues(alpha: 0.95),
+                      color: Theme.of(
+                        context,
+                      ).cardColor.withValues(alpha: 0.95),
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
@@ -2151,7 +2438,9 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
         children: [
           Icon(
             isDone ? Icons.check_circle : Icons.radio_button_off,
-            color: isDone ? Colors.green : (isDark ? Colors.grey[600] : Colors.grey[400]),
+            color: isDone
+                ? Colors.green
+                : (isDark ? Colors.grey[600] : Colors.grey[400]),
             size: 22,
           ),
           const SizedBox(width: 12),
