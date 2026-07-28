@@ -2,6 +2,7 @@
 require('dotenv').config();
 const express = require('express');
 const http = require('http');
+const mongoose = require('mongoose');
 const socketIo = require('socket.io');
 const cors = require('cors');
 const connectDB = require('./config/db');
@@ -41,6 +42,10 @@ initRedis().then(({ isRedisConnected, pubClient, subClient }) => {
   console.warn('[Redis] Adapter setup skipped:', err.message);
 });
 
+const { getIsRedisConnected } = require('./config/redis');
+const { authRateLimiter, apiRateLimiter } = require('./middleware/rateLimiter');
+const errorHandler = require('./middleware/errorHandler');
+
 const corsOptions = {
   origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
@@ -52,15 +57,58 @@ app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 connectDB();
 
+// Apply General Rate Limiter to /api
+app.use('/api', apiRateLimiter);
+
 app.get('/', (req, res) => {
   res.json({ message: 'Delivery App API is running!', version: '1.0.0' });
 });
+
+// Comprehensive Health & Monitoring Endpoint
+app.get('/api/health', (req, res) => {
+  const mongooseState = mongoose.connection.readyState;
+  const mongoStatusMap = {
+    0: 'disconnected',
+    1: 'connected',
+    2: 'connecting',
+    3: 'disconnecting'
+  };
+
+  const isRedisConnected = getIsRedisConnected();
+  const memoryUsage = process.memoryUsage();
+
+  res.json({
+    status: 'UP',
+    timestamp: new Date(),
+    uptimeSeconds: Math.floor(process.uptime()),
+    database: {
+      provider: 'MongoDB',
+      status: mongoStatusMap[mongooseState] || 'unknown'
+    },
+    cache: {
+      provider: 'Redis',
+      status: isRedisConnected ? 'connected' : 'standalone_fallback_mode'
+    },
+    system: {
+      memoryUsedMB: (memoryUsage.heapUsed / 1024 / 1024).toFixed(2),
+      totalMemoryAllocatedMB: (memoryUsage.heapTotal / 1024 / 1024).toFixed(2),
+      nodeVersion: process.version
+    }
+  });
+});
+
+// Apply specific rate limiter to Auth routes
+app.use('/api/auth/login', authRateLimiter);
+app.use('/api/auth/register', authRateLimiter);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/restaurants', restaurantRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/admin', adminRoutes);
+
+// Global Error Handling Middleware
+app.use(errorHandler);
 
 // Set io instance for order controller
 orderController.setIoInstance(io);

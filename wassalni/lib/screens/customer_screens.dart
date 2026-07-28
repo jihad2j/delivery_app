@@ -1226,6 +1226,7 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
   double _distanceKm = 0.0;
   double _durationMin = 0.0;
   bool _isLoadingRoute = false;
+  bool _hasAutoZoomedProximity = false;
 
   final MapController _mapController = MapController();
 
@@ -1252,7 +1253,10 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
       if (addr != null && addr['location'] != null) {
         final coords = addr['location']['coordinates'] as List;
         if (coords.length >= 2 && !(coords[0] == 0.0 && coords[1] == 0.0)) {
-          _restaurantLatLng = LatLng(coords[1].toDouble(), coords[0].toDouble());
+          _restaurantLatLng = LatLng(
+            coords[1].toDouble(),
+            coords[0].toDouble(),
+          );
         }
       }
     }
@@ -1261,7 +1265,8 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
       final rests = restProv.restaurants
           .where((r) => r.id == _currentOrder.restaurantIdStr)
           .toList();
-      if (rests.isNotEmpty && rests.first.address?.location?.coordinates != null) {
+      if (rests.isNotEmpty &&
+          rests.first.address?.location?.coordinates != null) {
         final coords = rests.first.address!.location!.coordinates;
         if (coords.length >= 2 && !(coords[0] == 0.0 && coords[1] == 0.0)) {
           _restaurantLatLng = LatLng(coords[1], coords[0]);
@@ -1316,8 +1321,14 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
       double? lat;
       double? lng;
       if (loc is Map) {
-        lat = (loc['lat'] ?? (loc['coordinates'] is List ? loc['coordinates'][1] : null))?.toDouble();
-        lng = (loc['lng'] ?? (loc['coordinates'] is List ? loc['coordinates'][0] : null))?.toDouble();
+        lat =
+            (loc['lat'] ??
+                    (loc['coordinates'] is List ? loc['coordinates'][1] : null))
+                ?.toDouble();
+        lng =
+            (loc['lng'] ??
+                    (loc['coordinates'] is List ? loc['coordinates'][0] : null))
+                ?.toDouble();
       }
       if (lat != null && lng != null) {
         setState(() {
@@ -1337,7 +1348,9 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
       final orderProv = Provider.of<OrderProvider>(context, listen: false);
       orderProv.loadOrders().then((_) {
         if (!mounted) return;
-        final updatedList = orderProv.orders.where((o) => o.id == _currentOrder.id).toList();
+        final updatedList = orderProv.orders
+            .where((o) => o.id == _currentOrder.id)
+            .toList();
         if (updatedList.isNotEmpty) {
           setState(() {
             _currentOrder = updatedList.first;
@@ -1376,31 +1389,52 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
         );
       } else if (status == 'delivered') {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('تم تأكيد الاستلام وتوصيل الطلب بنجاح!')),
+          const SnackBar(
+            content: Text('تم تأكيد الاستلام وتوصيل الطلب بنجاح!'),
+          ),
         );
       }
     }
   }
 
   Future<void> _fetchRoute() async {
-    final hasDriver = ['delivery_accepted', 'preparing', 'ready', 'onTheWay', 'delivered_pending'].contains(_currentOrder.status) && _driverLatLng != null;
+    final hasDriver =
+        [
+          'delivery_accepted',
+          'preparing',
+          'ready',
+          'onTheWay',
+          'delivered_pending',
+        ].contains(_currentOrder.status) &&
+        _driverLatLng != null;
 
     LatLng origin;
     LatLng destination;
 
     if (hasDriver) {
       origin = _driverLatLng!;
-      if (['delivery_accepted', 'preparing', 'ready'].contains(_currentOrder.status)) {
+      if ([
+        'delivery_accepted',
+        'preparing',
+        'ready',
+      ].contains(_currentOrder.status)) {
         destination = _restaurantLatLng ?? const LatLng(33.5138, 36.2765);
       } else {
-        destination = _customerLatLng ?? _restaurantLatLng ?? const LatLng(33.5138, 36.2765);
+        destination =
+            _customerLatLng ??
+            _restaurantLatLng ??
+            const LatLng(33.5138, 36.2765);
       }
     } else {
       origin = _restaurantLatLng ?? const LatLng(33.5138, 36.2765);
-      destination = _customerLatLng ?? _restaurantLatLng ?? const LatLng(33.5138, 36.2765);
+      destination =
+          _customerLatLng ??
+          _restaurantLatLng ??
+          const LatLng(33.5138, 36.2765);
     }
 
-    if (origin.latitude == destination.latitude && origin.longitude == destination.longitude) {
+    if (origin.latitude == destination.latitude &&
+        origin.longitude == destination.longitude) {
       return;
     }
 
@@ -1413,7 +1447,9 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
           '${destination.longitude},${destination.latitude}'
           '?overview=full&geometries=geojson';
 
-      final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 10));
+      final response = await http
+          .get(Uri.parse(url))
+          .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -1433,6 +1469,7 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
               _durationMin = durationS / 60.0;
               _isLoadingRoute = false;
             });
+            _checkProximityAndAutoZoom(destination);
           }
           return;
         }
@@ -1447,6 +1484,27 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
         _durationMin = _distanceKm * 3.0; // Rough estimation
         _isLoadingRoute = false;
       });
+      _checkProximityAndAutoZoom(destination);
+    }
+  }
+
+  void _checkProximityAndAutoZoom(LatLng destination) {
+    if (_distanceKm > 0 && _distanceKm <= 0.5) {
+      if (!_hasAutoZoomedProximity) {
+        _hasAutoZoomedProximity = true;
+        _mapController.move(destination, 17.5);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('🎯 عامل التوصيل أصبح قريباً جداً منك'),
+              duration: Duration(seconds: 3),
+              backgroundColor: AppTheme.primary,
+            ),
+          );
+        }
+      }
+    } else if (_distanceKm > 0.6) {
+      _hasAutoZoomedProximity = false;
     }
   }
 
@@ -1456,7 +1514,8 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
     final dLon = (b.longitude - a.longitude) * pi / 180;
     final lat1 = a.latitude * pi / 180;
     final lat2 = b.latitude * pi / 180;
-    final h = sin(dLat / 2) * sin(dLat / 2) +
+    final h =
+        sin(dLat / 2) * sin(dLat / 2) +
         cos(lat1) * cos(lat2) * sin(dLon / 2) * sin(dLon / 2);
     return 2 * R * asin(sqrt(h));
   }
@@ -1500,7 +1559,11 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
   Widget build(BuildContext context) {
     final orderProv = Provider.of<OrderProvider>(context);
 
-    final mapCenter = _driverLatLng ?? _restaurantLatLng ?? _customerLatLng ?? const LatLng(33.5138, 36.2765);
+    final mapCenter =
+        _driverLatLng ??
+        _restaurantLatLng ??
+        _customerLatLng ??
+        const LatLng(33.5138, 36.2765);
 
     final List<Marker> mapMarkers = [];
 
@@ -1519,9 +1582,15 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
                   color: Colors.orange,
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white, width: 2.5),
-                  boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 6)],
+                  boxShadow: const [
+                    BoxShadow(color: Colors.black26, blurRadius: 6),
+                  ],
                 ),
-                child: const Icon(Icons.restaurant, color: Colors.white, size: 20),
+                child: const Icon(
+                  Icons.restaurant,
+                  color: Colors.white,
+                  size: 20,
+                ),
               ),
             ],
           ),
@@ -1544,9 +1613,15 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
                   color: Colors.green,
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white, width: 2.5),
-                  boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 6)],
+                  boxShadow: const [
+                    BoxShadow(color: Colors.black26, blurRadius: 6),
+                  ],
                 ),
-                child: const Icon(Icons.person_pin_circle, color: Colors.white, size: 20),
+                child: const Icon(
+                  Icons.person_pin_circle,
+                  color: Colors.white,
+                  size: 20,
+                ),
               ),
             ],
           ),
@@ -1555,7 +1630,15 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
     }
 
     // 3. Driver Live Location Marker
-    final hasDriver = ['delivery_accepted', 'preparing', 'ready', 'onTheWay', 'delivered_pending'].contains(_currentOrder.status) && _driverLatLng != null;
+    final hasDriver =
+        [
+          'delivery_accepted',
+          'preparing',
+          'ready',
+          'onTheWay',
+          'delivered_pending',
+        ].contains(_currentOrder.status) &&
+        _driverLatLng != null;
     if (hasDriver) {
       mapMarkers.add(
         Marker(
@@ -1568,10 +1651,18 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
               shape: BoxShape.circle,
               border: Border.all(color: Colors.white, width: 3),
               boxShadow: const [
-                BoxShadow(color: Colors.blueAccent, blurRadius: 10, spreadRadius: 2),
+                BoxShadow(
+                  color: Colors.blueAccent,
+                  blurRadius: 10,
+                  spreadRadius: 2,
+                ),
               ],
             ),
-            child: const Icon(Icons.directions_car_rounded, color: Colors.white, size: 26),
+            child: const Icon(
+              Icons.directions_car_rounded,
+              color: Colors.white,
+              size: 26,
+            ),
           ),
         ),
       );
@@ -1579,7 +1670,9 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('تتبع طلب #${_currentOrder.id.length > 6 ? _currentOrder.id.substring(_currentOrder.id.length - 6) : _currentOrder.id}'),
+        title: Text(
+          'تتبع طلب #${_currentOrder.id.length > 6 ? _currentOrder.id.substring(_currentOrder.id.length - 6) : _currentOrder.id}',
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -1587,7 +1680,7 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
               orderProv.loadOrders();
               _fetchRoute();
             },
-          )
+          ),
         ],
       ),
       body: Column(
@@ -1606,7 +1699,9 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
                   children: [
                     TileLayer(
                       urlTemplate:
-                          'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+                          Theme.of(context).brightness == Brightness.dark
+                          ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+                          : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
                       subdomains: const ['a', 'b', 'c', 'd'],
                       userAgentPackageName: 'com.wassalni.app',
                     ),
@@ -1615,13 +1710,74 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
                         polylines: [
                           Polyline(
                             points: _routePoints,
-                            color: Colors.blue,
+                            color: AppTheme.primary.withOpacity(0.3),
+                            strokeWidth: 9.0,
+                          ),
+                          Polyline(
+                            points: _routePoints,
+                            color: AppTheme.primary,
                             strokeWidth: 5.0,
                           ),
                         ],
                       ),
                     MarkerLayer(markers: mapMarkers),
                   ],
+                ),
+
+                // Floating Map Zoom & Recenter Controls
+                Positioned(
+                  bottom: 16,
+                  left: 16,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      FloatingActionButton.small(
+                        heroTag: 'cust_recenter_btn',
+                        backgroundColor: Theme.of(context).cardColor,
+                        foregroundColor: AppTheme.primary,
+                        onPressed: () {
+                          _mapController.move(mapCenter, 15.0);
+                        },
+                        child: const Icon(Icons.my_location_rounded),
+                      ),
+                      if (_routePoints.length >= 2) ...[
+                        const SizedBox(height: 6),
+                        FloatingActionButton.small(
+                          heroTag: 'cust_fit_bounds_btn',
+                          backgroundColor: Theme.of(context).cardColor,
+                          foregroundColor: AppTheme.secondary,
+                          onPressed: () {
+                            try {
+                              final bounds = LatLngBounds.fromPoints(_routePoints);
+                              _mapController.fitCamera(
+                                CameraFit.bounds(
+                                  bounds: bounds,
+                                  padding: const EdgeInsets.all(60.0),
+                                ),
+                              );
+                            } catch (_) {}
+                          },
+                          child: const Icon(Icons.fit_screen_rounded),
+                        ),
+                      ],
+                      const SizedBox(height: 6),
+                      FloatingActionButton.small(
+                        heroTag: 'cust_zoom_in_btn',
+                        backgroundColor: Theme.of(context).cardColor,
+                        foregroundColor: Theme.of(
+                          context,
+                        ).textTheme.bodyLarge?.color,
+                        onPressed: () {
+                          final currentZoom = _mapController.camera.zoom;
+                          _mapController.move(
+                            _mapController.camera.center,
+                            currentZoom + 1,
+                          );
+                        },
+                        child: const Icon(Icons.add),
+                      ),
+                    ],
+                  ),
                 ),
 
                 // Live ETA & Distance Card Overlay
@@ -1647,11 +1803,15 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
                         Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: hasDriver ? Colors.blue.withOpacity(0.15) : Colors.orange.withOpacity(0.15),
+                            color: hasDriver
+                                ? Colors.blue.withOpacity(0.15)
+                                : Colors.orange.withOpacity(0.15),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
-                            hasDriver ? Icons.delivery_dining : Icons.restaurant,
+                            hasDriver
+                                ? Icons.delivery_dining
+                                : Icons.restaurant,
                             color: hasDriver ? Colors.blue : Colors.orange,
                             size: 26,
                           ),
@@ -1672,7 +1832,10 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
                               _isLoadingRoute
                                   ? const Text(
                                       'جاري حساب الوقت والمسافة...',
-                                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey,
+                                      ),
                                     )
                                   : Text(
                                       hasDriver
@@ -1680,7 +1843,9 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
                                           : 'المسافة للمطعم: ${_distanceKm.toStringAsFixed(1)} كم',
                                       style: TextStyle(
                                         fontSize: 12,
-                                        color: hasDriver ? Colors.blue : Colors.grey[700],
+                                        color: hasDriver
+                                            ? Colors.blue
+                                            : Colors.grey[700],
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
@@ -1701,7 +1866,9 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
             child: Container(
               decoration: BoxDecoration(
                 color: Theme.of(context).scaffoldBackgroundColor,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(24),
+                ),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.08),
@@ -1711,7 +1878,10 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
                 ],
               ),
               child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 16,
+                ),
                 children: [
                   _buildStep(
                     context,
@@ -1773,14 +1943,19 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
                     const Text(
                       'وصل السائق! الرجاء تصوير الطلب لتأكيد الاستلام:',
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     ElevatedButton.icon(
                       onPressed: _pickReceiptImage,
                       icon: const Icon(Icons.camera_alt),
                       label: Text(
-                        _imageFile != null ? 'تغيير الصورة' : 'تصوير الطلب المستلم',
+                        _imageFile != null
+                            ? 'تغيير الصورة'
+                            : 'تصوير الطلب المستلم',
                       ),
                     ),
                     if (_imageFile != null) ...[
@@ -1795,7 +1970,10 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
                         onPressed: () => _confirmReceipt(orderProv),
                         child: const Text(
                           'نعم، استلمت الطلب (تأكيد التسليم)',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ],

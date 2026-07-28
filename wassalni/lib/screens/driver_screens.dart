@@ -33,6 +33,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
   bool _isLoadingRoute = false;
   String? _lastRoutedOrderId;
   String? _lastRoutedOrderStatus;
+  bool _hasAutoZoomedProximity = false;
   final MapController _mapController = MapController();
 
   @override
@@ -192,6 +193,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     super.dispose();
   }
 
+  final Set<String> _dismissedOrderIds = {};
+
   void _onOrderProviderChange() {
     if (!mounted || _isDialogShowing) return;
     final auth = Provider.of<AuthProvider>(context, listen: false);
@@ -225,11 +228,15 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
             _lastRoutedOrderStatus = null;
           });
         }
-      }
 
-      final availableOrders = orderProv.availableOrders;
-      if (availableOrders.isNotEmpty && !_isDialogShowing) {
-        _showOrderOfferDialog(availableOrders.first);
+        // Only offer new orders if driver has NO active delivery
+        final availableOrders = orderProv.availableOrders
+            .where((o) => !_dismissedOrderIds.contains(o.id))
+            .toList();
+
+        if (availableOrders.isNotEmpty && !_isDialogShowing) {
+          _showOrderOfferDialog(availableOrders.first);
+        }
       }
     }
   }
@@ -238,6 +245,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     if (!mounted || _isDialogShowing) return;
 
     _isDialogShowing = true;
+    _dismissedOrderIds.add(order.id);
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -389,38 +398,99 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     AuthProvider auth,
     double totalEarnings,
   ) {
+    final driver = auth.currentUser;
+    final customerPayments = driver?.customerPaymentsWallet ?? 0;
+    final driverEarnings = driver?.driverEarningsWallet ?? 0;
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: const Row(
           children: [
-            Icon(Icons.account_balance_wallet, color: Colors.green),
-            SizedBox(width: 8),
-            Text('تفاصيل الرصيد'),
+            Icon(Icons.account_balance_wallet_rounded, color: AppTheme.primary, size: 28),
+            SizedBox(width: 10),
+            Text('محافظ السائق المزدوجة', style: TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.bold)),
           ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'رصيد المحفظة الحالي: ${auth.currentUser?.balance.toStringAsFixed(0)} ل.س',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            // 1. محفظة أرباح الدليفري
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(18),
+              decoration: AppTheme.walletGradientDeco(isSecondary: false),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.stars_rounded, color: Colors.white, size: 20),
+                      SizedBox(width: 6),
+                      Text(
+                        'رصيد أرباح الدليفري (أجرك الخاص)',
+                        style: TextStyle(fontFamily: 'Outfit', color: Colors.white70, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${driverEarnings.toStringAsFixed(0)} ل.س',
+                    style: const TextStyle(
+                      fontFamily: 'Outfit',
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 12),
-            Text(
-              'إجمالي الأرباح التاريخية: ${totalEarnings.toStringAsFixed(0)} ل.س',
-              style: const TextStyle(color: Colors.grey),
+            const SizedBox(height: 14),
+
+            // 2. محفظة مدفوعات زبائن (كاش)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(18),
+              decoration: AppTheme.walletGradientDeco(isSecondary: true),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.payments_rounded, color: Colors.white, size: 20),
+                      SizedBox(width: 6),
+                      Text(
+                        'رصيد مدفوعات زبائن (مبالغ كاش)',
+                        style: TextStyle(fontFamily: 'Outfit', color: Colors.white70, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${customerPayments.toStringAsFixed(0)} ل.س',
+                    style: const TextStyle(
+                      fontFamily: 'Outfit',
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 16),
-            const Text(
-              'ملاحظة: يتم شحن وسحب الرصيد بالتنسيق مع الإدارة.',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
+            const SizedBox(height: 14),
+            Text(
+              'ملاحظة: يتم تسوية مبالغ الكاش المستلمة وأرباح التوصيل بالتنسيق مع الإدارة.',
+              style: TextStyle(fontFamily: 'Outfit', fontSize: 12, color: Theme.of(context).textTheme.bodyMedium?.color),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
         actions: [
-          TextButton(
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(minimumSize: const Size(120, 44)),
             onPressed: () => Navigator.pop(ctx),
             child: const Text('حسناً'),
           ),
@@ -715,7 +785,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
       }
     }
 
-    targetLatLng ??= const LatLng(33.5150, 36.2850);
+    final destinationLatLng = targetLatLng ?? const LatLng(33.5150, 36.2850);
 
     // Only update and call OSRM route service if order state or ID actually changed, or route points empty
     if (_lastRoutedOrderId == order.id &&
@@ -725,9 +795,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
       setState(() {
         _distanceKm = _calculateHaversineDistance(
           _driverLatLng!,
-          targetLatLng!,
+          destinationLatLng,
         );
       });
+      _checkProximityAndAutoZoom(destinationLatLng);
       return;
     }
 
@@ -740,7 +811,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
       final url =
           'https://router.project-osrm.org/route/v1/driving/'
           '${_driverLatLng!.longitude},${_driverLatLng!.latitude};'
-          '${targetLatLng.longitude},${targetLatLng.latitude}'
+          '${destinationLatLng.longitude},${destinationLatLng.latitude}'
           '?overview=full&geometries=geojson';
 
       final response = await http
@@ -765,6 +836,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
               _durationMin = durationS / 60.0;
               _isLoadingRoute = false;
             });
+            _checkProximityAndAutoZoom(destinationLatLng);
           }
           return;
         }
@@ -774,11 +846,33 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     // Fallback: straight line
     if (mounted) {
       setState(() {
-        _routePoints = [_driverLatLng!, targetLatLng!];
-        _distanceKm = _calculateHaversineDistance(_driverLatLng!, targetLatLng);
+        _routePoints = [_driverLatLng!, destinationLatLng];
+        _distanceKm = _calculateHaversineDistance(_driverLatLng!, destinationLatLng);
         _durationMin = _distanceKm * 3.0; // rough guess
         _isLoadingRoute = false;
       });
+      _checkProximityAndAutoZoom(destinationLatLng);
+    }
+  }
+
+  void _checkProximityAndAutoZoom(LatLng targetLatLng) {
+    if (_driverLatLng == null) return;
+    if (_distanceKm > 0 && _distanceKm <= 0.5) {
+      if (!_hasAutoZoomedProximity) {
+        _hasAutoZoomedProximity = true;
+        _mapController.move(_driverLatLng!, 17.5);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('🎯 أنت قريب جداً من الوجهة! تم تكبير الخريطة لتوضيح الشوارع والمباني'),
+              duration: Duration(seconds: 3),
+              backgroundColor: AppTheme.primary,
+            ),
+          );
+        }
+      }
+    } else if (_distanceKm > 0.6) {
+      _hasAutoZoomedProximity = false;
     }
   }
 
@@ -958,6 +1052,11 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
       );
     }
 
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final mapTileUrl = isDarkMode
+        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+        : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+
     return Scaffold(
       drawer: _buildDrawer(context, auth, isAvailable, orderProv),
       body: Stack(
@@ -969,23 +1068,95 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
               options: MapOptions(initialCenter: mapCenter, initialZoom: 13.0),
               children: [
                 TileLayer(
-                  urlTemplate:
-                      'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+                  urlTemplate: mapTileUrl,
                   subdomains: const ['a', 'b', 'c', 'd'],
                   userAgentPackageName: 'com.wassalni.app',
                 ),
                 if (activeOrders.isNotEmpty && _routePoints.isNotEmpty)
                   PolylineLayer(
                     polylines: [
+                      // Outer Glow Polyline
                       Polyline(
                         points: _routePoints,
-                        color: Colors.blue,
+                        color: AppTheme.primary.withOpacity(0.3),
+                        strokeWidth: 9.0,
+                      ),
+                      // Inner Vibrant Polyline
+                      Polyline(
+                        points: _routePoints,
+                        color: AppTheme.primary,
                         strokeWidth: 5.0,
                       ),
                     ],
                   ),
                 MarkerLayer(markers: mapMarkers),
               ],
+            ),
+          ),
+
+          // 2. Interactive Map Controls (Recenter & Zoom)
+          Positioned(
+            bottom: 220,
+            left: 16,
+            child: SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  FloatingActionButton.small(
+                    heroTag: 'recenter_map_btn',
+                    backgroundColor: Theme.of(context).cardColor,
+                    foregroundColor: AppTheme.primary,
+                    onPressed: () {
+                      if (_driverLatLng != null) {
+                        _mapController.move(_driverLatLng!, 15.5);
+                      }
+                    },
+                    child: const Icon(Icons.my_location_rounded),
+                  ),
+                  if (_routePoints.length >= 2) ...[
+                    const SizedBox(height: 6),
+                    FloatingActionButton.small(
+                      heroTag: 'fit_bounds_btn',
+                      backgroundColor: Theme.of(context).cardColor,
+                      foregroundColor: AppTheme.secondary,
+                      onPressed: () {
+                        try {
+                          final bounds = LatLngBounds.fromPoints(_routePoints);
+                          _mapController.fitCamera(
+                            CameraFit.bounds(
+                              bounds: bounds,
+                              padding: const EdgeInsets.all(60.0),
+                            ),
+                          );
+                        } catch (_) {}
+                      },
+                      child: const Icon(Icons.fit_screen_rounded),
+                    ),
+                  ],
+                  const SizedBox(height: 6),
+                  FloatingActionButton.small(
+                    heroTag: 'zoom_in_map_btn',
+                    backgroundColor: Theme.of(context).cardColor,
+                    foregroundColor: Theme.of(context).textTheme.bodyLarge?.color,
+                    onPressed: () {
+                      final currentZoom = _mapController.camera.zoom;
+                      _mapController.move(_mapController.camera.center, currentZoom + 1);
+                    },
+                    child: const Icon(Icons.add),
+                  ),
+                  const SizedBox(height: 6),
+                  FloatingActionButton.small(
+                    heroTag: 'zoom_out_map_btn',
+                    backgroundColor: Theme.of(context).cardColor,
+                    foregroundColor: Theme.of(context).textTheme.bodyLarge?.color,
+                    onPressed: () {
+                      final currentZoom = _mapController.camera.zoom;
+                      _mapController.move(_mapController.camera.center, currentZoom - 1);
+                    },
+                    child: const Icon(Icons.remove),
+                  ),
+                ],
+              ),
             ),
           ),
 

@@ -18,6 +18,7 @@ class RestaurantHomeScreen extends StatefulWidget {
 
 class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
   int _tabIndex = 0; // 0: Dashboard, 1: Orders, 2: Settings
+  String _selectedFilter = 'all'; // 'all', 'pending', 'preparing', 'ready', 'delivered'
 
   @override
   void initState() {
@@ -202,27 +203,36 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Card(
-                  color: Colors.blue.withOpacity(0.05),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'الطلبات المكتملة',
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          '${completedOrders.length}',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 20,
-                            color: Colors.blue,
+                child: InkWell(
+                  onTap: () {
+                    setState(() {
+                      _tabIndex = 1;
+                      _selectedFilter = 'delivered';
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Card(
+                    color: Colors.blue.withOpacity(0.05),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'الطلبات المكتملة',
+                            style: TextStyle(color: Colors.grey),
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 8),
+                          Text(
+                            '${completedOrders.length}',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 20,
+                              color: Colors.blue,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -244,6 +254,12 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
                 'طلبات جديدة',
                 newCount,
                 Colors.redAccent,
+                onTap: () {
+                  setState(() {
+                    _tabIndex = 1;
+                    _selectedFilter = 'pending';
+                  });
+                },
               ),
               const SizedBox(width: 12),
               _buildStatCounter(
@@ -251,6 +267,12 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
                 'قيد التحضير',
                 preparingCount,
                 Colors.orange,
+                onTap: () {
+                  setState(() {
+                    _tabIndex = 1;
+                    _selectedFilter = 'preparing';
+                  });
+                },
               ),
             ],
           ),
@@ -263,56 +285,174 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
     BuildContext context,
     String title,
     int count,
-    Color color,
-  ) {
+    Color color, {
+    VoidCallback? onTap,
+  }) {
     return Expanded(
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: [
-              Text(title, style: const TextStyle(color: Colors.grey)),
-              const SizedBox(height: 8),
-              Text(
-                '$count',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 28,
-                  color: color,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                Text(title, style: const TextStyle(color: Colors.grey)),
+                const SizedBox(height: 8),
+                Text(
+                  '$count',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 28,
+                    color: color,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  // Order Management (إدارة الطلبات)
+  // Modern Kitchen Order Management - Unified Single-Page View (إدارة الطلبات في صفحة واحدة)
   Widget _buildOrderManagement(OrderProvider orderProv) {
-    return DefaultTabController(
-      length: 4,
-      child: Column(
-        children: [
-          const TabBar(
-            isScrollable: true,
-            labelColor: AppTheme.primary,
-            unselectedLabelColor: Colors.grey,
-            tabs: [
-              Tab(text: 'جديدة'),
-              Tab(text: 'قيد التحضير'),
-              Tab(text: 'جاهزة للتوصيل'),
-              Tab(text: 'مكتملة'),
+    final newOrders = orderProv.orders.where((o) => o.status == 'pending').toList();
+    final preparingOrders = orderProv.orders
+        .where(
+          (o) =>
+              o.status == 'restaurant_accepted' ||
+              o.status == 'delivery_accepted' ||
+              o.status == 'preparing',
+        )
+        .toList();
+    final readyOrders = orderProv.orders.where((o) => o.status == 'ready').toList();
+    final completedOrders = orderProv.orders.where((o) => o.status == 'delivered').toList();
+
+    return Column(
+      children: [
+        // Quick Filter Bar at top
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
             ],
           ),
-          Expanded(
-            child: TabBarView(
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
               children: [
-                _buildOrderList(orderProv, 'pending'),
-                _buildOrderList(orderProv, 'preparing'),
-                _buildOrderList(orderProv, 'ready'),
-                _buildOrderList(orderProv, 'delivered'),
+                _buildFilterChip('الكل (في صفحة واحدة)', 'all', orderProv.orders.length, AppTheme.primary),
+                const SizedBox(width: 8),
+                _buildFilterChip('جديدة', 'pending', newOrders.length, AppTheme.error),
+                const SizedBox(width: 8),
+                _buildFilterChip('قيد التحضير', 'preparing', preparingOrders.length, AppTheme.warning),
+                const SizedBox(width: 8),
+                _buildFilterChip('جاهزة للتوصيل', 'ready', readyOrders.length, AppTheme.accent),
+                const SizedBox(width: 8),
+                _buildFilterChip('مكتملة', 'delivered', completedOrders.length, Colors.green),
               ],
+            ),
+          ),
+        ),
+
+        // Main Unified Body showing all order statuses on the same page
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: () => orderProv.loadOrders(),
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                if (_selectedFilter == 'all' || _selectedFilter == 'pending')
+                  _buildStatusSection(
+                    title: 'الطلبات الجديدة',
+                    icon: Icons.new_releases_rounded,
+                    color: AppTheme.error,
+                    orders: newOrders,
+                    emptyMessage: 'لا توجد طلبات جديدة حالياً',
+                    orderProv: orderProv,
+                  ),
+
+                if (_selectedFilter == 'all' || _selectedFilter == 'preparing')
+                  _buildStatusSection(
+                    title: 'قيد التحضير',
+                    icon: Icons.soup_kitchen_rounded,
+                    color: AppTheme.warning,
+                    orders: preparingOrders,
+                    emptyMessage: 'لا توجد طلبات قيد التحضير حالياً',
+                    orderProv: orderProv,
+                  ),
+
+                if (_selectedFilter == 'all' || _selectedFilter == 'ready')
+                  _buildStatusSection(
+                    title: 'جاهزة للتوصيل',
+                    icon: Icons.takeout_dining_rounded,
+                    color: AppTheme.accent,
+                    orders: readyOrders,
+                    emptyMessage: 'لا توجد طلبات جاهزة للتوصيل حالياً',
+                    orderProv: orderProv,
+                  ),
+
+                if (_selectedFilter == 'all' || _selectedFilter == 'delivered')
+                  _buildStatusSection(
+                    title: 'الطلبات المكتملة',
+                    icon: Icons.check_circle_rounded,
+                    color: Colors.green,
+                    orders: completedOrders,
+                    emptyMessage: 'لا توجد طلبات مكتملة حالياً',
+                    orderProv: orderProv,
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFilterChip(String label, String filterKey, int count, Color color) {
+    final isSelected = _selectedFilter == filterKey;
+    return ChoiceChip(
+      selected: isSelected,
+      onSelected: (_) => setState(() => _selectedFilter = filterKey),
+      selectedColor: color.withOpacity(0.18),
+      backgroundColor: Theme.of(context).cardColor,
+      side: BorderSide(
+        color: isSelected ? color : Colors.grey.withOpacity(0.3),
+        width: isSelected ? 1.8 : 1,
+      ),
+      label: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontFamily: 'Outfit',
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              color: isSelected ? color : Theme.of(context).textTheme.bodyLarge?.color,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: isSelected ? color : Colors.grey.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              '$count',
+              style: TextStyle(
+                fontFamily: 'Outfit',
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: isSelected ? Colors.white : Theme.of(context).textTheme.bodySmall?.color,
+              ),
             ),
           ),
         ],
@@ -320,63 +460,175 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
     );
   }
 
-  Widget _buildOrderList(OrderProvider orderProv, String status) {
-    final List<model.Order> list;
-    if (status == 'preparing') {
-      list = orderProv.orders
-          .where(
-            (o) =>
-                o.status == 'restaurant_accepted' ||
-                o.status == 'delivery_accepted' ||
-                o.status == 'preparing',
-          )
-          .toList();
-    } else {
-      list = orderProv.orders.where((o) => o.status == status).toList();
-    }
-    if (list.isEmpty) {
-      return const Center(child: Text('لا توجد طلبات في هذه الحالة حالياً'));
-    }
+  Widget _buildStatusSection({
+    required String title,
+    required IconData icon,
+    required Color color,
+    required List<model.Order> orders,
+    required String emptyMessage,
+    required OrderProvider orderProv,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Section Header
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          margin: const EdgeInsets.only(top: 8, bottom: 12),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withOpacity(0.2)),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, color: color, size: 22),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: TextStyle(
+                  fontFamily: 'Outfit',
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${orders.length}',
+                  style: const TextStyle(
+                    fontFamily: 'Outfit',
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
 
-    return ListView.builder(
-      itemCount: list.length,
-      padding: const EdgeInsets.all(16),
-      itemBuilder: (ctx, idx) {
-        final order = list[idx];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 16),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        // Section Content
+        if (orders.isEmpty)
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: 16),
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor.withOpacity(0.5),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.withOpacity(0.1)),
+            ),
+            child: Row(
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'طلب #${order.id.substring(order.id.length - 6)}',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      '${order.totalAmount} ل.س',
-                      style: const TextStyle(
-                        color: AppTheme.primary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
+                Icon(Icons.inbox_outlined, size: 20, color: Colors.grey[400]),
+                const SizedBox(width: 10),
+                Text(
+                  emptyMessage,
+                  style: TextStyle(
+                    fontFamily: 'Outfit',
+                    color: Colors.grey[500],
+                    fontSize: 14,
+                  ),
                 ),
-                const SizedBox(height: 12),
-                ...order.items.map(
-                  (it) => Text('• ${it.name} × ${it.quantity}'),
-                ),
-                const Divider(),
-                _buildOrderActionButtons(orderProv, order),
               ],
             ),
+          )
+        else
+          ...orders.map((order) => _buildOrderCard(orderProv, order)),
+
+        const SizedBox(height: 12),
+      ],
+    );
+  }
+
+  Widget _buildOrderCard(OrderProvider orderProv, model.Order order) {
+    final isWallet = order.paymentMethod == 'wallet';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(18),
+      decoration: AppTheme.glassmorphismDeco(cardColor: Theme.of(context).cardColor),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Card Header: Order ID, Payment Method Badge, Amount
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primary.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '#${order.id.length > 6 ? order.id.substring(order.id.length - 6) : order.id}',
+                      style: const TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.bold, color: AppTheme.primary),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: isWallet ? Colors.purple.withOpacity(0.12) : Colors.green.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      isWallet ? '💳 محفظة' : '💵 كاش',
+                      style: TextStyle(
+                        fontFamily: 'Outfit',
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: isWallet ? Colors.purple : Colors.green,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              Text(
+                '${order.totalAmount.toStringAsFixed(0)} ل.س',
+                style: const TextStyle(
+                  fontFamily: 'Outfit',
+                  color: AppTheme.primary,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+              ),
+            ],
           ),
-        );
-      },
+          const SizedBox(height: 14),
+          const Text('الأصناف المطلوبة:', style: TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.bold, fontSize: 14)),
+          const SizedBox(height: 6),
+          ...order.items.map(
+            (it) => Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(color: AppTheme.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
+                    child: Text('×${it.quantity}', style: const TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.bold, color: AppTheme.primary)),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(it.name, style: const TextStyle(fontFamily: 'Outfit', fontSize: 15))),
+                  Text('${(it.price * it.quantity).toStringAsFixed(0)} ل.س', style: const TextStyle(fontFamily: 'Outfit', color: Colors.grey)),
+                ],
+              ),
+            ),
+          ),
+          const Divider(height: 24),
+          _buildOrderActionButtons(orderProv, order),
+        ],
+      ),
     );
   }
 
@@ -385,11 +637,15 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
       return Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(minimumSize: const Size(120, 40)),
-            onPressed: () =>
-                orderProv.updateStatus(order.id, 'restaurant_accepted'),
-            child: const Text('قبول الطلب'),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primary,
+              minimumSize: const Size(140, 46),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+            icon: const Icon(Icons.bolt_rounded, color: Colors.white),
+            onPressed: () => orderProv.updateStatus(order.id, 'restaurant_accepted'),
+            label: const Text('قبول الطلب', style: TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.bold)),
           ),
         ],
       );
@@ -398,13 +654,15 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
       return Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          ElevatedButton(
+          ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange,
-              minimumSize: const Size(120, 40),
+              backgroundColor: AppTheme.warning,
+              minimumSize: const Size(140, 46),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             ),
+            icon: const Icon(Icons.soup_kitchen_rounded, color: Colors.white),
             onPressed: () => orderProv.updateStatus(order.id, 'preparing'),
-            child: const Text('بدء التحضير'),
+            label: const Text('بدء التحضير', style: TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.bold)),
           ),
         ],
       );
@@ -413,39 +671,71 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
       return Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          ElevatedButton(
+          ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-              minimumSize: const Size(120, 40),
+              backgroundColor: AppTheme.accent,
+              minimumSize: const Size(160, 46),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             ),
+            icon: const Icon(Icons.takeout_dining_rounded, color: Colors.white),
             onPressed: () => _markAsReadyWithPicture(orderProv, order.id),
-            child: const Text('جاهز للتوصيل (تغليف الطلب)'),
+            label: const Text('تغليف وجاهز للتوصيل', style: TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.bold)),
           ),
         ],
       );
     }
     if (order.status == 'ready') {
-      return const Row(
-        children: [
-          Icon(Icons.directions_bike, color: Colors.blue),
-          SizedBox(width: 8),
-          Text(
-            'جاري رصد وبحث كابتن توصيل قريب...',
-            style: TextStyle(color: Colors.blue),
-          ),
-        ],
+      return Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(color: Colors.blue.withOpacity(0.08), borderRadius: BorderRadius.circular(12)),
+        child: const Row(
+          children: [
+            Icon(Icons.radar_rounded, color: Colors.blue),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'الطلب جاهز! جاري رصد وبحث كابتن توصيل قريب...',
+                style: TextStyle(fontFamily: 'Outfit', color: Colors.blue, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
       );
     }
     if (order.status == 'delivery_accepted') {
-      return const Row(
-        children: [
-          Icon(Icons.check_circle, color: Colors.green),
-          SizedBox(width: 8),
-          Text(
-            'تم قبول الطلب من قبل الكابتن وهو في الطريق للمطعم',
-            style: TextStyle(color: Colors.green),
-          ),
-        ],
+      return Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(color: Colors.green.withOpacity(0.08), borderRadius: BorderRadius.circular(12)),
+        child: const Row(
+          children: [
+            Icon(Icons.check_circle_rounded, color: Colors.green),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'تم قبول الطلب من قبل الكابتن وهو في الطريق للمطعم',
+                style: TextStyle(fontFamily: 'Outfit', color: Colors.green, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    if (order.status == 'delivered') {
+      return Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(color: Colors.green.withOpacity(0.08), borderRadius: BorderRadius.circular(12)),
+        child: const Row(
+          children: [
+            Icon(Icons.check_circle_rounded, color: Colors.green),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'تم توصيل هذا الطلب للعميل واستلامه بنجاح 🟢',
+                style: TextStyle(fontFamily: 'Outfit', color: Colors.green, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
       );
     }
     return const SizedBox();
