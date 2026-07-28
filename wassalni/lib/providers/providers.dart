@@ -752,54 +752,50 @@ class OrderProvider extends ChangeNotifier {
 
   void setupSocketListeners() {
     SocketService.socket?.off('newOrderAvailable');
+    SocketService.socket?.off('newOrderCreated');
+    SocketService.socket?.off('newOrderForRestaurant');
     SocketService.socket?.off('orderStatus');
+    SocketService.socket?.off('orderStatusChanged');
     SocketService.socket?.off('deliveryConfirmed');
 
-    SocketService.socket?.on('newOrderAvailable', (data) {
-      final newOrder = Order.fromJson(data);
-      if (!_orders.any((o) => o.id == newOrder.id)) {
-        _orders.insert(0, newOrder);
-        SocketService.joinOrderRoom(newOrder.id);
+    void handleNewOrder(dynamic data) {
+      try {
+        if (data == null) return;
+        final Map<String, dynamic> jsonMap = data is Map<String, dynamic> ? data : Map<String, dynamic>.from(data);
+        final newOrder = Order.fromJson(jsonMap);
+
+        final idx = _orders.indexWhere((o) => o.id == newOrder.id);
+        if (idx != -1) {
+          _orders[idx] = newOrder;
+        } else {
+          _orders.insert(0, newOrder);
+          SocketService.joinOrderRoom(newOrder.id);
+        }
+
+        if (!_availableOrders.any((o) => o.id == newOrder.id)) {
+          _availableOrders.insert(0, newOrder);
+        }
+        notifyListeners();
+      } catch (e) {
+        debugPrint('Socket new order parse error: $e');
+        loadOrders();
       }
-      if (!_availableOrders.any((o) => o.id == newOrder.id)) {
-        _availableOrders.insert(0, newOrder);
-      }
-      notifyListeners();
-    });
+    }
+
+    SocketService.socket?.on('newOrderAvailable', handleNewOrder);
+    SocketService.socket?.on('newOrderCreated', handleNewOrder);
+    SocketService.socket?.on('newOrderForRestaurant', handleNewOrder);
 
     SocketService.socket?.on('orderStatus', (data) {
-      final orderId = data['orderId'] ?? data['_id'];
-      final status = data['status'];
-      if (orderId != null && status != null) {
-        final idx = _orders.indexWhere((o) => o.id == orderId.toString());
-        if (idx != -1) {
-          final o = _orders[idx];
-          _orders[idx] = Order(
-            id: o.id,
-            customerId: o.customerId,
-            restaurantId: o.restaurantId,
-            driverId: o.driverId,
-            items: o.items,
-            totalAmount: o.totalAmount,
-            currency: o.currency,
-            deliveryFee: o.deliveryFee,
-            status: status,
-            deliveryAddress: o.deliveryAddress,
-            paymentMethod: o.paymentMethod,
-            paymentStatus: o.paymentStatus,
-            expectedDeliveryTime: o.expectedDeliveryTime,
-            packagedPicture: o.packagedPicture,
-            receivedPicture: o.receivedPicture,
-          );
-        }
-      }
       loadOrders();
-      notifyListeners();
+    });
+
+    SocketService.socket?.on('orderStatusChanged', (data) {
+      loadOrders();
     });
 
     SocketService.socket?.on('deliveryConfirmed', (data) {
       loadOrders();
-      notifyListeners();
     });
   }
 }

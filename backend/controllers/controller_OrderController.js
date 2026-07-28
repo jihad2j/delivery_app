@@ -102,9 +102,11 @@ exports.createOrder = async (req, res) => {
       .populate('restaurantId', 'name restaurantInfo.logo address')
       .populate('customerId', 'name phone');
 
-    // إشعار السائقين القريبين
+    // إشعار المطعم والسائقين بالطلب الجديد مباشرة عبر الـ Socket
     if (io) {
       io.emit('newOrderAvailable', populatedOrder);
+      io.emit('newOrderCreated', populatedOrder);
+      io.emit('newOrderForRestaurant', populatedOrder);
     }
 
     res.status(201).json(populatedOrder);
@@ -294,6 +296,7 @@ exports.updateOrderStatus = async (req, res) => {
         updatedBy: req.user.role,
         timestamp: new Date()
       });
+      io.emit('orderStatusChanged', populated);
 
       // إعلام السائقين بوجود طلب جاهز للتوصيل
       if (status === 'ready') {

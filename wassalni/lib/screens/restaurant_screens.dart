@@ -1,5 +1,6 @@
 // ignore_for_file: use_build_context_synchronously, library_private_types_in_public_api
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -18,6 +19,7 @@ class RestaurantHomeScreen extends StatefulWidget {
 
 class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
   int _tabIndex = 0; // 0: Dashboard, 1: Orders, 2: Menu, 3: Settings
+  Timer? _ordersAutoRefreshTimer;
 
   @override
   void initState() {
@@ -27,9 +29,20 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
       orderProv.loadOrders();
       orderProv.setupSocketListeners();
     });
+
+    _ordersAutoRefreshTimer = Timer.periodic(const Duration(seconds: 12), (_) {
+      if (mounted) {
+        Provider.of<OrderProvider>(context, listen: false).loadOrders();
+      }
+    });
   }
 
   @override
+  void dispose() {
+    _ordersAutoRefreshTimer?.cancel();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthProvider>(context);
