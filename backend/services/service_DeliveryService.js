@@ -45,7 +45,7 @@ async function trackDriverLocation(orderId, driverId, coordinates) {
     const order = await Order.findByIdAndUpdate(
       orderId,
       { $push: { driverLocationHistory: locationEntry } },
-      { new: true }
+      { returnDocument: 'after' }
     );
 
     return order;

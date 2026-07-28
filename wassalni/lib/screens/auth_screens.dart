@@ -133,6 +133,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscureText = true;
+  bool _rememberMe = true;
 
   @override
   Widget build(BuildContext context) {
@@ -230,6 +231,27 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           validator: (v) =>
                               v!.isEmpty ? 'يرجى إدخال كلمة المرور' : null,
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Checkbox(
+                              value: _rememberMe,
+                              activeColor: AppTheme.primary,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              onChanged: (val) {
+                                setState(() {
+                                  _rememberMe = val ?? true;
+                                });
+                              },
+                            ),
+                            const Text(
+                              'حفظ تسجيل الدخول (تذكرني)',
+                              style: TextStyle(fontFamily: 'Outfit', fontSize: 14),
+                            ),
+                          ],
                         ),
                       ],
                     ),

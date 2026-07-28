@@ -27,9 +27,6 @@ router.put('/:id/deliver', authenticate, authorize('driver', 'admin'), orderCont
 // PUT /api/orders/:id/customer-confirm (Customer confirms delivery / delivered)
 router.put('/:id/customer-confirm', authenticate, authorize('customer', 'admin'), orderController.customerConfirmDelivery);
 
-// PUT /api/orders/:id/rate (Customer rates order)
-router.put('/:id/rate', authenticate, authorize('customer', 'admin'), orderController.rateOrder);
-
 // PUT /api/orders/:id/assign (Admin assigns driver)
 router.put('/:id/assign', authenticate, authorize('admin'), orderController.assignDriver);
 

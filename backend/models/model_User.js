@@ -69,8 +69,12 @@ const userSchema = new mongoose.Schema({
       coordinates: { type: [Number], default: [0, 0] }
     }
   },
-  // رصيد المستخدم
-  balance: { type: Number, default: 0 }
+  // رصيد المستخدم العام (للزبائن والمطاعم)
+  balance: { type: Number, default: 0 },
+  // محفظة مدفوعات الزبائن النقدية (خاصة بالسائق)
+  customerPaymentsWallet: { type: Number, default: 0 },
+  // محفظة أرباح التوصيل (خاصة بالسائق)
+  driverEarningsWallet: { type: Number, default: 0 }
 }, { timestamps: true });
 // معلومات المستخدم
 userSchema.index({ 'address.location': '2dsphere' });

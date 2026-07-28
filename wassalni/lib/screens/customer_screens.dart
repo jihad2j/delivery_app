@@ -2,10 +2,14 @@
 
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:http/http.dart' as http;
 import '../providers/providers.dart';
 import '../models/models.dart' as model;
 import '../core/theme.dart';
@@ -1087,10 +1091,6 @@ class _CartScreenState extends State<CartScreen> {
         _showGpsWarning(
           'خدمات الـ GPS معطلة. يرجى تفعيل الـ GPS لإكمال عملية الشراء.',
         );
-      } else if (err == 'GPS_DENIED' || err == 'GPS_DENIED_FOREVER') {
-        _showGpsWarning(
-          'صلاحية الوصول للموقع معطلة. يرجى إعطاء صلاحية الموقع للتطبيق.',
-        );
       } else {
         ScaffoldMessenger.of(
           context,
@@ -1217,60 +1217,248 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
   File? _imageFile;
   final ImagePicker _picker = ImagePicker();
 
+  late model.Order _currentOrder;
+  LatLng? _driverLatLng;
+  LatLng? _restaurantLatLng;
+  LatLng? _customerLatLng;
+
+  List<LatLng> _routePoints = [];
+  double _distanceKm = 0.0;
+  double _durationMin = 0.0;
+  bool _isLoadingRoute = false;
+
+  final MapController _mapController = MapController();
+
   @override
   void initState() {
     super.initState();
-    // Listen for delivery confirmation from driver
+    _currentOrder = widget.order;
+    _initLocationsAndSockets();
+  }
+
+  void _initLocationsAndSockets() {
+    // 1. Extract Customer location
+    if (_currentOrder.deliveryAddress.location != null) {
+      final coords = _currentOrder.deliveryAddress.location!.coordinates;
+      if (coords.length >= 2 && !(coords[0] == 0.0 && coords[1] == 0.0)) {
+        _customerLatLng = LatLng(coords[1], coords[0]);
+      }
+    }
+
+    // 2. Extract Restaurant location
+    if (_currentOrder.restaurantId is Map) {
+      final rMap = _currentOrder.restaurantId as Map;
+      final addr = rMap['address'];
+      if (addr != null && addr['location'] != null) {
+        final coords = addr['location']['coordinates'] as List;
+        if (coords.length >= 2 && !(coords[0] == 0.0 && coords[1] == 0.0)) {
+          _restaurantLatLng = LatLng(coords[1].toDouble(), coords[0].toDouble());
+        }
+      }
+    }
+    if (_restaurantLatLng == null) {
+      final restProv = Provider.of<RestaurantProvider>(context, listen: false);
+      final rests = restProv.restaurants
+          .where((r) => r.id == _currentOrder.restaurantIdStr)
+          .toList();
+      if (rests.isNotEmpty && rests.first.address?.location?.coordinates != null) {
+        final coords = rests.first.address!.location!.coordinates;
+        if (coords.length >= 2 && !(coords[0] == 0.0 && coords[1] == 0.0)) {
+          _restaurantLatLng = LatLng(coords[1], coords[0]);
+        }
+      }
+    }
+    // Fallback restaurant location
+    _restaurantLatLng ??= const LatLng(33.5138, 36.2765);
+
+    // 3. Extract Driver initial location
+    if (_currentOrder.driverId is Map) {
+      final dMap = _currentOrder.driverId as Map;
+      final dInfo = dMap['driverInfo'];
+      if (dInfo != null && dInfo['currentLocation'] != null) {
+        final coords = dInfo['currentLocation']['coordinates'] as List;
+        if (coords.length >= 2 && !(coords[0] == 0.0 && coords[1] == 0.0)) {
+          _driverLatLng = LatLng(coords[1].toDouble(), coords[0].toDouble());
+        }
+      }
+    }
+
+    // Join order socket room
+    SocketService.joinOrderRoom(_currentOrder.id);
+
+    // Listen to real-time driver location updates
+    SocketService.socket?.on('driverLocation', _handleDriverLocationUpdate);
+
+    // Listen to real-time status updates
     SocketService.socket?.on('orderStatus', _handleOrderStatusChange);
+
+    // Initial route calculation
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fetchRoute();
+    });
   }
 
   @override
   void dispose() {
+    SocketService.leaveOrderRoom(_currentOrder.id);
+    SocketService.socket?.off('driverLocation', _handleDriverLocationUpdate);
     SocketService.socket?.off('orderStatus', _handleOrderStatusChange);
     super.dispose();
   }
 
+  void _handleDriverLocationUpdate(dynamic data) {
+    if (!mounted) return;
+    final orderId = data['orderId'];
+    if (orderId != null && orderId != _currentOrder.id) return;
+
+    final loc = data['location'];
+    if (loc != null) {
+      double? lat;
+      double? lng;
+      if (loc is Map) {
+        lat = (loc['lat'] ?? (loc['coordinates'] is List ? loc['coordinates'][1] : null))?.toDouble();
+        lng = (loc['lng'] ?? (loc['coordinates'] is List ? loc['coordinates'][0] : null))?.toDouble();
+      }
+      if (lat != null && lng != null) {
+        setState(() {
+          _driverLatLng = LatLng(lat!, lng!);
+        });
+        _fetchRoute();
+      }
+    }
+  }
+
   void _handleOrderStatusChange(dynamic data) {
+    if (!mounted) return;
     final orderId = data['orderId'] ?? data['_id'];
     final status = data['status'];
-    if (orderId == widget.order.id &&
-        status == 'delivered_pending' &&
-        mounted) {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (ctx) => AlertDialog(
-          icon: const Icon(
-            Icons.delivery_dining,
-            color: Colors.orange,
-            size: 64,
+
+    if (orderId == _currentOrder.id) {
+      final orderProv = Provider.of<OrderProvider>(context, listen: false);
+      orderProv.loadOrders().then((_) {
+        if (!mounted) return;
+        final updatedList = orderProv.orders.where((o) => o.id == _currentOrder.id).toList();
+        if (updatedList.isNotEmpty) {
+          setState(() {
+            _currentOrder = updatedList.first;
+          });
+          _fetchRoute();
+        }
+      });
+
+      if (status == 'delivered_pending') {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => AlertDialog(
+            icon: const Icon(
+              Icons.delivery_dining,
+              color: Colors.orange,
+              size: 64,
+            ),
+            title: const Text('وصل الكابتن! 🚗'),
+            content: const Text('وصل عامل التوصيل بموقعك. هل استلمت الطلب؟'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('ليس بعد'),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  orderProv.loadOrders();
+                },
+                child: const Text('نعم، استلمت الطلب'),
+              ),
+            ],
           ),
-          title: const Text('وصل الكابتن! 🚗'),
-          content: const Text('هل استلمت الطلب من عامل التوصيل؟'),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-              },
-              child: const Text('ليس بعد'),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-              onPressed: () {
-                Navigator.pop(ctx);
-                Provider.of<OrderProvider>(context, listen: false).loadOrders();
-              },
-              child: const Text('نعم، استلمت الطلب'),
-            ),
-          ],
-        ),
-      );
-    } else if (orderId == widget.order.id && status == 'delivered' && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم تأكيد الاستلام وتوصيل الطلب بنجاح!')),
-      );
-      Provider.of<OrderProvider>(context, listen: false).loadOrders();
+        );
+      } else if (status == 'delivered') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تم تأكيد الاستلام وتوصيل الطلب بنجاح!')),
+        );
+      }
     }
+  }
+
+  Future<void> _fetchRoute() async {
+    final hasDriver = ['delivery_accepted', 'preparing', 'ready', 'onTheWay', 'delivered_pending'].contains(_currentOrder.status) && _driverLatLng != null;
+
+    LatLng origin;
+    LatLng destination;
+
+    if (hasDriver) {
+      origin = _driverLatLng!;
+      if (['delivery_accepted', 'preparing', 'ready'].contains(_currentOrder.status)) {
+        destination = _restaurantLatLng ?? const LatLng(33.5138, 36.2765);
+      } else {
+        destination = _customerLatLng ?? _restaurantLatLng ?? const LatLng(33.5138, 36.2765);
+      }
+    } else {
+      origin = _restaurantLatLng ?? const LatLng(33.5138, 36.2765);
+      destination = _customerLatLng ?? _restaurantLatLng ?? const LatLng(33.5138, 36.2765);
+    }
+
+    if (origin.latitude == destination.latitude && origin.longitude == destination.longitude) {
+      return;
+    }
+
+    setState(() => _isLoadingRoute = true);
+
+    try {
+      final url =
+          'https://router.project-osrm.org/route/v1/driving/'
+          '${origin.longitude},${origin.latitude};'
+          '${destination.longitude},${destination.latitude}'
+          '?overview=full&geometries=geojson';
+
+      final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['routes'] != null && data['routes'].isNotEmpty) {
+          final route = data['routes'][0];
+          final geometry = route['geometry']['coordinates'] as List;
+          final points = geometry
+              .map<LatLng>((c) => LatLng(c[1].toDouble(), c[0].toDouble()))
+              .toList();
+          final distanceM = route['distance']?.toDouble() ?? 0.0;
+          final durationS = route['duration']?.toDouble() ?? 0.0;
+
+          if (mounted) {
+            setState(() {
+              _routePoints = points;
+              _distanceKm = distanceM / 1000.0;
+              _durationMin = durationS / 60.0;
+              _isLoadingRoute = false;
+            });
+          }
+          return;
+        }
+      }
+    } catch (_) {}
+
+    // Fallback: straight line
+    if (mounted) {
+      setState(() {
+        _routePoints = [origin, destination];
+        _distanceKm = _calculateHaversineDistance(origin, destination);
+        _durationMin = _distanceKm * 3.0; // Rough estimation
+        _isLoadingRoute = false;
+      });
+    }
+  }
+
+  double _calculateHaversineDistance(LatLng a, LatLng b) {
+    const R = 6371.0;
+    final dLat = (b.latitude - a.latitude) * pi / 180;
+    final dLon = (b.longitude - a.longitude) * pi / 180;
+    final lat1 = a.latitude * pi / 180;
+    final lat2 = b.latitude * pi / 180;
+    final h = sin(dLat / 2) * sin(dLat / 2) +
+        cos(lat1) * cos(lat2) * sin(dLon / 2) * sin(dLon / 2);
+    return 2 * R * asin(sqrt(h));
   }
 
   Future<void> _pickReceiptImage() async {
@@ -1287,131 +1475,6 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final orderProv = Provider.of<OrderProvider>(context);
-
-    return Scaffold(
-      appBar: AppBar(title: const Text('تتبع طلبك')),
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          children: [
-            const SizedBox(height: 24),
-            Text(
-              'حالة الطلب: ${_getStatusText(widget.order.status)}',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
-            ),
-            const SizedBox(height: 32),
-            Expanded(
-              child: ListView(
-                children: [
-                  _buildStep(
-                    context,
-                    'تم استلام الطلب',
-                    [
-                      'pending',
-                      'accepted',
-                      'restaurant_accepted',
-                      'preparing',
-                      'ready',
-                      'delivery_accepted',
-                      'onTheWay',
-                      'delivered_pending',
-                      'delivered',
-                    ].contains(widget.order.status),
-                  ),
-                  _buildStep(
-                    context,
-                    'تم القبول ويتم التحضير',
-                    [
-                      'accepted',
-                      'restaurant_accepted',
-                      'preparing',
-                      'ready',
-                      'delivery_accepted',
-                      'onTheWay',
-                      'delivered_pending',
-                      'delivered',
-                    ].contains(widget.order.status),
-                  ),
-                  _buildStep(
-                    context,
-                    'الطلب جاهز وبانتظار السائق',
-                    [
-                      'ready',
-                      'delivery_accepted',
-                      'onTheWay',
-                      'delivered_pending',
-                      'delivered',
-                    ].contains(widget.order.status),
-                  ),
-                  _buildStep(
-                    context,
-                    'السائق في الطريق إليك',
-                    [
-                      'onTheWay',
-                      'delivered_pending',
-                      'delivered',
-                    ].contains(widget.order.status),
-                  ),
-                  _buildStep(
-                    context,
-                    'تم التوصيل بنجاح',
-                    widget.order.status == 'delivered',
-                  ),
-
-                  if (widget.order.status == 'delivered_pending') ...[
-                    const Divider(height: 48),
-                    const Text(
-                      'الرجاء التقاط صورة للطلب قبل استلامه للأمان وتأكيد الاستلام:',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton.icon(
-                      onPressed: _pickReceiptImage,
-                      icon: const Icon(Icons.camera_alt),
-                      label: Text(
-                        _imageFile != null
-                            ? 'تغيير صورة الطلب المستلم'
-                            : 'تصوير الطلب المستلم',
-                      ),
-                    ),
-                    if (_imageFile != null) ...[
-                      const SizedBox(height: 12),
-                      Image.file(_imageFile!, height: 120, fit: BoxFit.cover),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                        ),
-                        onPressed: () => _confirmReceipt(orderProv),
-                        child: const Text('نعم، استلمت الطلب (تأكيد)'),
-                      ),
-                    ],
-                  ] else if (widget.order.status == 'delivered') ...[
-                    const Divider(height: 48),
-                    const Center(
-                      child: Text(
-                        'تم تأكيد استلام الطلب وتوصيله بنجاح ✓',
-                        style: TextStyle(
-                          color: Colors.green,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Future<void> _confirmReceipt(OrderProvider orderProv) async {
     if (_receivedBase64 == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1420,7 +1483,7 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
       return;
     }
     final err = await orderProv.customerConfirmDelivery(
-      widget.order.id,
+      _currentOrder.id,
       receivedPicture: _receivedBase64,
     );
     if (err == null) {
@@ -1433,18 +1496,354 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
     }
   }
 
-  Widget _buildStep(BuildContext context, String title, bool isDone) {
-    return ListTile(
-      leading: Icon(
-        isDone ? Icons.check_circle : Icons.radio_button_off,
-        color: isDone ? Colors.green : Colors.grey,
-      ),
-      title: Text(
-        title,
-        style: TextStyle(
-          fontFamily: 'Outfit',
-          fontWeight: isDone ? FontWeight.bold : FontWeight.normal,
+  @override
+  Widget build(BuildContext context) {
+    final orderProv = Provider.of<OrderProvider>(context);
+
+    final mapCenter = _driverLatLng ?? _restaurantLatLng ?? _customerLatLng ?? const LatLng(33.5138, 36.2765);
+
+    final List<Marker> mapMarkers = [];
+
+    // 1. Restaurant Marker
+    if (_restaurantLatLng != null) {
+      mapMarkers.add(
+        Marker(
+          point: _restaurantLatLng!,
+          width: 50,
+          height: 50,
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.orange,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2.5),
+                  boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 6)],
+                ),
+                child: const Icon(Icons.restaurant, color: Colors.white, size: 20),
+              ),
+            ],
+          ),
         ),
+      );
+    }
+
+    // 2. Customer Location Marker
+    if (_customerLatLng != null) {
+      mapMarkers.add(
+        Marker(
+          point: _customerLatLng!,
+          width: 50,
+          height: 50,
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.green,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2.5),
+                  boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 6)],
+                ),
+                child: const Icon(Icons.person_pin_circle, color: Colors.white, size: 20),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // 3. Driver Live Location Marker
+    final hasDriver = ['delivery_accepted', 'preparing', 'ready', 'onTheWay', 'delivered_pending'].contains(_currentOrder.status) && _driverLatLng != null;
+    if (hasDriver) {
+      mapMarkers.add(
+        Marker(
+          point: _driverLatLng!,
+          width: 56,
+          height: 56,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.blue,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 3),
+              boxShadow: const [
+                BoxShadow(color: Colors.blueAccent, blurRadius: 10, spreadRadius: 2),
+              ],
+            ),
+            child: const Icon(Icons.directions_car_rounded, color: Colors.white, size: 26),
+          ),
+        ),
+      );
+    }
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('تتبع طلب #${_currentOrder.id.length > 6 ? _currentOrder.id.substring(_currentOrder.id.length - 6) : _currentOrder.id}'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () {
+              orderProv.loadOrders();
+              _fetchRoute();
+            },
+          )
+        ],
+      ),
+      body: Column(
+        children: [
+          // 1. Map Section
+          Expanded(
+            flex: 5,
+            child: Stack(
+              children: [
+                FlutterMap(
+                  mapController: _mapController,
+                  options: MapOptions(
+                    initialCenter: mapCenter,
+                    initialZoom: 14.0,
+                  ),
+                  children: [
+                    TileLayer(
+                      urlTemplate:
+                          'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+                      subdomains: const ['a', 'b', 'c', 'd'],
+                      userAgentPackageName: 'com.wassalni.app',
+                    ),
+                    if (_routePoints.isNotEmpty)
+                      PolylineLayer(
+                        polylines: [
+                          Polyline(
+                            points: _routePoints,
+                            color: Colors.blue,
+                            strokeWidth: 5.0,
+                          ),
+                        ],
+                      ),
+                    MarkerLayer(markers: mapMarkers),
+                  ],
+                ),
+
+                // Live ETA & Distance Card Overlay
+                Positioned(
+                  top: 16,
+                  left: 16,
+                  right: 16,
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor.withOpacity(0.95),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.12),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: hasDriver ? Colors.blue.withOpacity(0.15) : Colors.orange.withOpacity(0.15),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            hasDriver ? Icons.delivery_dining : Icons.restaurant,
+                            color: hasDriver ? Colors.blue : Colors.orange,
+                            size: 26,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _getStatusText(_currentOrder.status),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              _isLoadingRoute
+                                  ? const Text(
+                                      'جاري حساب الوقت والمسافة...',
+                                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                                    )
+                                  : Text(
+                                      hasDriver
+                                          ? 'الوقت المتوقع للوصول: ${_durationMin.toStringAsFixed(0)} دقيقة (${_distanceKm.toStringAsFixed(1)} كم)'
+                                          : 'المسافة للمطعم: ${_distanceKm.toStringAsFixed(1)} كم',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: hasDriver ? Colors.blue : Colors.grey[700],
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // 2. Timeline Progress & Details Section
+          Expanded(
+            flex: 5,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Theme.of(context).scaffoldBackgroundColor,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 10,
+                    offset: const Offset(0, -3),
+                  ),
+                ],
+              ),
+              child: ListView(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                children: [
+                  _buildStep(
+                    context,
+                    'تم إرسال الطلب بنجاح',
+                    [
+                      'pending',
+                      'accepted',
+                      'restaurant_accepted',
+                      'preparing',
+                      'ready',
+                      'delivery_accepted',
+                      'onTheWay',
+                      'delivered_pending',
+                      'delivered',
+                    ].contains(_currentOrder.status),
+                  ),
+                  _buildStep(
+                    context,
+                    'تم قبول الطلب وجاري التحضير بالمطعم',
+                    [
+                      'accepted',
+                      'restaurant_accepted',
+                      'preparing',
+                      'ready',
+                      'delivery_accepted',
+                      'onTheWay',
+                      'delivered_pending',
+                      'delivered',
+                    ].contains(_currentOrder.status),
+                  ),
+                  _buildStep(
+                    context,
+                    'الطلب جاهز وقبله عامل التوصيل',
+                    [
+                      'ready',
+                      'delivery_accepted',
+                      'onTheWay',
+                      'delivered_pending',
+                      'delivered',
+                    ].contains(_currentOrder.status),
+                  ),
+                  _buildStep(
+                    context,
+                    'عامل التوصيل في الطريق إليك 🛵',
+                    [
+                      'onTheWay',
+                      'delivered_pending',
+                      'delivered',
+                    ].contains(_currentOrder.status),
+                  ),
+                  _buildStep(
+                    context,
+                    'تم التوصيل والاستلام بنجاح ✓',
+                    _currentOrder.status == 'delivered',
+                  ),
+
+                  if (_currentOrder.status == 'delivered_pending') ...[
+                    const Divider(height: 32),
+                    const Text(
+                      'وصل السائق! الرجاء تصوير الطلب لتأكيد الاستلام:',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                    const SizedBox(height: 12),
+                    ElevatedButton.icon(
+                      onPressed: _pickReceiptImage,
+                      icon: const Icon(Icons.camera_alt),
+                      label: Text(
+                        _imageFile != null ? 'تغيير الصورة' : 'تصوير الطلب المستلم',
+                      ),
+                    ),
+                    if (_imageFile != null) ...[
+                      const SizedBox(height: 12),
+                      Image.file(_imageFile!, height: 120, fit: BoxFit.cover),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        onPressed: () => _confirmReceipt(orderProv),
+                        child: const Text(
+                          'نعم، استلمت الطلب (تأكيد التسليم)',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ] else if (_currentOrder.status == 'delivered') ...[
+                    const Divider(height: 32),
+                    const Center(
+                      child: Text(
+                        'تم تأكيد استلام الطلب وتوصيله بنجاح 🎉',
+                        style: TextStyle(
+                          color: Colors.green,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStep(BuildContext context, String title, bool isDone) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6.0),
+      child: Row(
+        children: [
+          Icon(
+            isDone ? Icons.check_circle : Icons.radio_button_off,
+            color: isDone ? Colors.green : Colors.grey[400],
+            size: 22,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              title,
+              style: TextStyle(
+                fontFamily: 'Outfit',
+                fontWeight: isDone ? FontWeight.bold : FontWeight.normal,
+                color: isDone ? Colors.black87 : Colors.grey[600],
+                fontSize: 14,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1457,13 +1856,13 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
       case 'restaurant_accepted':
         return 'تم قبول الطلب من المطعم';
       case 'delivery_accepted':
-        return 'تم قبول التوصيل من السائق';
+        return 'تم قبول التوصيل من عامل التوصيل';
       case 'preparing':
         return 'يتم التحضير بالمطعم';
       case 'ready':
-        return 'جاهز للتوصيل وبانتظار السائق';
+        return 'جاهز للتوصيل ובانتظار السائق';
       case 'onTheWay':
-        return 'في الطريق إليك';
+        return 'السائق في الطريق إليك';
       case 'delivered_pending':
         return 'وصل السائق وبانتظار تأكيدك';
       case 'delivered':

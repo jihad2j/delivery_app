@@ -4,6 +4,8 @@ const User = require('../models/model_User');
 const Product = require('../models/model_Product');
 const { findNearbyDrivers } = require('../services/service_DeliveryService');
 const { getExchangeRate } = require('../services/service_CurrencyService');
+const { processOrderDelivery } = require('../services/service_PaymentService');
+const { acquireLock, releaseLock } = require('../config/redis');
 
 // Store io instance globally
 let io = null;
@@ -61,11 +63,22 @@ exports.createOrder = async (req, res) => {
     if (activeOrder) {
       return res.status(400).json({ message: 'لديك طلب جاري، لا يمكنك إنشاء طلب جديد حتى ينتهي طلبك الحالي' });
     }
+    // نوع الدفع
+    const finalPaymentMethod = paymentMethod || 'cash';
 
-    // التحقق من رصيد العميل انه يكفي
+    // التحقق من رصيد العميل في حال الدفع بالمحفظة (حجز الرصيد)
     const customer = await User.findById(req.user.userId);
-    if (!customer || customer.balance < grandTotal) {
-      return res.status(400).json({ message: 'الرصيد غير كافٍ لإتمام عملية الشراء' });
+    if (!customer) {
+      return res.status(404).json({ message: 'المستخدم غير موجود' });
+    }
+
+    if (finalPaymentMethod === 'wallet') {
+      if (customer.balance < grandTotal) {
+        return res.status(400).json({ message: 'لا يمكنك الشراء عن طريق المحفظة إلا إذا كان لديك رصيد كافٍ' });
+      }
+      // حجز الرصيد فوراً من العميل
+      customer.balance -= grandTotal;
+      await customer.save();
     }
 
     const orderData = {
@@ -73,7 +86,7 @@ exports.createOrder = async (req, res) => {
       items: verifiedItems,
       totalAmount: calculatedTotalAmount,
       deliveryAddress,
-      paymentMethod: paymentMethod || 'wallet',
+      paymentMethod: finalPaymentMethod,
       deliveryFee: finalDeliveryFee,
       customerId: req.user.userId,
       currency: 'SYP',
@@ -184,7 +197,7 @@ exports.updateOrderStatus = async (req, res) => {
     if (order.status === status) {
       const userRole = req.user.role;
       const userId = req.user.userId;
-      const isAuthorized = 
+      const isAuthorized =
         (userRole === 'restaurant' && order.restaurantId.toString() === userId.toString()) ||
         (userRole === 'driver' && order.driverId?.toString() === userId.toString()) ||
         (userRole === 'customer' && order.customerId.toString() === userId.toString()) ||
@@ -257,6 +270,12 @@ exports.updateOrderStatus = async (req, res) => {
       });
     }
 
+    // إعادة حجز الرصيد للعميل إذا تم إلغاء الطلب وكان مدفوعاً عبر المحفظة
+    if (status === 'cancelled' && order.paymentMethod === 'wallet' && order.paymentStatus !== 'paid' && order.status !== 'cancelled') {
+      const grandTotal = (order.totalAmount || 0) + (order.deliveryFee || 0);
+      await User.findByIdAndUpdate(order.customerId, { $inc: { balance: grandTotal } });
+    }
+
     order.status = status;
     if (packagedPicture !== undefined) order.packagedPicture = packagedPicture;
     if (receivedPicture !== undefined) order.receivedPicture = receivedPicture;
@@ -292,6 +311,13 @@ exports.updateOrderStatus = async (req, res) => {
 // السائق يقبل الطلب
 // ============================================================
 exports.acceptOrderByDriver = async (req, res) => {
+  const lockKey = `lock:order:accept:${req.params.id}`;
+  const lockValue = await acquireLock(lockKey, 5000);
+
+  if (!lockValue) {
+    return res.status(409).json({ message: 'جاري معالجة هذا الطلب من قبل سائق آخر، يرجى المحاولة مرة أخرى' });
+  }
+
   try {
     const order = await Order.findById(req.params.id);
     if (!order) return res.status(404).json({ message: 'Order not found' });
@@ -327,6 +353,8 @@ exports.acceptOrderByDriver = async (req, res) => {
     res.json(populated);
   } catch (error) {
     res.status(500).json({ message: error.message });
+  } finally {
+    await releaseLock(lockKey, lockValue);
   }
 };
 
@@ -347,7 +375,6 @@ exports.rejectOrderByDriver = async (req, res) => {
 // ============================================================
 // تأكيد التوصيل
 // ============================================================
-const { processOrderDelivery } = require('../services/service_PaymentService');
 
 exports.confirmDelivery = async (req, res) => {
   try {
@@ -433,3 +460,53 @@ exports.customerConfirmDelivery = async (req, res) => {
   }
 };
 
+// ============================================================
+// الإدمن يعين سائق لطلب
+// ============================================================
+exports.assignDriver = async (req, res) => {
+  try {
+    const { driverId } = req.body;
+    if (!driverId) {
+      return res.status(400).json({ message: 'يجب توفير معرف السائق' });
+    }
+
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ message: 'الطلب غير موجود' });
+
+    const driver = await User.findOne({ _id: driverId, role: 'driver' });
+    if (!driver) {
+      return res.status(404).json({ message: 'السائق غير موجود' });
+    }
+
+    const activeOrder = await Order.findOne({
+      driverId: driverId,
+      status: { $in: ['delivery_accepted', 'preparing', 'ready', 'onTheWay', 'delivered_pending'] }
+    });
+    if (activeOrder) {
+      return res.status(400).json({ message: 'السائق لديه طلب نشط بالفعل' });
+    }
+
+    order.driverId = driverId;
+    order.status = 'delivery_accepted';
+    await order.save();
+
+    const populated = await Order.findById(order._id)
+      .populate('restaurantId', 'name restaurantInfo.logo address')
+      .populate('customerId', 'name phone address')
+      .populate('driverId', 'name phone driverInfo');
+
+    if (io) {
+      io.to(order._id.toString()).emit('orderStatus', {
+        orderId: order._id,
+        status: 'delivery_accepted',
+        driverId: driverId,
+        updatedBy: 'admin',
+        timestamp: new Date()
+      });
+    }
+
+    res.json(populated);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

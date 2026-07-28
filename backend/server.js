@@ -19,6 +19,9 @@ const orderRoutes = require('./routes/route_orderRoutes');
 const adminRoutes = require('./routes/route_adminRoutes');
 const orderController = require('./controllers/controller_OrderController');
 
+const { initRedis } = require('./config/redis');
+const { createAdapter } = require('@socket.io/redis-adapter');
+
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
@@ -26,6 +29,16 @@ const io = socketIo(server, {
     origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : '*',
     methods: ['GET', 'POST']
   }
+});
+
+// Initialize Redis & Socket.IO Redis Adapter
+initRedis().then(({ isRedisConnected, pubClient, subClient }) => {
+  if (isRedisConnected && pubClient && subClient) {
+    io.adapter(createAdapter(pubClient, subClient));
+    console.log('[Socket.IO] Redis Adapter initialized for multi-server scaling.');
+  }
+}).catch(err => {
+  console.warn('[Redis] Adapter setup skipped:', err.message);
 });
 
 const corsOptions = {
@@ -83,7 +96,7 @@ io.on('connection', (socket) => {
   socket.on('driverLocationUpdate', async (data) => {
     const { orderId, location } = data;
     if (socket.user.role !== 'driver') return;
-    socket.to(orderId).emit('driverLocation', { location, timestamp: new Date() });
+    io.to(orderId).emit('driverLocation', { orderId, location, timestamp: new Date() });
     try {
       await trackDriverLocation(orderId, socket.user.userId, location);
     } catch (err) {

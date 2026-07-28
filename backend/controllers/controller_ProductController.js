@@ -94,7 +94,7 @@ exports.updateProduct = async (req, res) => {
     if (category !== undefined) updates.category = category;
     if (isAvailable !== undefined) updates.isAvailable = isAvailable;
 
-    const updated = await Product.findByIdAndUpdate(req.params.id, updates, { new: true });
+    const updated = await Product.findByIdAndUpdate(req.params.id, updates, { returnDocument: 'after' });
     res.json(updated);
   } catch (error) {
     res.status(500).json({ message: error.message });

@@ -7,7 +7,7 @@ exports.createRestaurant = async (req, res) => {
     const { name, description, logo, phone, email, address, status, minOrderAmount, deliveryFee } = req.body;
     const user = await User.findById(req.user.userId);
     if (!user) return res.status(404).json({ message: 'User not found' });
-    
+
     user.restaurantInfo = {
       description,
       logo: logo || 'https://via.placeholder.com/150',
@@ -21,7 +21,7 @@ exports.createRestaurant = async (req, res) => {
     if (email) user.email = email;
     if (address) user.address = address;
     user.role = 'restaurant';
-    
+
     await user.save();
     res.status(201).json(user);
   } catch (error) {
@@ -62,11 +62,11 @@ exports.updateRestaurant = async (req, res) => {
     if (restaurant._id.toString() !== req.user.userId.toString() && req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Not authorized' });
     }
-    
+
     // Construct updates for User and restaurantInfo (protecting against Mass Assignment)
     const updates = req.body;
     const mappedUpdates = {};
-    
+
     if (updates.name !== undefined) mappedUpdates.name = updates.name;
     if (updates.phone !== undefined) mappedUpdates.phone = updates.phone;
     if (updates.email !== undefined) mappedUpdates.email = updates.email;
@@ -79,14 +79,13 @@ exports.updateRestaurant = async (req, res) => {
       }
     }
 
-    const updated = await User.findByIdAndUpdate(req.params.id, { $set: mappedUpdates }, { new: true });
+    const updated = await User.findByIdAndUpdate(req.params.id, { $set: mappedUpdates }, { returnDocument: 'after' });
     res.json(updated);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 // الحصول على قائمة المطعمين محددة
-
 exports.getNearbyRestaurants = async (req, res) => {
   try {
     const { lng, lat, radius = 5000 } = req.query;

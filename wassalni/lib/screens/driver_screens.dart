@@ -161,7 +161,16 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
             .toList();
 
         if (activeOrders.isNotEmpty) {
-          _fetchRouteForOrder(activeOrders.first);
+          final activeOrder = activeOrders.first;
+          SocketService.joinOrderRoom(activeOrder.id);
+          SocketService.socket?.emit('driverLocationUpdate', {
+            'orderId': activeOrder.id,
+            'location': {
+              'lat': pos.latitude,
+              'lng': pos.longitude,
+            },
+          });
+          _fetchRouteForOrder(activeOrder);
         }
       }
     } catch (e) {

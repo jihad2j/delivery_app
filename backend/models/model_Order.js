@@ -11,10 +11,14 @@ const orderSchema = new mongoose.Schema({
   customerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   restaurantId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   driverId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  // قائمة المنتجات
   items: [orderItemSchema],
+  // مبلغ الطلب الكلي
   totalAmount: { type: Number, required: true },
+  // العملة
   currency: { type: String, default: 'SYP' },
-  deliveryFee: { type: Number, required: true, default: 0},
+  // رسوم التوصيل
+  deliveryFee: { type: Number, required: true, default: 0 },
   status: {
     type: String,
     enum: [
@@ -30,6 +34,7 @@ const orderSchema = new mongoose.Schema({
     ],
     default: 'pending'
   },
+  // عنوان التوصيل
   deliveryAddress: {
     label: String,
     governorate: String,
@@ -44,15 +49,15 @@ const orderSchema = new mongoose.Schema({
       coordinates: { type: [Number], default: [0, 0] }
     }
   },
-  paymentMethod: { type: String, enum: ['cash', 'wallet'], default: 'cash' },
-  paymentStatus: { type: String, enum: ['paid', 'unpaid'], default: 'unpaid' },
-  expectedDeliveryTime: { type: Date },
-  platformCommission: { type: Number },
-  restaurantShare: { type: Number },
-  driverShare: { type: Number },
-  packagedPicture: { type: String },
-  receivedPicture: { type: String }
-}, { timestamps: true });
+  paymentMethod: { type: String, enum: ['cash', 'wallet'], default: 'cash' }, // تحدد مسبقا عن شراء العميل للطلب
+  paymentStatus: { type: String, enum: ['paid', 'unpaid'], default: 'unpaid' },//  تم الدفع ام لم يتم الدفع
+  expectedDeliveryTime: { type: Date }, // الوقت المقدر
+  platformCommission: { type: Number },//  رسوم الخدمة
+  restaurantShare: { type: Number }, // سعر الوجبة من المطعم
+  driverShare: { type: Number }, // رسوم التوصيل
+  packagedPicture: { type: String },// صورة تغليف الطلب
+  receivedPicture: { type: String } // صورة استلام الطلب
+}, { timestamps: true });// تاريخ الطلب
 
 orderSchema.index({ 'deliveryAddress.location': '2dsphere' });
 

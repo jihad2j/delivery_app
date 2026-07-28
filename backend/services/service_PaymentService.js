@@ -17,28 +17,45 @@ async function executeDeliveryLogic(orderId, session) {
 
   if (!customer || !restaurant || !driver) throw new Error('Customer, Restaurant, or Driver not found');
 
-  // Calculate shares
-  const platformCommissionRate = settings?.value?.platformCommissionRate || 0.10;
-  const driverCommissionRate = settings?.value?.driverCommissionRate || 0.80;
+  // Calculate shares using admin settings
+  const driverCommissionRate = settings?.value?.driverCommissionRate !== undefined 
+    ? Number(settings.value.driverCommissionRate) 
+    : 0.80; // 80% default
+  const platformServiceFee = settings?.value?.serviceFee !== undefined 
+    ? Number(settings.value.serviceFee) 
+    : 0;
+
   const orderTotal = order.totalAmount;
   const deliveryFee = order.deliveryFee || 0;
   const grandTotal = orderTotal + deliveryFee;
 
   const restaurantShare = orderTotal;
-  const platformShareFromDelivery = deliveryFee * (1 - driverCommissionRate);
   const driverShare = deliveryFee * driverCommissionRate;
+  const platformShareFromDelivery = (deliveryFee * (1 - driverCommissionRate)) + platformServiceFee;
 
-  // Check balance
-  if (customer.balance < grandTotal) {
-    throw new Error('رصيد العميل غير كافٍ لإتمام عملية الدفع');
+  if (order.paymentMethod === 'cash') {
+    // التسديد كاش ليد الدليفري:
+    // 1. يضاف مبلغ الطلب الكلي النظير لاستلام الكاش إلى محفظة مدفوعات الزبائن لدى الدليفري
+    await User.findByIdAndUpdate(driver._id, { 
+      $inc: { 
+        customerPaymentsWallet: grandTotal,
+        driverEarningsWallet: driverShare
+      } 
+    }, { session });
+
+    // 2. يضاف حصة المطعم إلى رصيده
+    await User.findByIdAndUpdate(restaurant._id, { $inc: { balance: restaurantShare } }, { session });
+
+  } else {
+    // الدفع عبر المحفظة (تم حجز الخصم مسبقاً من رصيد العميل عند إنشاء الطلب):
+    // 1. يضاف مربح الدليفري إلى محفظة أرباح الدليفري
+    await User.findByIdAndUpdate(driver._id, { 
+      $inc: { driverEarningsWallet: driverShare } 
+    }, { session });
+
+    // 2. يضاف حصة المطعم إلى رصيده
+    await User.findByIdAndUpdate(restaurant._id, { $inc: { balance: restaurantShare } }, { session });
   }
-
-  // Deduct from customer
-  await User.findByIdAndUpdate(customer._id, { $inc: { balance: -grandTotal } }, { session });
-
-  // Add to restaurant and driver
-  await User.findByIdAndUpdate(restaurant._id, { $inc: { balance: restaurantShare } }, { session });
-  await User.findByIdAndUpdate(driver._id, { $inc: { balance: driverShare } }, { session });
 
   // Update order status, shares and payment status
   order.status = 'delivered';

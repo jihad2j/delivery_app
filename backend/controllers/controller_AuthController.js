@@ -105,7 +105,7 @@ exports.updateProfile = async (req, res) => {
     delete updates.balance;
     delete updates.status;
 
-    const user = await User.findByIdAndUpdate(req.user.userId, updates, { new: true }).select('-password');
+    const user = await User.findByIdAndUpdate(req.user.userId, updates, { returnDocument: 'after' }).select('-password');
     if (!user) return res.status(404).json({ message: 'لم يتم العثور على العميل' });
     res.json(user);
   } catch (error) {

@@ -18,20 +18,42 @@ class AuthProvider extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     await ApiService.init();
+
+    // 1. استعادة بيانات الجلسة المحفوظة فوراً لسرعة فتح التطبيق
+    final cachedUserData = await ApiService.getCachedUserData();
+    if (cachedUserData != null) {
+      try {
+        _currentUser = User.fromJson(cachedUserData);
+        _connectSocket();
+      } catch (e) {
+        debugPrint('Error restoring cached user: $e');
+      }
+    }
+
+    // 2. تحديث البيانات من السيرفر إذا كان الرمز موجوداً
     if (ApiService.token != null) {
       try {
         final res = await ApiService.get('/api/auth/profile');
         if (res.statusCode == 200) {
           final data = jsonDecode(res.body);
           _currentUser = User.fromJson(data);
+          await ApiService.saveCachedUserData(data);
           _connectSocket();
-        } else {
-          await ApiService.setToken(null);
+        } else if (res.statusCode == 401 || res.statusCode == 403) {
+          // الرمز منتهي أو غير صالح
+          await logout();
         }
       } catch (e) {
-        debugPrint('Auto-login failed: $e');
+        debugPrint('Auto-login background refresh failed: $e');
+        // في حال انقطاع الشبكة، نبقي على المستخدم مسجلاً بالبيانات المحفوظة
+        if (_currentUser != null) {
+          _connectSocket();
+        }
       }
+    } else {
+      _currentUser = null;
     }
+
     _isLoading = false;
     notifyListeners();
   }
@@ -51,6 +73,7 @@ class AuthProvider extends ChangeNotifier {
         final data = jsonDecode(res.body);
         await ApiService.setToken(data['token']);
         _currentUser = User.fromJson(data['user']);
+        await ApiService.saveCachedUserData(data['user']);
         _connectSocket();
         return null;
       } else {
@@ -99,6 +122,7 @@ class AuthProvider extends ChangeNotifier {
         final data = jsonDecode(res.body);
         await ApiService.setToken(data['token']);
         _currentUser = User.fromJson(data['user']);
+        await ApiService.saveCachedUserData(data['user']);
         _connectSocket();
         return null;
       } else {

@@ -11,6 +11,8 @@ class User {
   final RestaurantInfo? restaurantInfo;
   final DriverInfo? driverInfo;
   final double balance;
+  final double customerPaymentsWallet;
+  final double driverEarningsWallet;
 
   User({
     required this.id,
@@ -25,6 +27,8 @@ class User {
     this.restaurantInfo,
     this.driverInfo,
     required this.balance,
+    this.customerPaymentsWallet = 0,
+    this.driverEarningsWallet = 0,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -51,6 +55,8 @@ class User {
           ? DriverInfo.fromJson(json['driverInfo'])
           : null,
       balance: (json['balance'] ?? 0).toDouble(),
+      customerPaymentsWallet: (json['customerPaymentsWallet'] ?? 0).toDouble(),
+      driverEarningsWallet: (json['driverEarningsWallet'] ?? 0).toDouble(),
     );
   }
 
@@ -68,6 +74,8 @@ class User {
       'restaurantInfo': restaurantInfo?.toJson(),
       'driverInfo': driverInfo?.toJson(),
       'balance': balance,
+      'customerPaymentsWallet': customerPaymentsWallet,
+      'driverEarningsWallet': driverEarningsWallet,
     };
   }
 }

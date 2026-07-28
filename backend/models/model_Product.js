@@ -16,12 +16,9 @@ const productSchema = new mongoose.Schema({
   image: { type: String, required: true },
   // سعر المنتج
   price: { type: Number, required: true },
-  // مبلغ المنتج (optional)
-  totalAmount: { type: Number },
   currency: {
     type: String,
-    enum: ['SYP', 'USD'],
-    default: 'SYP'
+    enum: ['SYP'],
   },
   // نوع المنتج
   category: {

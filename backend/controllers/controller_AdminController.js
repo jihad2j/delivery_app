@@ -21,7 +21,7 @@ exports.getAllUsers = async (req, res) => {
 exports.updateUserStatus = async (req, res) => {
   try {
     const { status } = req.body;
-    const user = await User.findByIdAndUpdate(req.params.id, { status }, { new: true }).select('-password');
+    const user = await User.findByIdAndUpdate(req.params.id, { status }, { returnDocument: 'after' }).select('-password');
     if (!user) return res.status(404).json({ message: 'User not found' });
     res.json(user);
   } catch (error) {
@@ -62,7 +62,7 @@ exports.updateSettings = async (req, res) => {
     const setting = await Setting.findOneAndUpdate(
       { key },
       { value },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     );
     res.json(setting);
   } catch (error) {
@@ -85,7 +85,7 @@ exports.updateCurrencyRate = async (req, res) => {
     const currencyRate = await CurrencyRate.findOneAndUpdate(
       { baseCurrency: 'USD', targetCurrency: 'SYP' },
       { rate, updatedBy: req.user.userId },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     );
     res.json(currencyRate);
   } catch (error) {
