@@ -52,7 +52,10 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
           ),
           child: SafeArea(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16.0,
+                vertical: 6.0,
+              ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -101,7 +104,9 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
                               cuisineType: info.cuisineType,
                               firebaseNotifications: info.firebaseNotifications,
                             );
-                            await auth.updateProfile(restaurantInfo: updatedInfo);
+                            await auth.updateProfile(
+                              restaurantInfo: updatedInfo,
+                            );
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(
@@ -437,7 +442,9 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
               auth.tryAutoLogin();
               Navigator.pop(ctx);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('تم تحديث البيانات المالية والرصيد')),
+                const SnackBar(
+                  content: Text('تم تحديث البيانات المالية والرصيد'),
+                ),
               );
             },
             child: const Text(
@@ -688,18 +695,35 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
     );
   }
 
-  // Modern Kitchen Order Management - Unified Single-Page View (إدارة الطلبات في صفحة واحدة)
+  // Modern Kitchen Order Management - Unified Single-Page View (إدارة الطلبات في قائمة مدمجة موحدة)
   Widget _buildOrderManagement(OrderProvider orderProv) {
-    final newOrders = orderProv.orders.where((o) => o.status == 'pending').toList();
-    final preparingOrders = orderProv.orders
+    final activeOrders = orderProv.orders
         .where(
           (o) =>
+              o.status == 'pending' ||
               o.status == 'restaurant_accepted' ||
+              o.status == 'preparing' ||
               o.status == 'delivery_accepted' ||
-              o.status == 'preparing',
+              o.status == 'ready',
         )
         .toList();
-    final readyOrders = orderProv.orders.where((o) => o.status == 'ready').toList();
+
+    int statusPriority(String status) {
+      switch (status) {
+        case 'pending':
+          return 1;
+        case 'restaurant_accepted':
+        case 'preparing':
+        case 'delivery_accepted':
+          return 2;
+        case 'ready':
+          return 3;
+        default:
+          return 4;
+      }
+    }
+
+    activeOrders.sort((a, b) => statusPriority(a.status).compareTo(statusPriority(b.status)));
 
     return Column(
       children: [
@@ -746,7 +770,7 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      '${newOrders.length + preparingOrders.length + readyOrders.length}',
+                      '${activeOrders.length}',
                       style: const TextStyle(
                         fontFamily: 'Outfit',
                         color: AppTheme.primary,
@@ -799,134 +823,42 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
           ),
         ),
 
-        // Main Unified Body: 1. New (Top), 2. Preparing (Middle), 3. Ready (Bottom)
+        // Main Unified Body: All active orders listed together without section dividers
         Expanded(
           child: RefreshIndicator(
             onRefresh: () => orderProv.loadOrders(),
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                // 1. الطلبات الجديدة (في الأعلى دائماً)
-                _buildStatusSection(
-                  title: 'الطلبات الجديدة',
-                  icon: Icons.new_releases_rounded,
-                  color: AppTheme.error,
-                  orders: newOrders,
-                  emptyMessage: 'لا توجد طلبات جديدة حالياً',
-                  orderProv: orderProv,
-                ),
-
-                // 2. قيد التحضير (في الوسط دائماً)
-                _buildStatusSection(
-                  title: 'قيد التحضير',
-                  icon: Icons.soup_kitchen_rounded,
-                  color: AppTheme.warning,
-                  orders: preparingOrders,
-                  emptyMessage: 'لا توجد طلبات قيد التحضير حالياً',
-                  orderProv: orderProv,
-                ),
-
-                // 3. جاهزة للتوصيل (في الأسفل دائماً)
-                _buildStatusSection(
-                  title: 'جاهزة للتوصيل',
-                  icon: Icons.takeout_dining_rounded,
-                  color: AppTheme.accent,
-                  orders: readyOrders,
-                  emptyMessage: 'لا توجد طلبات جاهزة للتوصيل حالياً',
-                  orderProv: orderProv,
-                ),
-              ],
-            ),
+            child: activeOrders.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.inbox_outlined,
+                          size: 64,
+                          color: Colors.grey[400],
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'لا توجد طلبات جارية حالياً',
+                          style: TextStyle(
+                            fontFamily: 'Outfit',
+                            fontSize: 16,
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: activeOrders.length,
+                    itemBuilder: (context, index) {
+                      return _buildOrderCard(orderProv, activeOrders[index]);
+                    },
+                  ),
           ),
         ),
-      ],
-    );
-  }
-
-  Widget _buildStatusSection({
-    required String title,
-    required IconData icon,
-    required Color color,
-    required List<model.Order> orders,
-    required String emptyMessage,
-    required OrderProvider orderProv,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Section Header
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          margin: const EdgeInsets.only(top: 8, bottom: 12),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: color.withValues(alpha: 0.2)),
-          ),
-          child: Row(
-            children: [
-              Icon(icon, color: color, size: 22),
-              const SizedBox(width: 8),
-              Text(
-                title,
-                style: TextStyle(
-                  fontFamily: 'Outfit',
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: color,
-                ),
-              ),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: color,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '${orders.length}',
-                  style: const TextStyle(
-                    fontFamily: 'Outfit',
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        // Section Content
-        if (orders.isEmpty)
-          Container(
-            width: double.infinity,
-            margin: const EdgeInsets.only(bottom: 16),
-            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.inbox_outlined, size: 20, color: Colors.grey[400]),
-                const SizedBox(width: 10),
-                Text(
-                  emptyMessage,
-                  style: TextStyle(
-                    fontFamily: 'Outfit',
-                    color: Colors.grey[500],
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-          )
-        else
-          ...orders.map((order) => _buildOrderCard(orderProv, order)),
-
-        const SizedBox(height: 12),
       ],
     );
   }
@@ -941,23 +873,19 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
     switch (order.status) {
       case 'pending':
         statusColor = AppTheme.error;
-        statusLabel = 'طلب جديد 🔴';
+        statusLabel = 'جديد 🔴';
         statusIcon = Icons.new_releases_rounded;
         break;
       case 'restaurant_accepted':
-        statusColor = Colors.orange;
-        statusLabel = 'مقبول / بانتظار التحضير 🟠';
-        statusIcon = Icons.rule_rounded;
-        break;
       case 'preparing':
-        statusColor = AppTheme.warning;
+        statusColor = Colors.orange;
         statusLabel = 'قيد التحضير 🍳';
         statusIcon = Icons.soup_kitchen_rounded;
         break;
       case 'ready':
-        statusColor = AppTheme.accent;
-        statusLabel = 'جاهز للتوصيل 📦';
-        statusIcon = Icons.takeout_dining_rounded;
+        statusColor = Colors.green;
+        statusLabel = 'جاهزة للتوصيل 🟢';
+        statusIcon = Icons.check_circle_rounded;
         break;
       case 'delivery_accepted':
         statusColor = Colors.blue;
@@ -978,94 +906,90 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
     return Card(
       margin: const EdgeInsets.only(bottom: 18),
       elevation: 4,
+      clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(
+          color: statusColor.withValues(alpha: 0.5),
+          width: 1.5,
+        ),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(18.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Top Row: Order ID, Payment Method Badge, Status Chip
-            Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Distinct Color Banner Header for each order status
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+            color: statusColor,
+            child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Row(
                   children: [
+                    Icon(statusIcon, size: 18, color: Colors.white),
+                    const SizedBox(width: 6),
+                    Text(
+                      statusLabel,
+                      style: const TextStyle(
+                        fontFamily: 'Outfit',
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+                Row(
+                  children: [
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 5,
+                        horizontal: 8,
+                        vertical: 3,
                       ),
                       decoration: BoxDecoration(
-                        color: AppTheme.primary.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(12),
+                        color: Colors.white.withValues(alpha: 0.22),
+                        borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         '#${order.id.length > 6 ? order.id.substring(order.id.length - 6) : order.id}',
                         style: const TextStyle(
                           fontFamily: 'Outfit',
                           fontWeight: FontWeight.bold,
-                          color: AppTheme.primary,
-                          fontSize: 14,
+                          color: Colors.white,
+                          fontSize: 12,
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 8,
-                        vertical: 4,
+                        vertical: 3,
                       ),
                       decoration: BoxDecoration(
-                        color: isWallet
-                            ? Colors.purple.withValues(alpha: 0.12)
-                            : Colors.green.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(10),
+                        color: Colors.white.withValues(alpha: 0.22),
+                        borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         isWallet ? '💳 محفظة' : '💵 كاش',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontFamily: 'Outfit',
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
-                          color: isWallet ? Colors.purple : Colors.green,
+                          color: Colors.white,
                         ),
                       ),
                     ),
                   ],
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: statusColor.withValues(alpha: 0.3),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(statusIcon, size: 14, color: statusColor),
-                      const SizedBox(width: 4),
-                      Text(
-                        statusLabel,
-                        style: TextStyle(
-                          fontFamily: 'Outfit',
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: statusColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               ],
             ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
             const SizedBox(height: 14),
 
             // Customer Info Box
@@ -1149,58 +1073,58 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
               decoration: BoxDecoration(
                 color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: Colors.grey.withValues(alpha: 0.15),
-                ),
+                border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
               ),
               child: Column(
-                children: order.items.map(
-                  (it) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primary.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            '×${it.quantity}',
-                            style: const TextStyle(
-                              fontFamily: 'Outfit',
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.primary,
-                              fontSize: 13,
+                children: order.items
+                    .map(
+                      (it) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primary.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                '×${it.quantity}',
+                                style: const TextStyle(
+                                  fontFamily: 'Outfit',
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.primary,
+                                  fontSize: 13,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            it.name,
-                            style: const TextStyle(
-                              fontFamily: 'Outfit',
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                it.name,
+                                style: const TextStyle(
+                                  fontFamily: 'Outfit',
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                             ),
-                          ),
+                            Text(
+                              '${(it.price * it.quantity).toStringAsFixed(0)} ل.س',
+                              style: const TextStyle(
+                                fontFamily: 'Outfit',
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
                         ),
-                        Text(
-                          '${(it.price * it.quantity).toStringAsFixed(0)} ل.س',
-                          style: const TextStyle(
-                            fontFamily: 'Outfit',
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ).toList(),
+                      ),
+                    )
+                    .toList(),
               ),
             ),
             const SizedBox(height: 14),
@@ -1233,7 +1157,9 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
           ],
         ),
       ),
-    );
+    ],
+  ),
+);
   }
 
   Widget _buildOrderActionButtons(OrderProvider orderProv, model.Order order) {
@@ -1245,11 +1171,20 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.primary,
               minimumSize: const Size(140, 46),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
             ),
             icon: const Icon(Icons.bolt_rounded, color: Colors.white),
-            onPressed: () => orderProv.updateStatus(order.id, 'restaurant_accepted'),
-            label: const Text('قبول الطلب', style: TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.bold)),
+            onPressed: () =>
+                orderProv.updateStatus(order.id, 'restaurant_accepted'),
+            label: const Text(
+              'قبول الطلب',
+              style: TextStyle(
+                fontFamily: 'Outfit',
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       );
@@ -1262,11 +1197,19 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.warning,
               minimumSize: const Size(140, 46),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
             ),
             icon: const Icon(Icons.soup_kitchen_rounded, color: Colors.white),
             onPressed: () => orderProv.updateStatus(order.id, 'preparing'),
-            label: const Text('بدء التحضير', style: TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.bold)),
+            label: const Text(
+              'بدء التحضير',
+              style: TextStyle(
+                fontFamily: 'Outfit',
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       );
@@ -1279,11 +1222,19 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.accent,
               minimumSize: const Size(160, 46),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
             ),
             icon: const Icon(Icons.takeout_dining_rounded, color: Colors.white),
             onPressed: () => _markAsReadyWithPicture(orderProv, order.id),
-            label: const Text('تغليف وجاهز للتوصيل', style: TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.bold)),
+            label: const Text(
+              'تغليف وجاهز للتوصيل',
+              style: TextStyle(
+                fontFamily: 'Outfit',
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       );
@@ -1291,7 +1242,10 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
     if (order.status == 'ready') {
       return Container(
         padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(color: Colors.blue.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(12)),
+        decoration: BoxDecoration(
+          color: Colors.blue.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(12),
+        ),
         child: const Row(
           children: [
             Icon(Icons.radar_rounded, color: Colors.blue),
@@ -1299,7 +1253,11 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
             Expanded(
               child: Text(
                 'الطلب جاهز! جاري رصد وبحث كابتن توصيل قريب...',
-                style: TextStyle(fontFamily: 'Outfit', color: Colors.blue, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  fontFamily: 'Outfit',
+                  color: Colors.blue,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
@@ -1309,7 +1267,10 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
     if (order.status == 'delivery_accepted') {
       return Container(
         padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(color: Colors.green.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(12)),
+        decoration: BoxDecoration(
+          color: Colors.green.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(12),
+        ),
         child: const Row(
           children: [
             Icon(Icons.check_circle_rounded, color: Colors.green),
@@ -1317,7 +1278,11 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
             Expanded(
               child: Text(
                 'تم قبول الطلب من قبل الكابتن وهو في الطريق للمطعم',
-                style: TextStyle(fontFamily: 'Outfit', color: Colors.green, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  fontFamily: 'Outfit',
+                  color: Colors.green,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
@@ -1327,7 +1292,10 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
     if (order.status == 'delivered') {
       return Container(
         padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(color: Colors.green.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(12)),
+        decoration: BoxDecoration(
+          color: Colors.green.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(12),
+        ),
         child: const Row(
           children: [
             Icon(Icons.check_circle_rounded, color: Colors.green),
@@ -1335,7 +1303,11 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
             Expanded(
               child: Text(
                 'تم توصيل هذا الطلب للعميل واستلامه بنجاح 🟢',
-                style: TextStyle(fontFamily: 'Outfit', color: Colors.green, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  fontFamily: 'Outfit',
+                  color: Colors.green,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
@@ -1603,9 +1575,7 @@ class _ManageMenuScreenState extends State<ManageMenuScreen> {
     final filteredMenu = _getFilteredMenu(restProv.currentMenu);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('إدارة قائمة الطعام (المنيو)'),
-      ),
+      appBar: AppBar(title: const Text('إدارة قائمة الطعام (المنيو)')),
       body: restProv.isLoading
           ? const Center(child: CircularProgressIndicator())
           : Column(
@@ -1624,7 +1594,8 @@ class _ManageMenuScreenState extends State<ManageMenuScreen> {
                         final cat = _categories[idx];
                         final isSelected = _selectedCategoryFilter == cat;
                         return GestureDetector(
-                          onTap: () => setState(() => _selectedCategoryFilter = cat),
+                          onTap: () =>
+                              setState(() => _selectedCategoryFilter = cat),
                           child: Container(
                             margin: const EdgeInsets.only(left: 8),
                             padding: const EdgeInsets.symmetric(
@@ -1648,7 +1619,9 @@ class _ManageMenuScreenState extends State<ManageMenuScreen> {
                                 fontFamily: 'Outfit',
                                 color: isSelected
                                     ? Colors.white
-                                    : Theme.of(context).textTheme.bodyLarge?.color,
+                                    : Theme.of(
+                                        context,
+                                      ).textTheme.bodyLarge?.color,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -1661,7 +1634,10 @@ class _ManageMenuScreenState extends State<ManageMenuScreen> {
 
                 // Menu items summary bar
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 4,
+                  ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -1722,7 +1698,10 @@ class _ManageMenuScreenState extends State<ManageMenuScreen> {
                           ),
                         )
                       : ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
                           itemCount: filteredMenu.length,
                           itemBuilder: (ctx, idx) {
                             final prod = filteredMenu[idx];
@@ -1759,9 +1738,7 @@ class _ManageMenuScreenState extends State<ManageMenuScreen> {
       margin: const EdgeInsets.only(bottom: 20),
       clipBehavior: Clip.antiAlias,
       elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(22),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1811,7 +1788,10 @@ class _ManageMenuScreenState extends State<ManageMenuScreen> {
                 top: 12,
                 right: 12,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
                   decoration: BoxDecoration(
                     color: isAvailable
                         ? Colors.green.withValues(alpha: 0.9)
@@ -1842,7 +1822,10 @@ class _ManageMenuScreenState extends State<ManageMenuScreen> {
                 top: 12,
                 left: 12,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.black.withValues(alpha: 0.6),
                     borderRadius: BorderRadius.circular(14),
@@ -1893,16 +1876,16 @@ class _ManageMenuScreenState extends State<ManageMenuScreen> {
                     ),
                   ],
                 ),
-                if (prod.description != null && prod.description!.isNotEmpty) ...[
+                if (prod.description != null &&
+                    prod.description!.isNotEmpty) ...[
                   const SizedBox(height: 6),
                   Text(
                     prod.description!,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodyMedium
-                        ?.copyWith(fontSize: 13),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodyMedium?.copyWith(fontSize: 13),
                   ),
                 ],
                 const SizedBox(height: 12),
@@ -1948,12 +1931,16 @@ class _ManageMenuScreenState extends State<ManageMenuScreen> {
                             ),
                             const SizedBox(width: 6),
                             Text(
-                              isAvailable ? 'إخفاء الوجبة من العرض' : 'إظهار الوجبة بالمنيو',
+                              isAvailable
+                                  ? 'إخفاء الوجبة من العرض'
+                                  : 'إظهار الوجبة بالمنيو',
                               style: TextStyle(
                                 fontFamily: 'Outfit',
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
-                                color: isAvailable ? Colors.orange : Colors.green,
+                                color: isAvailable
+                                    ? Colors.orange
+                                    : Colors.green,
                               ),
                             ),
                           ],
@@ -1969,7 +1956,8 @@ class _ManageMenuScreenState extends State<ManageMenuScreen> {
                         size: 22,
                       ),
                       tooltip: 'حذف الوجبة',
-                      onPressed: () => _confirmDeleteProduct(restProv, prod.id, prod.name),
+                      onPressed: () =>
+                          _confirmDeleteProduct(restProv, prod.id, prod.name),
                     ),
                   ],
                 ),
@@ -1991,7 +1979,9 @@ class _ManageMenuScreenState extends State<ManageMenuScreen> {
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('حذف الوجبة'),
-        content: Text('هل أنت تأكد من رغبتك في حذف وجبة "$name" من قائمة الطعام؟'),
+        content: Text(
+          'هل أنت تأكد من رغبتك في حذف وجبة "$name" من قائمة الطعام؟',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -2007,9 +1997,9 @@ class _ManageMenuScreenState extends State<ManageMenuScreen> {
                   SnackBar(content: Text('تم حذف وجبة "$name" بنجاح')),
                 );
               } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(err)),
-                );
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text(err)));
               }
             },
             child: const Text('حذف الوجبة'),
@@ -2059,7 +2049,11 @@ class _AddProductScreenState extends State<AddProductScreen> {
                 ),
                 child: const Column(
                   children: [
-                    Icon(Icons.restaurant_menu_rounded, size: 48, color: Colors.white),
+                    Icon(
+                      Icons.restaurant_menu_rounded,
+                      size: 48,
+                      color: Colors.white,
+                    ),
                     SizedBox(height: 12),
                     Text(
                       'أضف وجبة جديدة للمنيو',
@@ -2105,7 +2099,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
                           labelText: 'اسم الوجبة',
                           prefixIcon: Icon(Icons.fastfood_rounded),
                         ),
-                        validator: (v) => v!.isEmpty ? 'يرجى إدخال اسم الوجبة' : null,
+                        validator: (v) =>
+                            v!.isEmpty ? 'يرجى إدخال اسم الوجبة' : null,
                       ),
                       const SizedBox(height: 16),
                       TextFormField(
@@ -2115,7 +2110,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
                           labelText: 'السعر (ل.س)',
                           prefixIcon: Icon(Icons.attach_money_rounded),
                         ),
-                        validator: (v) => v!.isEmpty ? 'يرجى إدخال السعر' : null,
+                        validator: (v) =>
+                            v!.isEmpty ? 'يرجى إدخال السعر' : null,
                       ),
                       const SizedBox(height: 16),
                       TextFormField(
@@ -2166,9 +2162,18 @@ class _AddProductScreenState extends State<AddProductScreen> {
                             value: 'mainCourse',
                             child: Text('وجبة رئيسية'),
                           ),
-                          DropdownMenuItem(value: 'dessert', child: Text('حلويات')),
-                          DropdownMenuItem(value: 'drink', child: Text('مشروبات')),
-                          DropdownMenuItem(value: 'appetizer', child: Text('مقبلات')),
+                          DropdownMenuItem(
+                            value: 'dessert',
+                            child: Text('حلويات'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'drink',
+                            child: Text('مشروبات'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'appetizer',
+                            child: Text('مقبلات'),
+                          ),
                         ],
                         onChanged: (val) {
                           if (val != null) setState(() => _category = val);
@@ -2273,9 +2278,7 @@ class _CompletedOrdersScreenState extends State<CompletedOrdersScreen> {
     final displayedOrders = filteredOrders.take(20).toList();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('سجل الطلبات المكتملة 🟢'),
-      ),
+      appBar: AppBar(title: const Text('سجل الطلبات المكتملة 🟢')),
       body: RefreshIndicator(
         onRefresh: () => orderProv.loadOrders(),
         child: ListView(
@@ -2443,9 +2446,7 @@ class _CompletedOrderCard extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(22),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
       child: Padding(
         padding: const EdgeInsets.all(18.0),
         child: Column(
@@ -2515,7 +2516,11 @@ class _CompletedOrderCard extends StatelessWidget {
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.check_circle_rounded, size: 14, color: Colors.green),
+                      Icon(
+                        Icons.check_circle_rounded,
+                        size: 14,
+                        color: Colors.green,
+                      ),
                       SizedBox(width: 4),
                       Text(
                         'مكتمل ومسلّم 🟢',
@@ -2539,9 +2544,7 @@ class _CompletedOrderCard extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Theme.of(context).cardColor.withValues(alpha: 0.6),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: Colors.grey.withValues(alpha: 0.15),
-                ),
+                border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
               ),
               child: Row(
                 children: [
@@ -2597,58 +2600,58 @@ class _CompletedOrderCard extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: Colors.grey.withValues(alpha: 0.15),
-                ),
+                border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
               ),
               child: Column(
-                children: order.items.map(
-                  (it) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primary.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            '×${it.quantity}',
-                            style: const TextStyle(
-                              fontFamily: 'Outfit',
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.primary,
-                              fontSize: 13,
+                children: order.items
+                    .map(
+                      (it) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primary.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                '×${it.quantity}',
+                                style: const TextStyle(
+                                  fontFamily: 'Outfit',
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.primary,
+                                  fontSize: 13,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            it.name,
-                            style: const TextStyle(
-                              fontFamily: 'Outfit',
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                it.name,
+                                style: const TextStyle(
+                                  fontFamily: 'Outfit',
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                             ),
-                          ),
+                            Text(
+                              '${(it.price * it.quantity).toStringAsFixed(0)} ل.س',
+                              style: const TextStyle(
+                                fontFamily: 'Outfit',
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
                         ),
-                        Text(
-                          '${(it.price * it.quantity).toStringAsFixed(0)} ل.س',
-                          style: const TextStyle(
-                            fontFamily: 'Outfit',
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ).toList(),
+                      ),
+                    )
+                    .toList(),
               ),
             ),
             const SizedBox(height: 14),
