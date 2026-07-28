@@ -9,7 +9,7 @@ import 'package:flutter/foundation.dart';
 class ApiService {
   static List<String> _serverUrls = [
     'http://192.168.31.201:3000', // السيرفر الأساسي
-    'http://192.168.1.110:3000', // السيرفر الاحتياطي 1
+    'https://delivery-app-1-qlgu.onrender.com/',
   ];
   static int _currentServerIndex = 0;
   static String? _token;
