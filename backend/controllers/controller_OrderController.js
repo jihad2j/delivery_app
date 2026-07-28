@@ -440,18 +440,17 @@ exports.customerConfirmDelivery = async (req, res) => {
       .populate('driverId', 'name phone driverInfo');
 
     if (io) {
-      io.to(order._id.toString()).emit('orderStatus', {
+      const payload = {
         orderId: order._id,
         status: 'delivered',
         updatedBy: 'customer',
-        timestamp: new Date()
-      });
-      io.to(order._id.toString()).emit('deliveryConfirmed', {
-        orderId: order._id,
-        status: 'delivered',
         deliveryFee: updatedOrder.deliveryFee,
         timestamp: new Date()
-      });
+      };
+      io.to(order._id.toString()).emit('orderStatus', payload);
+      io.to(order._id.toString()).emit('deliveryConfirmed', payload);
+      io.emit('orderStatus', payload);
+      io.emit('deliveryConfirmed', payload);
     }
 
     res.json({ message: 'تم تأكيد استلام الطلب بنجاح وتوزيع الأرباح', order: updatedOrder });

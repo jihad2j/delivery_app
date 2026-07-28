@@ -749,6 +749,7 @@ class OrderProvider extends ChangeNotifier {
   void setupSocketListeners() {
     SocketService.socket?.off('newOrderAvailable');
     SocketService.socket?.off('orderStatus');
+    SocketService.socket?.off('deliveryConfirmed');
 
     SocketService.socket?.on('newOrderAvailable', (data) {
       final newOrder = Order.fromJson(data);
@@ -766,7 +767,7 @@ class OrderProvider extends ChangeNotifier {
       final orderId = data['orderId'] ?? data['_id'];
       final status = data['status'];
       if (orderId != null && status != null) {
-        final idx = _orders.indexWhere((o) => o.id == orderId);
+        final idx = _orders.indexWhere((o) => o.id == orderId.toString());
         if (idx != -1) {
           final o = _orders[idx];
           _orders[idx] = Order(
@@ -786,9 +787,15 @@ class OrderProvider extends ChangeNotifier {
             packagedPicture: o.packagedPicture,
             receivedPicture: o.receivedPicture,
           );
-          notifyListeners();
         }
       }
+      loadOrders();
+      notifyListeners();
+    });
+
+    SocketService.socket?.on('deliveryConfirmed', (data) {
+      loadOrders();
+      notifyListeners();
     });
   }
 }

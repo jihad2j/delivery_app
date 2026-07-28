@@ -177,7 +177,7 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
             children: [
               Expanded(
                 child: Card(
-                  color: Colors.green.withOpacity(0.05),
+                  color: Colors.green.withValues(alpha: 0.05),
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Column(
@@ -212,7 +212,7 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
                   },
                   borderRadius: BorderRadius.circular(12),
                   child: Card(
-                    color: Colors.blue.withOpacity(0.05),
+                    color: Colors.blue.withValues(alpha: 0.05),
                     child: Padding(
                       padding: const EdgeInsets.all(16.0),
                       child: Column(
@@ -338,7 +338,7 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
             color: Theme.of(context).cardColor,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.04),
+                color: Colors.black.withValues(alpha: 0.04),
                 blurRadius: 4,
                 offset: const Offset(0, 2),
               ),
@@ -421,10 +421,10 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
     return ChoiceChip(
       selected: isSelected,
       onSelected: (_) => setState(() => _selectedFilter = filterKey),
-      selectedColor: color.withOpacity(0.18),
+      selectedColor: color.withValues(alpha: 0.18),
       backgroundColor: Theme.of(context).cardColor,
       side: BorderSide(
-        color: isSelected ? color : Colors.grey.withOpacity(0.3),
+        color: isSelected ? color : Colors.grey.withValues(alpha: 0.3),
         width: isSelected ? 1.8 : 1,
       ),
       label: Row(
@@ -442,7 +442,7 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(
-              color: isSelected ? color : Colors.grey.withOpacity(0.2),
+              color: isSelected ? color : Colors.grey.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Text(
@@ -476,9 +476,9 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           margin: const EdgeInsets.only(top: 8, bottom: 12),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.08),
+            color: color.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: color.withOpacity(0.2)),
+            border: Border.all(color: color.withValues(alpha: 0.2)),
           ),
           child: Row(
             children: [
@@ -521,9 +521,9 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
             margin: const EdgeInsets.only(bottom: 16),
             padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
             decoration: BoxDecoration(
-              color: Theme.of(context).cardColor.withOpacity(0.5),
+              color: Theme.of(context).cardColor.withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.withOpacity(0.1)),
+              border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
             ),
             child: Row(
               children: [
@@ -567,7 +567,7 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: AppTheme.primary.withOpacity(0.12),
+                      color: AppTheme.primary.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
@@ -579,7 +579,7 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: isWallet ? Colors.purple.withOpacity(0.12) : Colors.green.withOpacity(0.12),
+                      color: isWallet ? Colors.purple.withValues(alpha: 0.12) : Colors.green.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
@@ -615,7 +615,7 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
                 children: [
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(color: AppTheme.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
+                    decoration: BoxDecoration(color: AppTheme.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
                     child: Text('×${it.quantity}', style: const TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.bold, color: AppTheme.primary)),
                   ),
                   const SizedBox(width: 8),
@@ -687,7 +687,7 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
     if (order.status == 'ready') {
       return Container(
         padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(color: Colors.blue.withOpacity(0.08), borderRadius: BorderRadius.circular(12)),
+        decoration: BoxDecoration(color: Colors.blue.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(12)),
         child: const Row(
           children: [
             Icon(Icons.radar_rounded, color: Colors.blue),
@@ -705,7 +705,7 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
     if (order.status == 'delivery_accepted') {
       return Container(
         padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(color: Colors.green.withOpacity(0.08), borderRadius: BorderRadius.circular(12)),
+        decoration: BoxDecoration(color: Colors.green.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(12)),
         child: const Row(
           children: [
             Icon(Icons.check_circle_rounded, color: Colors.green),
@@ -723,7 +723,7 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
     if (order.status == 'delivered') {
       return Container(
         padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(color: Colors.green.withOpacity(0.08), borderRadius: BorderRadius.circular(12)),
+        decoration: BoxDecoration(color: Colors.green.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(12)),
         child: const Row(
           children: [
             Icon(Icons.check_circle_rounded, color: Colors.green),
@@ -951,58 +951,236 @@ class _ManageMenuScreenState extends State<ManageMenuScreen> {
       body: restProv.isLoading
           ? const Center(child: CircularProgressIndicator())
           : restProv.currentMenu.isEmpty
-          ? const Center(child: Text('لا توجد وجبات في المنيو الخاص بك'))
-          : ListView.builder(
-              itemCount: restProv.currentMenu.length,
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.restaurant_menu_outlined, size: 72, color: Colors.grey[300]),
+                  const SizedBox(height: 16),
+                  Text(
+                    'لا توجد وجبات في المنيو الخاص بك',
+                    style: TextStyle(
+                      fontFamily: 'Outfit',
+                      fontSize: 16,
+                      color: Colors.grey[500],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'اضغط + لإضافة وجبتك الأولى',
+                    style: TextStyle(
+                      fontFamily: 'Outfit',
+                      fontSize: 13,
+                      color: Colors.grey[400],
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : GridView.builder(
               padding: const EdgeInsets.all(16),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 14,
+                mainAxisSpacing: 14,
+                childAspectRatio: 0.72,
+              ),
+              itemCount: restProv.currentMenu.length,
               itemBuilder: (ctx, idx) {
                 final prod = restProv.currentMenu[idx];
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  child: ListTile(
-                    leading: ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: Image.network(
-                        prod.image,
-                        width: 60,
-                        height: 60,
-                        fit: BoxFit.cover,
-                        errorBuilder: (c, e, s) => Container(
-                          width: 60,
-                          height: 60,
-                          color: Colors.grey[200],
+                return _buildMenuItemCard(context, restProv, prod);
+              },
+            ),
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: AppTheme.primary,
+        onPressed: () => Navigator.pushNamed(context, '/add-product'),
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: const Text(
+          'إضافة وجبة',
+          style: TextStyle(
+            fontFamily: 'Outfit',
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMenuItemCard(BuildContext context, RestaurantProvider restProv, dynamic prod) {
+    final isAvailable = prod.isAvailable as bool;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        color: Theme.of(context).cardColor,
+        boxShadow: [
+          BoxShadow(
+            color: isAvailable
+                ? AppTheme.primary.withValues(alpha: 0.10)
+                : Colors.black.withValues(alpha: 0.05),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(
+          color: isAvailable
+              ? AppTheme.primary.withValues(alpha: 0.18)
+              : Colors.grey.withValues(alpha: 0.15),
+          width: 1.2,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // صورة الوجبة
+          Expanded(
+            flex: 5,
+            child: Stack(
+              children: [
+                // Image
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                  child: Image.network(
+                    prod.image,
+                    width: double.infinity,
+                    height: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (c, e, s) => Container(
+                      color: Colors.grey[100],
+                      child: Icon(
+                        Icons.fastfood_rounded,
+                        size: 48,
+                        color: Colors.grey[300],
+                      ),
+                    ),
+                  ),
+                ),
+                // Availability overlay
+                if (!isAvailable)
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                    child: Container(
+                      color: Colors.black.withValues(alpha: 0.45),
+                      child: const Center(
+                        child: Text(
+                          'غير متوفر',
+                          style: TextStyle(
+                            fontFamily: 'Outfit',
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
                         ),
                       ),
                     ),
-                    title: Text(prod.name),
-                    subtitle: Text('${prod.price.toStringAsFixed(0)} ل.س'),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Show/Hide meal switch
-                        Switch(
-                          value: prod.isAvailable,
-                          onChanged: (val) {
-                            restProv.updateProductAvailability(prod.id, val);
-                          },
-                        ),
-                        IconButton(
-                          icon: const Icon(
-                            Icons.delete_outline,
-                            color: Colors.red,
-                          ),
-                          onPressed: () => _deleteProduct(restProv, prod.id),
-                        ),
-                      ],
+                  ),
+                // Available badge
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: isAvailable
+                          ? Colors.green.withValues(alpha: 0.9)
+                          : Colors.red.withValues(alpha: 0.85),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      isAvailable ? '🟢 متوفر' : '🔴 مخفي',
+                      style: const TextStyle(
+                        fontFamily: 'Outfit',
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
-                );
-              },
+                ),
+              ],
             ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppTheme.primary,
-        onPressed: () => Navigator.pushNamed(context, '/add-product'),
-        child: const Icon(Icons.add, color: Colors.white),
+          ),
+
+          // معلومات الوجبة
+          Expanded(
+            flex: 4,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    prod.name,
+                    style: const TextStyle(
+                      fontFamily: 'Outfit',
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const Spacer(),
+                  Text(
+                    '${prod.price.toStringAsFixed(0)} ل.س',
+                    style: const TextStyle(
+                      fontFamily: 'Outfit',
+                      color: AppTheme.primary,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  // Action Row
+                  Row(
+                    children: [
+                      // Toggle visibility
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => restProv.updateProductAvailability(prod.id, !isAvailable),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 250),
+                            padding: const EdgeInsets.symmetric(vertical: 6),
+                            decoration: BoxDecoration(
+                              color: isAvailable
+                                  ? Colors.green.withValues(alpha: 0.12)
+                                  : Colors.grey.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(
+                              isAvailable
+                                  ? Icons.visibility_rounded
+                                  : Icons.visibility_off_rounded,
+                              size: 20,
+                              color: isAvailable ? Colors.green : Colors.grey,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Delete
+                      GestureDetector(
+                        onTap: () => _deleteProduct(restProv, prod.id),
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withValues(alpha: 0.10),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(
+                            Icons.delete_outline_rounded,
+                            size: 20,
+                            color: Colors.red,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1044,65 +1222,163 @@ class _AddProductScreenState extends State<AddProductScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('إضافة وجبة جديدة')),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
+        padding: const EdgeInsets.all(20.0),
         child: Form(
           key: _formKey,
           child: Column(
             children: [
-              TextFormField(
-                controller: _nameController,
-                decoration: const InputDecoration(labelText: 'اسم الوجبة'),
-                validator: (v) => v!.isEmpty ? 'يرجى إدخال اسم الوجبة' : null,
+              // Header Card
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(24),
+                decoration: AppTheme.premiumGradientDeco().copyWith(
+                  borderRadius: BorderRadius.circular(22),
+                ),
+                child: const Column(
+                  children: [
+                    Icon(Icons.restaurant_menu_rounded, size: 48, color: Colors.white),
+                    SizedBox(height: 12),
+                    Text(
+                      'أضف وجبة جديدة للمنيو',
+                      style: TextStyle(
+                        fontFamily: 'Outfit',
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'أدخل تفاصيل الوجبة لعرضها في قائمتك',
+                      style: TextStyle(
+                        fontFamily: 'Outfit',
+                        color: Colors.white70,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _priceController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'السعر (ل.س)'),
-                validator: (v) => v!.isEmpty ? 'يرجى إدخال السعر' : null,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _descController,
-                decoration: const InputDecoration(labelText: 'وصف الوجبة'),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _imageController,
-                decoration: const InputDecoration(
-                  labelText: 'رابط صورة الوجبة',
+              const SizedBox(height: 24),
+              // Form Card
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'معلومات الوجبة',
+                        style: TextStyle(
+                          fontFamily: 'Outfit',
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _nameController,
+                        decoration: const InputDecoration(
+                          labelText: 'اسم الوجبة',
+                          prefixIcon: Icon(Icons.fastfood_rounded),
+                        ),
+                        validator: (v) => v!.isEmpty ? 'يرجى إدخال اسم الوجبة' : null,
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _priceController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'السعر (ل.س)',
+                          prefixIcon: Icon(Icons.attach_money_rounded),
+                        ),
+                        validator: (v) => v!.isEmpty ? 'يرجى إدخال السعر' : null,
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _descController,
+                        maxLines: 2,
+                        decoration: const InputDecoration(
+                          labelText: 'وصف الوجبة (اختياري)',
+                          prefixIcon: Icon(Icons.description_outlined),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _imageController,
+                        decoration: const InputDecoration(
+                          labelText: 'رابط صورة الوجبة',
+                          prefixIcon: Icon(Icons.image_outlined),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                value: _category,
-                decoration: const InputDecoration(labelText: 'التصنيف'),
-                items: const [
-                  DropdownMenuItem(
-                    value: 'mainCourse',
-                    child: Text('وجبة رئيسية'),
+              // Settings Card
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'إعدادات الوجبة',
+                        style: TextStyle(
+                          fontFamily: 'Outfit',
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<String>(
+                        value: _category,
+                        decoration: const InputDecoration(
+                          labelText: 'التصنيف',
+                          prefixIcon: Icon(Icons.category_rounded),
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'mainCourse',
+                            child: Text('وجبة رئيسية'),
+                          ),
+                          DropdownMenuItem(value: 'dessert', child: Text('حلويات')),
+                          DropdownMenuItem(value: 'drink', child: Text('مشروبات')),
+                          DropdownMenuItem(value: 'appetizer', child: Text('مقبلات')),
+                        ],
+                        onChanged: (val) {
+                          if (val != null) setState(() => _category = val);
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('الوجبة متوفرة حالياً بالمنيو'),
+                        subtitle: Text(
+                          _isAvailable ? 'ستظهر للعملاء' : 'مخفية من العملاء',
+                          style: TextStyle(
+                            fontFamily: 'Outfit',
+                            fontSize: 12,
+                            color: _isAvailable ? Colors.green : Colors.grey,
+                          ),
+                        ),
+                        value: _isAvailable,
+                        onChanged: (val) => setState(() => _isAvailable = val),
+                      ),
+                    ],
                   ),
-                  DropdownMenuItem(value: 'dessert', child: Text('حلويات')),
-                  DropdownMenuItem(value: 'drink', child: Text('مشروبات')),
-                  DropdownMenuItem(value: 'appetizer', child: Text('مقبلات')),
-                ],
-                onChanged: (val) {
-                  if (val != null) setState(() => _category = val);
-                },
+                ),
               ),
-              const SizedBox(height: 16),
-              SwitchListTile(
-                title: const Text('الوجبة متوفرة حالياً بالمنيو'),
-                value: _isAvailable,
-                onChanged: (val) => setState(() => _isAvailable = val),
-              ),
-              const SizedBox(height: 40),
+              const SizedBox(height: 32),
               restProv.isLoading
                   ? const CircularProgressIndicator()
-                  : ElevatedButton(
+                  : ElevatedButton.icon(
                       onPressed: () => _submit(restProv),
-                      child: const Text('إضافة الوجبة'),
+                      icon: const Icon(Icons.add_circle_outline_rounded),
+                      label: const Text('إضافة الوجبة'),
                     ),
+              const SizedBox(height: 16),
             ],
           ),
         ),

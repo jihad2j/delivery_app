@@ -62,58 +62,54 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     );
   }
 
+  String? _currentlyTrackedOrderId;
+
   void _onDeliveryConfirmedByCustomer(dynamic data) {
     if (!mounted) return;
-    final orderId = data['orderId'];
     final orderProv = Provider.of<OrderProvider>(context, listen: false);
+    orderProv.loadOrders().then((_) {
+      if (!mounted) return;
+      _triggerDeliveryConfirmedSuccess();
+    });
+  }
+
+  void _triggerDeliveryConfirmedSuccess() {
+    if (!mounted || _isDialogShowing) return;
+    _isDialogShowing = true;
+
     final auth = Provider.of<AuthProvider>(context, listen: false);
-    final activeOrders = orderProv.orders
-        .where(
-          (o) =>
-              o.driverIdStr == auth.currentUser?.id &&
-              [
-                'delivery_accepted',
-                'preparing',
-                'ready',
-                'onTheWay',
-                'delivered_pending',
-              ].contains(o.status),
-        )
-        .toList();
+    auth.tryAutoLogin(); // Update driver balances immediately
 
-    if (activeOrders.isNotEmpty && orderId == activeOrders.first.id) {
-      orderProv.loadOrders();
-      auth.tryAutoLogin(); // Update balance
+    setState(() {
+      _routePoints.clear();
+      _distanceKm = 0.0;
+      _durationMin = 0.0;
+      _lastRoutedOrderId = null;
+      _lastRoutedOrderStatus = null;
+      _currentlyTrackedOrderId = null;
+    });
 
-      // Reset routing variables
-      setState(() {
-        _routePoints.clear();
-        _distanceKm = 0.0;
-        _durationMin = 0.0;
-        _lastRoutedOrderId = null;
-        _lastRoutedOrderStatus = null;
-      });
-
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (ctx) => AlertDialog(
-          icon: const Icon(Icons.check_circle, color: Colors.green, size: 64),
-          title: const Text('تم تأكيد التوصيل! 🎉'),
-          content: const Text(
-            'قام العميل بتأكيد استلام الطلب بنجاح وتم تسوية المبالغ المالية بنجاح.',
-          ),
-          actions: [
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-              },
-              child: const Text('حسناً'),
-            ),
-          ],
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        icon: const Icon(Icons.check_circle, color: Colors.green, size: 64),
+        title: const Text('تم تأكيد التوصيل! 🎉'),
+        content: const Text(
+          'قام العميل بتأكيد استلام الطلب بنجاح وتم تسوية المبالغ المالية بأرباحك ومحفظتك.',
         ),
-      );
-    }
+        actions: [
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+            },
+            child: const Text('حسناً'),
+          ),
+        ],
+      ),
+    ).then((_) {
+      _isDialogShowing = false;
+    });
   }
 
   void _startDriverLocationUpdates() {
@@ -200,11 +196,12 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     final auth = Provider.of<AuthProvider>(context, listen: false);
     if (auth.currentUser?.driverInfo?.availability == true) {
       final orderProv = Provider.of<OrderProvider>(context, listen: false);
+      final driverId = auth.currentUser?.id;
 
       final activeOrders = orderProv.orders
           .where(
             (o) =>
-                o.driverIdStr == auth.currentUser?.id &&
+                o.driverIdStr == driverId &&
                 [
                   'delivery_accepted',
                   'preparing',
@@ -216,8 +213,20 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
           .toList();
 
       if (activeOrders.isNotEmpty) {
+        _currentlyTrackedOrderId = activeOrders.first.id;
         _fetchRouteForOrder(activeOrders.first);
       } else {
+        // If we were previously tracking an active delivery and activeOrders is now empty:
+        if (_currentlyTrackedOrderId != null) {
+          final lastId = _currentlyTrackedOrderId;
+          _currentlyTrackedOrderId = null;
+          final completed = orderProv.orders.where((o) => o.id == lastId && o.status == 'delivered').toList();
+          if (completed.isNotEmpty) {
+            _triggerDeliveryConfirmedSuccess();
+            return;
+          }
+        }
+
         // Clear polyline route if no active order is left
         if (_routePoints.isNotEmpty) {
           setState(() {
@@ -362,22 +371,75 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                   itemCount: driverOrders.length,
                   itemBuilder: (context, idx) {
                     final order = driverOrders[idx];
-                    return Card(
-                      child: ListTile(
-                        title: Text(
-                          'طلب #${order.id.substring(order.id.length - 6)}',
+                    final isDelivered = order.status == 'delivered';
+                    final statusColor = isDelivered ? Colors.green : Colors.red;
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        color: Theme.of(context).cardColor,
+                        border: Border.all(
+                          color: statusColor.withValues(alpha: 0.2),
+                          width: 1.2,
                         ),
-                        subtitle: Text(
-                          'أجر التوصيل: ${order.deliveryFee} ل.س • ${_getStatusText(order.status)}',
-                        ),
-                        trailing: Icon(
-                          order.status == 'delivered'
-                              ? Icons.check_circle
-                              : Icons.cancel,
-                          color: order.status == 'delivered'
-                              ? Colors.green
-                              : Colors.red,
-                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: statusColor.withValues(alpha: 0.12),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              isDelivered ? Icons.check_circle_rounded : Icons.cancel_rounded,
+                              color: statusColor,
+                              size: 22,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'طلب #${order.id.substring(order.id.length - 6)}',
+                                  style: const TextStyle(
+                                    fontFamily: 'Outfit',
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'أجر التوصيل: ${order.deliveryFee.toStringAsFixed(0)} ل.س',
+                                  style: TextStyle(
+                                    fontFamily: 'Outfit',
+                                    fontSize: 12,
+                                    color: Theme.of(context).textTheme.bodyMedium?.color,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: statusColor.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              _getStatusText(order.status),
+                              style: TextStyle(
+                                fontFamily: 'Outfit',
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: statusColor,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     );
                   },
@@ -1078,7 +1140,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                       // Outer Glow Polyline
                       Polyline(
                         points: _routePoints,
-                        color: AppTheme.primary.withOpacity(0.3),
+                        color: AppTheme.primary.withValues(alpha: 0.3),
                         strokeWidth: 9.0,
                       ),
                       // Inner Vibrant Polyline
@@ -1191,11 +1253,11 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                     vertical: 12,
                   ),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).cardColor.withOpacity(0.95),
+                    color: Theme.of(context).cardColor.withValues(alpha: 0.95),
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.15),
+                        color: Colors.black.withValues(alpha: 0.15),
                         blurRadius: 10,
                       ),
                     ],
@@ -1358,7 +1420,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
               children: [
                 if (!isAvailable)
                   Card(
-                    color: Colors.red.shade900.withOpacity(0.95),
+                    color: Colors.red.shade900.withValues(alpha: 0.95),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
@@ -1391,7 +1453,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                   )
                 else if (isAvailable && activeOrders.isEmpty)
                   Card(
-                    color: Colors.teal.shade900.withOpacity(0.95),
+                    color: Colors.teal.shade900.withValues(alpha: 0.95),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),

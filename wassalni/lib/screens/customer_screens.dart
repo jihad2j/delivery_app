@@ -140,7 +140,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                           border: Border.all(
                             color: isSelected
                                 ? AppTheme.primary
-                                : Colors.grey.withOpacity(0.2),
+                                : Colors.grey.withValues(alpha: 0.2),
                           ),
                         ),
                         child: Text(
@@ -251,10 +251,10 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                                                   ),
                                               decoration: BoxDecoration(
                                                 color: info.status == 'open'
-                                                    ? Colors.green.withOpacity(
+                                                    ? Colors.green.withValues(alpha:
                                                         0.1,
                                                       )
-                                                    : Colors.red.withOpacity(
+                                                    : Colors.red.withValues(alpha:
                                                         0.1,
                                                       ),
                                                 borderRadius:
@@ -785,7 +785,7 @@ class _CartScreenState extends State<CartScreen> {
                               children: [
                                 Expanded(
                                   child: Divider(
-                                    color: Colors.grey.withOpacity(0.4),
+                                    color: Colors.grey.withValues(alpha: 0.4),
                                   ),
                                 ),
                                 const Padding(
@@ -797,7 +797,7 @@ class _CartScreenState extends State<CartScreen> {
                                 ),
                                 Expanded(
                                   child: Divider(
-                                    color: Colors.grey.withOpacity(0.4),
+                                    color: Colors.grey.withValues(alpha: 0.4),
                                   ),
                                 ),
                               ],
@@ -1145,32 +1145,128 @@ class _CustomerOrdersScreenState extends State<CustomerOrdersScreen> {
           ? const Center(child: Text('لا توجد طلبات سابقة'))
           : ListView.builder(
               itemCount: orderProv.orders.length,
+              padding: const EdgeInsets.all(16),
               itemBuilder: (ctx, idx) {
                 final order = orderProv.orders[idx];
-                return Card(
-                  margin: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
+                final statusColor = _getStatusColor(order.status);
+                final statusIcon = _getStatusIcon(order.status);
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 14),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    color: Theme.of(context).cardColor,
+                    boxShadow: [
+                      BoxShadow(
+                        color: statusColor.withValues(alpha: 0.10),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                    border: Border.all(
+                      color: statusColor.withValues(alpha: 0.18),
+                      width: 1.2,
+                    ),
                   ),
-                  child: ListTile(
-                    title: Text(
-                      'طلب رقم: ${order.id.substring(order.id.length - 6)}',
-                    ),
-                    subtitle: Text(
-                      'الحالة: ${_getStatusText(order.status)}\nالإجمالي: ${order.totalAmount} ل.س',
-                    ),
-                    trailing: const Icon(
-                      Icons.arrow_forward_ios_rounded,
-                      size: 16,
-                    ),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (ctx) => OrderTrackScreen(order: order),
+                  child: Material(
+                    color: Colors.transparent,
+                    borderRadius: BorderRadius.circular(20),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(20),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (ctx) => OrderTrackScreen(order: order),
+                          ),
+                        );
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Top Row: Order ID + Amount
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.primary.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    '#${order.id.substring(order.id.length - 6)}',
+                                    style: const TextStyle(
+                                      fontFamily: 'Outfit',
+                                      fontWeight: FontWeight.bold,
+                                      color: AppTheme.primary,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  '${order.totalAmount.toStringAsFixed(0)} \u0644.\u0633',
+                                  style: const TextStyle(
+                                    fontFamily: 'Outfit',
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.primary,
+                                    fontSize: 17,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            // Items summary
+                            Text(
+                              order.items.map((it) => '${it.name} \u00d7${it.quantity}').join(' \u2022 '),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontFamily: 'Outfit',
+                                fontSize: 13,
+                                color: Theme.of(context).textTheme.bodyMedium?.color,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            // Status badge
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: statusColor.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(statusIcon, size: 14, color: statusColor),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        _getStatusText(order.status),
+                                        style: TextStyle(
+                                          fontFamily: 'Outfit',
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: statusColor,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const Spacer(),
+                                Icon(
+                                  Icons.arrow_forward_ios_rounded,
+                                  size: 16,
+                                  color: Theme.of(context).textTheme.bodyMedium?.color,
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
-                      );
-                    },
+                      ),
+                    ),
                   ),
                 );
               },
@@ -1199,6 +1295,54 @@ class _CustomerOrdersScreenState extends State<CustomerOrdersScreen> {
         return 'تم الإلغاء';
       default:
         return status;
+    }
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'pending':
+        return Colors.orange;
+      case 'accepted':
+      case 'restaurant_accepted':
+        return AppTheme.primary;
+      case 'delivery_accepted':
+        return Colors.blue;
+      case 'preparing':
+        return AppTheme.warning;
+      case 'ready':
+        return AppTheme.accent;
+      case 'onTheWay':
+        return Colors.blue;
+      case 'delivered':
+        return Colors.green;
+      case 'cancelled':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  IconData _getStatusIcon(String status) {
+    switch (status) {
+      case 'pending':
+        return Icons.schedule_rounded;
+      case 'accepted':
+      case 'restaurant_accepted':
+        return Icons.restaurant_rounded;
+      case 'delivery_accepted':
+        return Icons.delivery_dining_rounded;
+      case 'preparing':
+        return Icons.soup_kitchen_rounded;
+      case 'ready':
+        return Icons.takeout_dining_rounded;
+      case 'onTheWay':
+        return Icons.directions_car_rounded;
+      case 'delivered':
+        return Icons.check_circle_rounded;
+      case 'cancelled':
+        return Icons.cancel_rounded;
+      default:
+        return Icons.info_outline_rounded;
     }
   }
 }
@@ -1710,7 +1854,7 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
                         polylines: [
                           Polyline(
                             points: _routePoints,
-                            color: AppTheme.primary.withOpacity(0.3),
+                            color: AppTheme.primary.withValues(alpha: 0.3),
                             strokeWidth: 9.0,
                           ),
                           Polyline(
@@ -1788,11 +1932,11 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).cardColor.withOpacity(0.95),
+                      color: Theme.of(context).cardColor.withValues(alpha: 0.95),
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.12),
+                          color: Colors.black.withValues(alpha: 0.12),
                           blurRadius: 8,
                           offset: const Offset(0, 4),
                         ),
@@ -1804,8 +1948,8 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
                             color: hasDriver
-                                ? Colors.blue.withOpacity(0.15)
-                                : Colors.orange.withOpacity(0.15),
+                                ? Colors.blue.withValues(alpha: 0.15)
+                                : Colors.orange.withValues(alpha: 0.15),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
@@ -1871,7 +2015,7 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
+                    color: Colors.black.withValues(alpha: 0.08),
                     blurRadius: 10,
                     offset: const Offset(0, -3),
                   ),
@@ -2000,13 +2144,14 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
   }
 
   Widget _buildStep(BuildContext context, String title, bool isDone) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: Row(
         children: [
           Icon(
             isDone ? Icons.check_circle : Icons.radio_button_off,
-            color: isDone ? Colors.green : Colors.grey[400],
+            color: isDone ? Colors.green : (isDark ? Colors.grey[600] : Colors.grey[400]),
             size: 22,
           ),
           const SizedBox(width: 12),
@@ -2016,7 +2161,9 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
               style: TextStyle(
                 fontFamily: 'Outfit',
                 fontWeight: isDone ? FontWeight.bold : FontWeight.normal,
-                color: isDone ? Colors.black87 : Colors.grey[600],
+                color: isDone
+                    ? (isDark ? Colors.white : Colors.black87)
+                    : (isDark ? Colors.grey[400] : Colors.grey[600]),
                 fontSize: 14,
               ),
             ),

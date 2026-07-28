@@ -8,8 +8,8 @@ import 'package:flutter/foundation.dart';
 
 class ApiService {
   static List<String> _serverUrls = [
-    'http://192.168.31.201:3000', // السيرفر الأساسي
-    'https://delivery-app-1-qlgu.onrender.com:3000',
+    'http://192.168.31.201:3000', // السيرفر الأساسي 1
+    'https://delivery-app-1-qlgu.onrender.com',
   ];
   static int _currentServerIndex = 0;
   static String? _token;
@@ -207,6 +207,7 @@ class LocationHelper {
 class SocketService {
   static io.Socket? _socket;
   static bool _isConnected = false;
+  static final Set<String> _joinedRooms = {};
 
   static bool get isConnected => _isConnected;
   static io.Socket? get socket => _socket;
@@ -233,6 +234,9 @@ class SocketService {
     _socket!.onConnect((_) {
       _isConnected = true;
       debugPrint('Connected to Socket Server: ${ApiService.baseUrl}');
+      for (var room in _joinedRooms) {
+        _socket?.emit('joinOrderRoom', room);
+      }
     });
 
     _socket!.onConnectError((err) {
@@ -262,13 +266,15 @@ class SocketService {
   }
 
   static void joinOrderRoom(String orderId) {
-    if (_socket != null && _isConnected) {
+    _joinedRooms.add(orderId);
+    if (_socket != null) {
       _socket!.emit('joinOrderRoom', orderId);
     }
   }
 
   static void leaveOrderRoom(String orderId) {
-    if (_socket != null && _isConnected) {
+    _joinedRooms.remove(orderId);
+    if (_socket != null) {
       _socket!.emit('leaveOrderRoom', orderId);
     }
   }
