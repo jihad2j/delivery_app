@@ -71,23 +71,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
               // 1. Profile Header Card
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(16),
                 decoration: AppTheme.premiumGradientDeco().copyWith(
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(18),
                 ),
                 child: Column(
                   children: [
                     Stack(
                       children: [
                         CircleAvatar(
-                          radius: 46,
+                          radius: 38,
                           backgroundColor: Colors.white,
                           child: CircleAvatar(
-                            radius: 43,
+                            radius: 35,
                             backgroundColor: AppTheme.primary.withValues(alpha: 0.15),
                             child: const Icon(
                               Icons.person_rounded,
-                              size: 48,
+                              size: 38,
                               color: AppTheme.primary,
                             ),
                           ),
@@ -99,7 +99,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       user?.name ?? 'مستخدم',
                       style: const TextStyle(
                         fontFamily: 'Outfit',
-                        fontSize: 22,
+                        fontSize: 19,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),
@@ -129,7 +129,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               // 2. Balance Card
               Card(
                 child: Padding(
-                  padding: const EdgeInsets.all(18.0),
+                  padding: const EdgeInsets.all(14.0),
                   child: Row(
                     children: [
                       Container(

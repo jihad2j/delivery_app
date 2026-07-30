@@ -1,5 +1,6 @@
 // ignore_for_file: use_build_context_synchronously, library_private_types_in_public_api
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -56,13 +57,13 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
       appBar: AppBar(
         centerTitle: false,
         title: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
             color: AppTheme.primary.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: AppTheme.primary.withValues(alpha: 0.25),
-              width: 1.2,
+              width: 1,
             ),
           ),
           child: Row(
@@ -71,15 +72,15 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
               const Icon(
                 Icons.account_balance_wallet_rounded,
                 color: AppTheme.primary,
-                size: 20,
+                size: 18,
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               Text(
                 'الرصيد: ${auth.currentUser?.balance.toStringAsFixed(0)} ل.س',
                 style: const TextStyle(
                   fontFamily: 'Outfit',
                   fontWeight: FontWeight.bold,
-                  fontSize: 14,
+                  fontSize: 12,
                   color: AppTheme.primary,
                 ),
               ),
@@ -111,7 +112,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
               const SizedBox(height: 44),
               // Category filter pills
               SizedBox(
-                height: 40,
+                height: 34,
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
                   itemCount: _categories.length,
@@ -121,16 +122,16 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                     return GestureDetector(
                       onTap: () => setState(() => _selectedCategory = cat),
                       child: Container(
-                        margin: const EdgeInsets.only(left: 8),
+                        margin: const EdgeInsets.only(left: 6),
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
+                          horizontal: 14,
+                          vertical: 6,
                         ),
                         decoration: BoxDecoration(
                           color: isSelected
                               ? AppTheme.primary
                               : Theme.of(context).cardColor,
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.circular(16),
                           border: Border.all(
                             color: isSelected
                                 ? AppTheme.primary
@@ -141,6 +142,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                           cat,
                           style: TextStyle(
                             fontFamily: 'Outfit',
+                            fontSize: 12,
                             color: isSelected
                                 ? Colors.white
                                 : Theme.of(context).textTheme.bodyLarge?.color,
@@ -152,16 +154,16 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                   },
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 18),
               const Text(
                 'المطاعم المتاحة',
                 style: TextStyle(
                   fontFamily: 'Outfit',
-                  fontSize: 22,
+                  fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
 
               restProv.isLoading
                   ? const Center(child: CircularProgressIndicator())
@@ -179,11 +181,11 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                         if (info == null) return const SizedBox();
 
                         return Card(
-                          margin: const EdgeInsets.only(bottom: 20),
+                          margin: const EdgeInsets.only(bottom: 14),
                           clipBehavior: Clip.antiAlias,
-                          elevation: 4,
+                          elevation: 3,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(22),
+                            borderRadius: BorderRadius.circular(18),
                           ),
                           child: InkWell(
                             onTap: () {
@@ -200,12 +202,12 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                                 Stack(
                                   children: [
                                     SizedBox(
-                                      height: 170,
+                                      height: 150,
                                       width: double.infinity,
                                       child: Image.network(
                                         info.logo,
                                         width: double.infinity,
-                                        height: 170,
+                                        height: 150,
                                         fit: BoxFit.cover,
                                         errorBuilder: (c, e, s) => Container(
                                           color: Colors.grey[300],
@@ -275,7 +277,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                                                   ? Icons.check_circle_rounded
                                                   : Icons.cancel_rounded,
                                               color: Colors.white,
-                                              size: 14,
+                                              size: 12,
                                             ),
                                             const SizedBox(width: 4),
                                             Text(
@@ -284,7 +286,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                                                   : 'مغلق',
                                               style: const TextStyle(
                                                 fontFamily: 'Outfit',
-                                                fontSize: 12,
+                                                fontSize: 11,
                                                 fontWeight: FontWeight.bold,
                                                 color: Colors.white,
                                               ),
@@ -337,7 +339,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
 
                                 // 2. Underneath Image: Name, Cuisine, Address, Status & Delivery Info
                                 Padding(
-                                  padding: const EdgeInsets.all(16.0),
+                                  padding: const EdgeInsets.all(14.0),
                                   child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
@@ -347,11 +349,11 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                                         rest.name,
                                         style: const TextStyle(
                                           fontFamily: 'Outfit',
-                                          fontSize: 20,
+                                          fontSize: 17,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
-                                      const SizedBox(height: 6),
+                                      const SizedBox(height: 5),
                                       // Type of Cuisine & Description
                                       Row(
                                         children: [
@@ -601,14 +603,14 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                       final isRestaurantOpen = info.status == 'open';
 
                       return Card(
-                        margin: const EdgeInsets.only(bottom: 20),
+                        margin: const EdgeInsets.only(bottom: 14),
                         clipBehavior: Clip.antiAlias,
-                        elevation: 5,
+                        elevation: 3,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(22),
+                          borderRadius: BorderRadius.circular(18),
                         ),
                         child: SizedBox(
-                          height: 220,
+                          height: 180,
                           width: double.infinity,
                           child: Stack(
                             children: [
@@ -617,7 +619,7 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                                 child: Image.network(
                                   prod.image,
                                   width: double.infinity,
-                                  height: 220,
+                                  height: 180,
                                   fit: BoxFit.cover,
                                   errorBuilder: (c, e, s) => Container(
                                     color: Colors.grey[800],
@@ -655,8 +657,8 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                                 right: 14,
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 6,
+                                    horizontal: 10,
+                                    vertical: 5,
                                   ),
                                   decoration: BoxDecoration(
                                     color: AppTheme.primary,
@@ -675,7 +677,7 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                                       fontFamily: 'Outfit',
                                       color: Colors.white,
                                       fontWeight: FontWeight.bold,
-                                      fontSize: 14,
+                                      fontSize: 12,
                                     ),
                                   ),
                                 ),
@@ -759,7 +761,7 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                                       child: const Icon(
                                         Icons.add_shopping_cart_rounded,
                                         color: Colors.white,
-                                        size: 22,
+                                        size: 20,
                                       ),
                                     ),
                                   ),
@@ -781,7 +783,7 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                                       overflow: TextOverflow.ellipsis,
                                       style: const TextStyle(
                                         fontFamily: 'Outfit',
-                                        fontSize: 20,
+                                        fontSize: 17,
                                         fontWeight: FontWeight.bold,
                                         color: Colors.white,
                                         shadows: [
@@ -841,7 +843,7 @@ class CartScreen extends StatefulWidget {
 
 class _CartScreenState extends State<CartScreen> {
   model.Address? _selectedSavedAddress;
-  bool _useSavedAddress = true;
+  bool _useSavedAddress = true; // true = Saved location, false = GPS
   Position? _detectedPosition;
   bool _gpsDetermined = false;
   bool _saveToProfile = false;
@@ -851,7 +853,7 @@ class _CartScreenState extends State<CartScreen> {
   File? _imageFile;
 
   final ImagePicker _picker = ImagePicker();
-  final String _paymentMethod = 'cash';
+  String _paymentMethod = 'cash';
 
   @override
   void initState() {
@@ -908,9 +910,13 @@ class _CartScreenState extends State<CartScreen> {
       builder: (ctx) => const AlertDialog(
         content: Row(
           children: [
-            CircularProgressIndicator(),
-            SizedBox(width: 16),
-            Text('جاري تحديد موقعك الجغرافي بالـ GPS...'),
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            SizedBox(width: 14),
+            Text('جاري تحديد موقعك بالـ GPS...'),
           ],
         ),
       ),
@@ -942,319 +948,755 @@ class _CartScreenState extends State<CartScreen> {
     final cart = Provider.of<CartProvider>(context);
     final orderProv = Provider.of<OrderProvider>(context);
     final auth = Provider.of<AuthProvider>(context);
+    final hasSavedAddresses = auth.currentUser?.addresses.isNotEmpty == true;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('سلة المشتريات')),
+      appBar: AppBar(
+        title: const Text(
+          'سلة المشتريات',
+          style: TextStyle(
+            fontFamily: 'Outfit',
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        elevation: 0,
+      ),
       body: cart.items.isEmpty
-          ? const Center(child: Text('السلة فارغة!'))
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.remove_shopping_cart_rounded,
+                    size: 64,
+                    color: Colors.grey.shade400,
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'السلة فارغة حالياً!',
+                    style: TextStyle(
+                      fontFamily: 'Outfit',
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            )
           : Column(
               children: [
                 Expanded(
-                  child: ListView.builder(
-                    itemCount: cart.items.length,
-                    itemBuilder: (ctx, index) {
-                      final item = cart.items.values.toList()[index];
-                      return Card(
-                        margin: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        child: ListTile(
-                          title: Text(item.product.name),
-                          subtitle: Text(
-                            '${item.product.price.toStringAsFixed(0)} ل.س × ${item.quantity}',
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // 1. Items Section
+                        const Padding(
+                          padding: EdgeInsets.only(right: 4, bottom: 6),
+                          child: Text(
+                            'المنتجات المطلوبة',
+                            style: TextStyle(
+                              fontFamily: 'Outfit',
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                              color: Colors.grey,
+                            ),
                           ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.remove),
-                                onPressed: () =>
-                                    cart.removeItem(item.product.id),
+                        ),
+                        ...cart.items.values.map((item) {
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 6),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
                               ),
-                              Text('${item.quantity}'),
-                              IconButton(
-                                icon: const Icon(Icons.add),
-                                onPressed: () {
-                                  final success = cart.addItem(item.product);
-                                  if (!success) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          'لا يمكنك إضافة منتجات من مطاعم مختلفة إلى نفس السلة.',
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          item.product.name,
+                                          style: const TextStyle(
+                                            fontFamily: 'Outfit',
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          '${item.product.price.toStringAsFixed(0)} ل.س × ${item.quantity}',
+                                          style: const TextStyle(
+                                            fontFamily: 'Outfit',
+                                            color: AppTheme.primary,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(
+                                        context,
+                                      ).primaryColor.withValues(alpha: 0.08),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        InkWell(
+                                          onTap: () =>
+                                              cart.removeItem(item.product.id),
+                                          child: const Padding(
+                                            padding: EdgeInsets.all(6),
+                                            child: Icon(Icons.remove, size: 16),
+                                          ),
+                                        ),
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 6,
+                                          ),
+                                          child: Text(
+                                            '${item.quantity}',
+                                            style: const TextStyle(
+                                              fontFamily: 'Outfit',
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ),
+                                        InkWell(
+                                          onTap: () {
+                                            final success = cart.addItem(
+                                              item.product,
+                                            );
+                                            if (!success) {
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                const SnackBar(
+                                                  content: Text(
+                                                    'لا يمكنك إضافة منتجات من مطاعم مختلفة إلى نفس السلة.',
+                                                  ),
+                                                ),
+                                              );
+                                            }
+                                          },
+                                          child: const Padding(
+                                            padding: EdgeInsets.all(6),
+                                            child: Icon(
+                                              Icons.add,
+                                              size: 16,
+                                              color: AppTheme.primary,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }),
+
+                        const SizedBox(height: 12),
+
+                        // 2. Delivery Location Section (Selector: Saved vs GPS)
+                        Card(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Row(
+                                  children: [
+                                    Icon(
+                                      Icons.location_on_rounded,
+                                      color: AppTheme.primary,
+                                      size: 18,
+                                    ),
+                                    SizedBox(width: 6),
+                                    Text(
+                                      'موقع التوصيل',
+                                      style: TextStyle(
+                                        fontFamily: 'Outfit',
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 10),
+
+                                // Mode Toggle Switch (Segmented design)
+                                Container(
+                                  padding: const EdgeInsets.all(3),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? Colors.grey.shade800
+                                        : Colors.grey.shade200,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: InkWell(
+                                          onTap: () => setState(
+                                            () => _useSavedAddress = true,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                          child: AnimatedContainer(
+                                            duration: const Duration(
+                                              milliseconds: 200,
+                                            ),
+                                            padding: const EdgeInsets.symmetric(
+                                              vertical: 8,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: _useSavedAddress
+                                                  ? Theme.of(context).cardColor
+                                                  : Colors.transparent,
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                              boxShadow: _useSavedAddress
+                                                  ? [
+                                                      BoxShadow(
+                                                        color: Colors.black
+                                                            .withValues(
+                                                              alpha: 0.08,
+                                                            ),
+                                                        blurRadius: 4,
+                                                      ),
+                                                    ]
+                                                  : [],
+                                            ),
+                                            child: Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              children: [
+                                                Icon(
+                                                  Icons.bookmark_rounded,
+                                                  size: 16,
+                                                  color: _useSavedAddress
+                                                      ? AppTheme.primary
+                                                      : Colors.grey,
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  'موقع مخزن',
+                                                  style: TextStyle(
+                                                    fontFamily: 'Outfit',
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: _useSavedAddress
+                                                        ? AppTheme.primary
+                                                        : Colors.grey,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
                                         ),
                                       ),
-                                    );
-                                  }
-                                },
-                              ),
-                            ],
+                                      Expanded(
+                                        child: InkWell(
+                                          onTap: () => setState(
+                                            () => _useSavedAddress = false,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                          child: AnimatedContainer(
+                                            duration: const Duration(
+                                              milliseconds: 200,
+                                            ),
+                                            padding: const EdgeInsets.symmetric(
+                                              vertical: 8,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: !_useSavedAddress
+                                                  ? Theme.of(context).cardColor
+                                                  : Colors.transparent,
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                              boxShadow: !_useSavedAddress
+                                                  ? [
+                                                      BoxShadow(
+                                                        color: Colors.black
+                                                            .withValues(
+                                                              alpha: 0.08,
+                                                            ),
+                                                        blurRadius: 4,
+                                                      ),
+                                                    ]
+                                                  : [],
+                                            ),
+                                            child: Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              children: [
+                                                Icon(
+                                                  Icons.my_location_rounded,
+                                                  size: 16,
+                                                  color: !_useSavedAddress
+                                                      ? AppTheme.primary
+                                                      : Colors.grey,
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  'تحديد GPS',
+                                                  style: TextStyle(
+                                                    fontFamily: 'Outfit',
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: !_useSavedAddress
+                                                        ? AppTheme.primary
+                                                        : Colors.grey,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+
+                                const SizedBox(height: 10),
+
+                                // Choice Content: Stored Dropdown
+                                if (_useSavedAddress) ...[
+                                  if (hasSavedAddresses)
+                                    DropdownButtonFormField<model.Address>(
+                                      value: _selectedSavedAddress,
+                                      isDense: true,
+                                      decoration: InputDecoration(
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 10,
+                                            ),
+                                        labelText: 'اختر موقعك التوصيل',
+                                        labelStyle: const TextStyle(
+                                          fontSize: 12,
+                                        ),
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                        ),
+                                      ),
+                                      items: auth.currentUser!.addresses.map((
+                                        addr,
+                                      ) {
+                                        return DropdownMenuItem<model.Address>(
+                                          value: addr,
+                                          child: Text(
+                                            '${addr.label ?? "موقع"} (${addr.city ?? addr.governorate ?? ""})',
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        );
+                                      }).toList(),
+                                      onChanged: (addr) {
+                                        setState(
+                                          () => _selectedSavedAddress = addr,
+                                        );
+                                      },
+                                    )
+                                  else
+                                    Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: Colors.orange.withValues(
+                                          alpha: 0.1,
+                                        ),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: const Row(
+                                        children: [
+                                          Icon(
+                                            Icons.info_outline,
+                                            size: 16,
+                                            color: Colors.orange,
+                                          ),
+                                          SizedBox(width: 6),
+                                          Expanded(
+                                            child: Text(
+                                              'لا توجد مواقع مخزنة في حسابك. استخدم تحديد الـ GPS.',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: Colors.orange,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                ]
+                                // Choice Content: GPS Fetch
+                                else ...[
+                                  SizedBox(
+                                    width: double.infinity,
+                                    height: 38,
+                                    child: ElevatedButton.icon(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: _gpsDetermined
+                                            ? Colors.green
+                                            : AppTheme.primary,
+                                        foregroundColor: Colors.white,
+                                        elevation: 0,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                        ),
+                                      ),
+                                      onPressed: _determineGPSPosition,
+                                      icon: Icon(
+                                        _gpsDetermined
+                                            ? Icons.check_circle_rounded
+                                            : Icons.gps_fixed_rounded,
+                                        size: 16,
+                                      ),
+                                      label: Text(
+                                        _gpsDetermined
+                                            ? 'تم تحديد موقعك بنجاح ✓'
+                                            : 'انقر لتحديد الموقع بالـ GPS',
+                                        style: const TextStyle(
+                                          fontFamily: 'Outfit',
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  if (_gpsDetermined) ...[
+                                    const SizedBox(height: 6),
+                                    CheckboxListTile(
+                                      dense: true,
+                                      contentPadding: EdgeInsets.zero,
+                                      title: const Text(
+                                        'حفظ هذا الموقع في حسابي',
+                                        style: TextStyle(fontSize: 12),
+                                      ),
+                                      value: _saveToProfile,
+                                      onChanged: (val) => setState(
+                                        () => _saveToProfile = val ?? false,
+                                      ),
+                                    ),
+                                    if (_saveToProfile)
+                                      SizedBox(
+                                        height: 40,
+                                        child: TextField(
+                                          controller: _addressLabelController,
+                                          style: const TextStyle(fontSize: 12),
+                                          decoration: InputDecoration(
+                                            contentPadding:
+                                                const EdgeInsets.symmetric(
+                                                  horizontal: 12,
+                                                  vertical: 8,
+                                                ),
+                                            labelText:
+                                                'اسم الموقع (مثال: بيتي)',
+                                            labelStyle: const TextStyle(
+                                              fontSize: 11,
+                                            ),
+                                            border: OutlineInputBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ],
+                              ],
+                            ),
                           ),
                         ),
-                      );
-                    },
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'موقع التوصيل',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
 
-                          // Option 1: Saved locations dropdown
-                          if (auth.currentUser?.addresses.isNotEmpty ==
-                              true) ...[
-                            DropdownButtonFormField<model.Address>(
-                              value: _useSavedAddress
-                                  ? _selectedSavedAddress
-                                  : null,
-                              decoration: InputDecoration(
-                                labelText: 'اختر من مواقعك المخزنة',
-                                prefixIcon: const Icon(Icons.bookmark_outline),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                              ),
-                              items: auth.currentUser!.addresses.map((addr) {
-                                return DropdownMenuItem<model.Address>(
-                                  value: addr,
-                                  child: Text(
-                                    '${addr.label ?? "موقع"} (${addr.governorate ?? ""} - ${addr.region ?? ""})',
-                                  ),
-                                );
-                              }).toList(),
-                              onChanged: (addr) {
-                                setState(() {
-                                  _selectedSavedAddress = addr;
-                                  _useSavedAddress = true;
-                                  _gpsDetermined = false;
-                                  _detectedPosition = null;
-                                });
-                              },
-                            ),
-                            const SizedBox(height: 12),
-                            Row(
+                        const SizedBox(height: 8),
+
+                        // 3. Door Photo & Security (Optional Compact)
+                        Card(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Row(
                               children: [
-                                Expanded(
-                                  child: Divider(
-                                    color: Colors.grey.withValues(alpha: 0.4),
+                                const Icon(
+                                  Icons.sensor_door_outlined,
+                                  color: Colors.grey,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                const Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'صورة المكان/الباب',
+                                        style: TextStyle(
+                                          fontFamily: 'Outfit',
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12.5,
+                                        ),
+                                      ),
+                                      Text(
+                                        'اختياري لزيادة الأمان للتوصيل',
+                                        style: TextStyle(
+                                          fontSize: 10.5,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                                const Padding(
-                                  padding: EdgeInsets.symmetric(horizontal: 12),
+                                if (_imageFile != null)
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(6),
+                                    child: Image.file(
+                                      _imageFile!,
+                                      width: 36,
+                                      height: 36,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                const SizedBox(width: 6),
+                                OutlinedButton(
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 6,
+                                    ),
+                                    minimumSize: Size.zero,
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                  onPressed: _pickDoorImage,
                                   child: Text(
-                                    'أو',
-                                    style: TextStyle(color: Colors.grey),
-                                  ),
-                                ),
-                                Expanded(
-                                  child: Divider(
-                                    color: Colors.grey.withValues(alpha: 0.4),
+                                    _imageFile != null ? 'تغيير' : 'كاميرا 📷',
+                                    style: const TextStyle(fontSize: 11),
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 12),
-                          ],
-
-                          // Option 2: GPS location button
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: _gpsDetermined
-                                    ? Colors.green
-                                    : AppTheme.primary,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 14,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                              ),
-                              onPressed: () async {
-                                await _determineGPSPosition();
-                                if (_gpsDetermined) {
-                                  setState(() {
-                                    _useSavedAddress = false;
-                                    _selectedSavedAddress = null;
-                                  });
-                                }
-                              },
-                              icon: Icon(
-                                _gpsDetermined
-                                    ? Icons.check_circle
-                                    : Icons.my_location,
-                                size: 22,
-                              ),
-                              label: Text(
-                                _gpsDetermined
-                                    ? 'تم تحديد موقعي بنجاح ✓'
-                                    : '📍 موقعي الحالي (GPS)',
-                                style: const TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
                           ),
+                        ),
 
-                          // Save to profile option (only when GPS is used)
-                          if (_gpsDetermined && !_useSavedAddress) ...[
-                            const SizedBox(height: 12),
-                            CheckboxListTile(
-                              contentPadding: EdgeInsets.zero,
-                              title: const Text(
-                                'حفظ هذا الموقع في حسابي للمرات القادمة',
-                              ),
-                              value: _saveToProfile,
-                              onChanged: (val) {
-                                setState(() {
-                                  _saveToProfile = val ?? false;
-                                });
-                              },
-                            ),
-                            if (_saveToProfile) ...[
-                              TextField(
-                                controller: _addressLabelController,
-                                decoration: InputDecoration(
-                                  labelText: 'اسم الموقع (مثال: بيتي - المحل)',
-                                  prefixIcon: const Icon(Icons.label_outline),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(16),
+                        const SizedBox(height: 8),
+
+                        // 4. Payment Method Choice
+                        Card(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Row(
+                                  children: [
+                                    Icon(
+                                      Icons.payment_rounded,
+                                      color: AppTheme.primary,
+                                      size: 18,
+                                    ),
+                                    SizedBox(width: 6),
+                                    Text(
+                                      'طريقة الدفع',
+                                      style: TextStyle(
+                                        fontFamily: 'Outfit',
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                RadioListTile<String>(
+                                  dense: true,
+                                  contentPadding: EdgeInsets.zero,
+                                  title: const Text(
+                                    'دفع كاش (نقداً عند الاستلام)',
+                                    style: TextStyle(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  value: 'cash',
+                                  groupValue: _paymentMethod,
+                                  onChanged: (val) => setState(
+                                    () => _paymentMethod = val ?? 'cash',
                                   ),
                                 ),
-                              ),
-                            ],
-                          ],
-
-                          const Divider(height: 32),
-                          const Text(
-                            'صورة باب المنزل أو المكان (للأمان):',
-                            style: TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          const SizedBox(height: 8),
-                          if (_imageFile != null) ...[
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: Image.file(
-                                _imageFile!,
-                                height: 120,
-                                width: double.infinity,
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                          ],
-                          SizedBox(
-                            width: double.infinity,
-                            child: OutlinedButton.icon(
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 12,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                              ),
-                              onPressed: _pickDoorImage,
-                              icon: const Icon(Icons.camera_alt_outlined),
-                              label: Text(
-                                _imageFile != null
-                                    ? 'تغيير الصورة'
-                                    : 'التقاط صورة للباب',
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'طريقة الدفع',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          RadioListTile<String>(
-                            title: const Text('نقداً (Cash)'),
-                            value: 'cash',
-                          ),
-                          RadioListTile<String>(
-                            title: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text('المحفظة الإلكترونية (Wallet)'),
-                                Text(
-                                  'رصيدك: ${auth.currentUser?.balance.toStringAsFixed(0) ?? "0"} ل.س',
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    color: Colors.grey,
+                                RadioListTile<String>(
+                                  dense: true,
+                                  contentPadding: EdgeInsets.zero,
+                                  title: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      const Text(
+                                        'المحفظة الإلكترونية',
+                                        style: TextStyle(
+                                          fontSize: 12.5,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      Text(
+                                        '${auth.currentUser?.balance.toStringAsFixed(0) ?? "0"} ل.س',
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.green,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  value: 'wallet',
+                                  groupValue: _paymentMethod,
+                                  onChanged: (val) => setState(
+                                    () => _paymentMethod = val ?? 'wallet',
                                   ),
                                 ),
                               ],
                             ),
-                            value: 'wallet',
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
+
+                // 5. Checkout Footer
                 Container(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
                     color: Theme.of(context).cardColor,
                     borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(24),
+                      top: Radius.circular(18),
                     ),
-                  ),
-                  child: Column(
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('الإجمالي:'),
-                          Text(
-                            '${cart.totalAmount.toStringAsFixed(0)} ل.س',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                            ),
-                          ),
-                        ],
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 10,
+                        offset: const Offset(0, -3),
                       ),
-                      const SizedBox(height: 24),
-                      orderProv.isLoading
-                          ? const CircularProgressIndicator()
-                          : ElevatedButton(
-                              onPressed: () => _checkout(cart, orderProv),
-                              child: const Text('تأكيد الطلب (شراء)'),
-                            ),
                     ],
+                  ),
+                  child: SafeArea(
+                    top: false,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'رسوم التوصيل:',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
+                            ),
+                            const Text(
+                              '2,500 ل.س',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'المجموع الكلي:',
+                              style: TextStyle(
+                                fontFamily: 'Outfit',
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              '${(cart.totalAmount + 2500).toStringAsFixed(0)} ل.س',
+                              style: const TextStyle(
+                                fontFamily: 'Outfit',
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 44,
+                          child: orderProv.isLoading
+                              ? const Center(child: CircularProgressIndicator())
+                              : ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppTheme.primary,
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  onPressed: () => _checkout(cart, orderProv),
+                                  icon: const Icon(
+                                    Icons.shopping_bag_rounded,
+                                    size: 20,
+                                  ),
+                                  label: const Text(
+                                    'تأكيد الطلب (شراء)',
+                                    style: TextStyle(
+                                      fontFamily: 'Outfit',
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -1266,13 +1708,34 @@ class _CartScreenState extends State<CartScreen> {
     final auth = Provider.of<AuthProvider>(context, listen: false);
     model.Address finalDeliveryAddress;
 
-    if (_useSavedAddress && _selectedSavedAddress != null) {
+    if (_useSavedAddress) {
+      if (_selectedSavedAddress == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('يرجى اختيار موقع من مواقعك المخزنة')),
+        );
+        return;
+      }
       finalDeliveryAddress = _selectedSavedAddress!;
-    } else if (_gpsDetermined && _detectedPosition != null) {
+    } else {
+      if (!_gpsDetermined || _detectedPosition == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('يرجى النقر على زر "تحديد الموقع بالـ GPS" أولاً'),
+          ),
+        );
+        return;
+      }
+      final label = _saveToProfile
+          ? _addressLabelController.text.trim()
+          : 'موقع GPS';
+      if (_saveToProfile && label.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('يرجى كتابة اسم للموقع (مثال: بيتي)')),
+        );
+        return;
+      }
       finalDeliveryAddress = model.Address(
-        label: _saveToProfile
-            ? _addressLabelController.text.trim()
-            : 'موقع GPS',
+        label: label,
         location: model.Location(
           coordinates: [
             _detectedPosition!.longitude,
@@ -1282,36 +1745,8 @@ class _CartScreenState extends State<CartScreen> {
       );
 
       if (_saveToProfile) {
-        final label = _addressLabelController.text.trim();
-        if (label.isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('يرجى تسمية الموقع (مثال: بيتي)')),
-          );
-          return;
-        }
-        finalDeliveryAddress = model.Address(
-          label: label,
-          location: model.Location(
-            coordinates: [
-              _detectedPosition!.longitude,
-              _detectedPosition!.latitude,
-            ],
-          ),
-        );
-        final errSave = await auth.addCustomerAddress(finalDeliveryAddress);
-        if (errSave != null) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('فشل حفظ الموقع: $errSave')));
-        }
+        await auth.addCustomerAddress(finalDeliveryAddress);
       }
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('يرجى تحديد موقعك عبر GPS أو اختيار موقع مخزن'),
-        ),
-      );
-      return;
     }
 
     final firstItem = cart.items.values.first;
@@ -1354,6 +1789,10 @@ class _CartScreenState extends State<CartScreen> {
         _showGpsWarning(
           'خدمات الـ GPS معطلة. يرجى تفعيل الـ GPS لإكمال عملية الشراء.',
         );
+      } else if (err == 'GPS_DENIED' || err == 'GPS_DENIED_FOREVER') {
+        _showGpsWarning(
+          'صلاحية الوصول للموقع معطلة. يرجى إعطاء صلاحية الموقع للتطبيق.',
+        );
       } else {
         ScaffoldMessenger.of(
           context,
@@ -1387,13 +1826,37 @@ class CustomerOrdersScreen extends StatefulWidget {
 }
 
 class _CustomerOrdersScreenState extends State<CustomerOrdersScreen> {
+  Timer? _pollingTimer;
+
   @override
   void initState() {
     super.initState();
     Future.microtask(() {
-      Provider.of<OrderProvider>(context, listen: false).loadOrders();
-      Provider.of<OrderProvider>(context, listen: false).setupSocketListeners();
+      final orderProv = Provider.of<OrderProvider>(context, listen: false);
+      orderProv.loadOrders();
+      orderProv.setupSocketListeners();
     });
+
+    // Auto-poll status every 4 seconds when customer has active orders
+    _pollingTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      final orderProv = Provider.of<OrderProvider>(context, listen: false);
+      final hasActive = orderProv.orders.any(
+        (o) => !['delivered', 'cancelled'].contains(o.status),
+      );
+      if (hasActive) {
+        orderProv.loadOrders();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _pollingTimer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -1402,157 +1865,163 @@ class _CustomerOrdersScreenState extends State<CustomerOrdersScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('طلباتي')),
-      body: orderProv.isLoading
+      body: orderProv.isLoading && orderProv.orders.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : orderProv.orders.isEmpty
           ? const Center(child: Text('لا توجد طلبات سابقة'))
-          : ListView.builder(
-              itemCount: orderProv.orders.length,
-              padding: const EdgeInsets.all(16),
-              itemBuilder: (ctx, idx) {
-                final order = orderProv.orders[idx];
-                final statusColor = _getStatusColor(order.status);
-                final statusIcon = _getStatusIcon(order.status);
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 14),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
-                    color: Theme.of(context).cardColor,
-                    boxShadow: [
-                      BoxShadow(
-                        color: statusColor.withValues(alpha: 0.10),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
+          : RefreshIndicator(
+              onRefresh: () => orderProv.loadOrders(),
+              child: ListView.builder(
+                itemCount: orderProv.orders.length,
+                padding: const EdgeInsets.all(16),
+                itemBuilder: (ctx, idx) {
+                  final order = orderProv.orders[idx];
+                  final statusColor = _getStatusColor(order.status);
+                  final statusIcon = _getStatusIcon(order.status);
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 14),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(18),
+                      color: Theme.of(context).cardColor,
+                      boxShadow: [
+                        BoxShadow(
+                          color: statusColor.withValues(alpha: 0.10),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                      border: Border.all(
+                        color: statusColor.withValues(alpha: 0.18),
+                        width: 1.2,
                       ),
-                    ],
-                    border: Border.all(
-                      color: statusColor.withValues(alpha: 0.18),
-                      width: 1.2,
                     ),
-                  ),
-                  child: Material(
-                    color: Colors.transparent,
-                    borderRadius: BorderRadius.circular(20),
-                    child: InkWell(
+                    child: Material(
+                      color: Colors.transparent,
                       borderRadius: BorderRadius.circular(20),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (ctx) => OrderTrackScreen(order: order),
-                          ),
-                        );
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Top Row: Order ID + Amount
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 5,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: AppTheme.primary.withValues(
-                                      alpha: 0.12,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(18),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (ctx) => OrderTrackScreen(order: order),
+                            ),
+                          );
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Top Row: Order ID + Amount
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 5,
                                     ),
-                                    borderRadius: BorderRadius.circular(10),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.primary.withValues(
+                                        alpha: 0.12,
+                                      ),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Text(
+                                      '#${order.id.substring(order.id.length - 6)}',
+                                      style: const TextStyle(
+                                        fontFamily: 'Outfit',
+                                        fontWeight: FontWeight.bold,
+                                        color: AppTheme.primary,
+                                        fontSize: 12,
+                                      ),
+                                    ),
                                   ),
-                                  child: Text(
-                                    '#${order.id.substring(order.id.length - 6)}',
+                                  Text(
+                                    '${order.totalAmount.toStringAsFixed(0)} \u0644.\u0633',
                                     style: const TextStyle(
                                       fontFamily: 'Outfit',
                                       fontWeight: FontWeight.bold,
                                       color: AppTheme.primary,
-                                      fontSize: 14,
+                                      fontSize: 15,
                                     ),
                                   ),
-                                ),
-                                Text(
-                                  '${order.totalAmount.toStringAsFixed(0)} \u0644.\u0633',
-                                  style: const TextStyle(
-                                    fontFamily: 'Outfit',
-                                    fontWeight: FontWeight.bold,
-                                    color: AppTheme.primary,
-                                    fontSize: 17,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            // Items summary
-                            Text(
-                              order.items
-                                  .map(
-                                    (it) => '${it.name} \u00d7${it.quantity}',
-                                  )
-                                  .join(' \u2022 '),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontFamily: 'Outfit',
-                                fontSize: 13,
-                                color: Theme.of(
-                                  context,
-                                ).textTheme.bodyMedium?.color,
+                                ],
                               ),
-                            ),
-                            const SizedBox(height: 12),
-                            // Status badge
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 5,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: statusColor.withValues(alpha: 0.12),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        statusIcon,
-                                        size: 14,
-                                        color: statusColor,
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        _getStatusText(order.status),
-                                        style: TextStyle(
-                                          fontFamily: 'Outfit',
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
-                                          color: statusColor,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const Spacer(),
-                                Icon(
-                                  Icons.arrow_forward_ios_rounded,
-                                  size: 16,
+                              const SizedBox(height: 12),
+                              // Items summary
+                              Text(
+                                order.items
+                                    .map(
+                                      (it) => '${it.name} \u00d7${it.quantity}',
+                                    )
+                                    .join(' \u2022 '),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontFamily: 'Outfit',
+                                  fontSize: 13,
                                   color: Theme.of(
                                     context,
                                   ).textTheme.bodyMedium?.color,
                                 ),
-                              ],
-                            ),
-                          ],
+                              ),
+                              const SizedBox(height: 12),
+                              // Status badge
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 5,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: statusColor.withValues(
+                                        alpha: 0.12,
+                                      ),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          statusIcon,
+                                          size: 14,
+                                          color: statusColor,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          _getStatusText(order.status),
+                                          style: TextStyle(
+                                            fontFamily: 'Outfit',
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                            color: statusColor,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  Icon(
+                                    Icons.arrow_forward_ios_rounded,
+                                    size: 16,
+                                    color: Theme.of(
+                                      context,
+                                    ).textTheme.bodyMedium?.color,
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
     );
   }
@@ -1656,12 +2125,57 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
   bool _hasAutoZoomedProximity = false;
 
   final MapController _mapController = MapController();
+  Timer? _pollingTimer;
 
   @override
   void initState() {
     super.initState();
     _currentOrder = widget.order;
     _initLocationsAndSockets();
+
+    Future.microtask(() {
+      final orderProv = Provider.of<OrderProvider>(context, listen: false);
+      orderProv.addListener(_onOrderProviderChange);
+      orderProv.loadOrders();
+    });
+
+    // Auto-poll status every 3 seconds while order is active
+    _pollingTimer = Timer.periodic(const Duration(seconds: 3), (timer) async {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (['delivered', 'cancelled'].contains(_currentOrder.status)) {
+        timer.cancel();
+        return;
+      }
+      final orderProv = Provider.of<OrderProvider>(context, listen: false);
+      await orderProv.loadOrders();
+      if (!mounted) return;
+      final match = orderProv.orders
+          .where((o) => o.id == _currentOrder.id)
+          .toList();
+      if (match.isNotEmpty && match.first.status != _currentOrder.status) {
+        setState(() {
+          _currentOrder = match.first;
+        });
+        _fetchRoute();
+      }
+    });
+  }
+
+  void _onOrderProviderChange() {
+    if (!mounted) return;
+    final orderProv = Provider.of<OrderProvider>(context, listen: false);
+    final match = orderProv.orders
+        .where((o) => o.id == _currentOrder.id)
+        .toList();
+    if (match.isNotEmpty && match.first.status != _currentOrder.status) {
+      setState(() {
+        _currentOrder = match.first;
+      });
+      _fetchRoute();
+    }
   }
 
   void _initLocationsAndSockets() {
@@ -1732,6 +2246,11 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
 
   @override
   void dispose() {
+    _pollingTimer?.cancel();
+    try {
+      final orderProv = Provider.of<OrderProvider>(context, listen: false);
+      orderProv.removeListener(_onOrderProviderChange);
+    } catch (_) {}
     SocketService.leaveOrderRoom(_currentOrder.id);
     SocketService.socket?.off('driverLocation', _handleDriverLocationUpdate);
     SocketService.socket?.off('orderStatus', _handleOrderStatusChange);
@@ -1768,10 +2287,12 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
 
   void _handleOrderStatusChange(dynamic data) {
     if (!mounted) return;
-    final orderId = data['orderId'] ?? data['_id'];
-    final status = data['status'];
+    final orderId = data != null
+        ? (data['orderId'] ?? data['_id'] ?? data['id'])
+        : null;
+    final status = data != null ? data['status'] : null;
 
-    if (orderId == _currentOrder.id) {
+    if (orderId == null || orderId.toString() == _currentOrder.id.toString()) {
       final orderProv = Provider.of<OrderProvider>(context, listen: false);
       orderProv.loadOrders().then((_) {
         if (!mounted) return;

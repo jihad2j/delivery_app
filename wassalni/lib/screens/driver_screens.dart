@@ -110,6 +110,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
         actions: [
           ElevatedButton(
             onPressed: () {
+              _isDialogShowing = false;
               Navigator.pop(ctx);
             },
             child: const Text('حسناً'),
@@ -520,12 +521,12 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Row(
           children: [
-            Icon(Icons.account_balance_wallet_rounded, color: AppTheme.primary, size: 28),
-            SizedBox(width: 10),
-            Text('محافظ السائق المزدوجة', style: TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.bold)),
+            Icon(Icons.account_balance_wallet_rounded, color: AppTheme.primary, size: 24),
+            SizedBox(width: 8),
+            Text('محافظ السائق المزدوجة', style: TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.bold, fontSize: 16)),
           ],
         ),
         content: Column(
@@ -534,14 +535,14 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
             // 1. محفظة أرباح الدليفري
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(18),
+              padding: const EdgeInsets.all(14),
               decoration: AppTheme.walletGradientDeco(isSecondary: false),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Row(
                     children: [
-                      Icon(Icons.stars_rounded, color: Colors.white, size: 20),
+                      Icon(Icons.stars_rounded, color: Colors.white, size: 18),
                       SizedBox(width: 6),
                       Text(
                         'رصيد أرباح الدليفري (أجرك الخاص)',
@@ -555,7 +556,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                     style: const TextStyle(
                       fontFamily: 'Outfit',
                       color: Colors.white,
-                      fontSize: 24,
+                      fontSize: 20,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -567,14 +568,14 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
             // 2. محفظة مدفوعات زبائن (كاش)
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(18),
+              padding: const EdgeInsets.all(14),
               decoration: AppTheme.walletGradientDeco(isSecondary: true),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Row(
                     children: [
-                      Icon(Icons.payments_rounded, color: Colors.white, size: 20),
+                      Icon(Icons.payments_rounded, color: Colors.white, size: 18),
                       SizedBox(width: 6),
                       Text(
                         'رصيد مدفوعات زبائن (مبالغ كاش)',
@@ -588,7 +589,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                     style: const TextStyle(
                       fontFamily: 'Outfit',
                       color: Colors.white,
-                      fontSize: 24,
+                      fontSize: 20,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -605,7 +606,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
         ),
         actions: [
           ElevatedButton(
-            style: ElevatedButton.styleFrom(minimumSize: const Size(120, 44)),
+            style: ElevatedButton.styleFrom(minimumSize: const Size(100, 40)),
             onPressed: () => Navigator.pop(ctx),
             child: const Text('حسناً'),
           ),
@@ -674,7 +675,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
               child: Text(
                 auth.currentUser?.name.substring(0, 1).toUpperCase() ?? 'K',
                 style: const TextStyle(
-                  fontSize: 28,
+                  fontSize: 24,
                   fontWeight: FontWeight.bold,
                   color: AppTheme.primary,
                 ),
@@ -682,7 +683,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
             ),
             accountName: Text(
               auth.currentUser?.name ?? 'الكابتن',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             accountEmail: Text(
               auth.currentUser?.phone ?? '',
@@ -695,14 +696,28 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
             subtitle: Text(
-              isAvailable ? 'أنت متصل وتستقبل الطلبات' : 'متوقف عن العمل',
-              style: TextStyle(color: isAvailable ? Colors.green : Colors.grey),
+              orderProv.orders.any((o) =>
+                  o.driverIdStr == auth.currentUser?.id &&
+                  ['delivery_accepted', 'preparing', 'ready', 'onTheWay', 'delivered_pending'].contains(o.status))
+                  ? 'لديك طلب نشط جاري توصيله 🛵'
+                  : (isAvailable ? 'أنت متصل وتستقبل الطلبات' : 'متوقف عن العمل'),
+              style: TextStyle(
+                color: orderProv.orders.any((o) =>
+                    o.driverIdStr == auth.currentUser?.id &&
+                    ['delivery_accepted', 'preparing', 'ready', 'onTheWay', 'delivered_pending'].contains(o.status))
+                    ? Colors.orange
+                    : (isAvailable ? Colors.green : Colors.grey),
+              ),
             ),
             value: isAvailable,
             activeColor: Colors.green,
-            onChanged: (val) {
-              _toggleAvailability(auth, val);
-            },
+            onChanged: orderProv.orders.any((o) =>
+                    o.driverIdStr == auth.currentUser?.id &&
+                    ['delivery_accepted', 'preparing', 'ready', 'onTheWay', 'delivered_pending'].contains(o.status))
+                ? null
+                : (val) {
+                    _toggleAvailability(auth, val);
+                  },
             secondary: Icon(
               Icons.radar,
               color: isAvailable ? Colors.green : Colors.grey,
@@ -768,6 +783,23 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
   }
 
   Future<void> _toggleAvailability(AuthProvider auth, bool active) async {
+    final orderProv = Provider.of<OrderProvider>(context, listen: false);
+    final driverId = auth.currentUser?.id;
+    final hasActiveOrder = orderProv.orders.any((o) =>
+      o.driverIdStr == driverId &&
+      ['delivery_accepted', 'preparing', 'ready', 'onTheWay', 'delivered_pending'].contains(o.status)
+    );
+
+    if (hasActiveOrder && !active) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('لا يمكنك إيقاف العمل أثناء وجود طلب نشط قيد التوصيل!'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     final err = await auth.toggleDriverAvailability(active);
     if (err == null) {
       if (active) {
@@ -1427,80 +1459,75 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
-
-                    // Compact & Semi-transparent Status Button (Left side)
-                    Material(
-                      elevation: 2,
-                      borderRadius: BorderRadius.circular(14),
-                      color: Colors.transparent,
-                      child: InkWell(
+                    // Compact & Semi-transparent Status Button (Left side - only visible when NO active order)
+                    if (activeOrders.isEmpty) ...[
+                      const SizedBox(width: 8),
+                      Material(
+                        elevation: 2,
                         borderRadius: BorderRadius.circular(14),
-                        onTap: _isTogglingAvailability
-                            ? null
-                            : () async {
-                                setState(() => _isTogglingAvailability = true);
-                                await _toggleAvailability(auth, !isAvailable);
-                                if (mounted) setState(() => _isTogglingAvailability = false);
-                              },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 300),
-                          height: 44,
-                          padding: const EdgeInsets.symmetric(horizontal: 10),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(14),
-                            color: !isAvailable
-                                ? Colors.red.shade700.withValues(alpha: 0.85)
-                                : Colors.green.shade600.withValues(alpha: 0.85),
-                            boxShadow: [
-                              BoxShadow(
-                                color: (!isAvailable ? Colors.red : Colors.green).withValues(alpha: 0.25),
-                                blurRadius: 8,
-                                offset: const Offset(0, 3),
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (_isTogglingAvailability)
-                                const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(14),
+                          onTap: _isTogglingAvailability
+                              ? null
+                              : () async {
+                                  setState(() => _isTogglingAvailability = true);
+                                  await _toggleAvailability(auth, !isAvailable);
+                                  if (mounted) setState(() => _isTogglingAvailability = false);
+                                },
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 300),
+                            height: 44,
+                            padding: const EdgeInsets.symmetric(horizontal: 10),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(14),
+                              color: !isAvailable
+                                  ? Colors.red.shade700.withValues(alpha: 0.85)
+                                  : Colors.green.shade600.withValues(alpha: 0.85),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: (!isAvailable ? Colors.red : Colors.green).withValues(alpha: 0.25),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (_isTogglingAvailability)
+                                  const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                else
+                                  Icon(
+                                    !isAvailable
+                                        ? Icons.power_settings_new_rounded
+                                        : Icons.wifi_tethering_rounded,
                                     color: Colors.white,
+                                    size: 18,
                                   ),
-                                )
-                              else
-                                Icon(
-                                  !isAvailable
-                                      ? Icons.power_settings_new_rounded
-                                      : activeOrders.isNotEmpty
-                                          ? Icons.delivery_dining_rounded
-                                          : Icons.wifi_tethering_rounded,
-                                  color: Colors.white,
-                                  size: 18,
+                                const SizedBox(width: 4),
+                                Text(
+                                  !isAvailable ? 'متوقف' : 'جاهز',
+                                  style: const TextStyle(
+                                    fontFamily: 'Outfit',
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12.5,
+                                  ),
                                 ),
-                              const SizedBox(width: 4),
-                              Text(
-                                !isAvailable
-                                    ? 'متوقف'
-                                    : activeOrders.isNotEmpty
-                                        ? 'نشط'
-                                        : 'جاهز',
-                                style: const TextStyle(
-                                  fontFamily: 'Outfit',
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12.5,
-                                ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
@@ -1783,29 +1810,56 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
       }
     }
     if (order.status == 'delivered_pending') {
-      return const Column(
+      return Column(
         children: [
-          Row(
+          const Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               SizedBox(
-                width: 20,
-                height: 20,
+                width: 18,
+                height: 18,
                 child: CircularProgressIndicator(
                   strokeWidth: 2.5,
                   color: Colors.orange,
                 ),
               ),
-              SizedBox(width: 12),
-              Text(
-                'بانتظار تأكيد العميل لاستلام الطلب...',
-                style: TextStyle(
-                  color: Colors.orange,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'بانتظار تأكيد العميل لاستلام الطلب...',
+                  style: TextStyle(
+                    color: Colors.orange,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.orange.shade800,
+                side: BorderSide(color: Colors.orange.shade400),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: () async {
+                _isDialogShowing = false;
+                await orderProv.loadOrders();
+                final updated = orderProv.orders.where((o) => o.id == order.id).toList();
+                if (updated.isEmpty || updated.first.status == 'delivered') {
+                  _triggerDeliveryConfirmedSuccess();
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('العميل لم يقم بالتأكيد بعد، يرجى تذكيره بالنقر على تأكيد الاستلام.')),
+                  );
+                }
+              },
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text('تحديث حالة التأكيد 🔄', style: TextStyle(fontFamily: 'Outfit', fontSize: 12, fontWeight: FontWeight.bold)),
+            ),
           ),
         ],
       );

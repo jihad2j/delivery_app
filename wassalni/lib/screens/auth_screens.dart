@@ -79,34 +79,34 @@ class _SplashScreenState extends State<SplashScreen>
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.15),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
                     Icons.directions_bike_rounded,
-                    size: 96,
+                    size: 72,
                     color: Colors.white,
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
                 const Text(
                   'وصلني',
                   style: TextStyle(
                     fontFamily: 'Outfit',
-                    fontSize: 48,
+                    fontSize: 40,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                     letterSpacing: 2,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 Text(
                   'توصيل سريع وأمان كامل',
                   style: TextStyle(
                     fontFamily: 'Outfit',
-                    fontSize: 16,
+                    fontSize: 14,
                     color: Colors.white.withValues(alpha: 0.8),
                   ),
                 ),
@@ -172,24 +172,24 @@ class _LoginScreenState extends State<LoginScreen> {
                         onPressed: _showSettingsDialog,
                       ),
                     ),
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 32),
                   const Text(
                     'مرحباً بك مجدداً! 👋',
                     style: TextStyle(
                       fontFamily: 'Outfit',
-                      fontSize: 32,
+                      fontSize: 28,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   Text(
                     'قم بتسجيل الدخول للمتابعة في تطبيق وصلني',
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
-                  const SizedBox(height: 48),
+                  const SizedBox(height: 36),
 
                   Container(
-                    padding: const EdgeInsets.all(24),
+                    padding: const EdgeInsets.all(20),
                     decoration: AppTheme.glassmorphismDeco(
                       cardColor: cardColor,
                     ),
@@ -200,22 +200,22 @@ class _LoginScreenState extends State<LoginScreen> {
                           keyboardType: TextInputType.emailAddress,
                           decoration: InputDecoration(
                             labelText: 'البريد الإلكتروني',
-                            prefixIcon: const Icon(Icons.email_outlined),
+                            prefixIcon: const Icon(Icons.email_outlined, size: 20),
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
+                              borderRadius: BorderRadius.circular(14),
                             ),
                           ),
                           validator: (v) => v!.isEmpty
                               ? 'يرجى إدخال البريد الإلكتروني'
                               : null,
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 14),
                         TextFormField(
                           controller: _passwordController,
                           obscureText: _obscureText,
                           decoration: InputDecoration(
                             labelText: 'كلمة المرور',
-                            prefixIcon: const Icon(Icons.lock_outline_rounded),
+                            prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20),
                             suffixIcon: IconButton(
                               icon: Icon(
                                 _obscureText
@@ -226,7 +226,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   setState(() => _obscureText = !_obscureText),
                             ),
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
+                              borderRadius: BorderRadius.circular(14),
                             ),
                           ),
                           validator: (v) =>
@@ -257,7 +257,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 32),
                   auth.isLoading
                       ? const Center(child: CircularProgressIndicator())
                       : ElevatedButton(
@@ -497,7 +497,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   'انضم إلينا اليوم! 🚀',
                   style: TextStyle(
                     fontFamily: 'Outfit',
-                    fontSize: 28,
+                    fontSize: 24,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -506,10 +506,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   'سجل حساباً جديداً لبدء استخدام تطبيق وصلني',
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 24),
 
                 Container(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.all(18),
                   decoration: AppTheme.glassmorphismDeco(cardColor: cardColor),
                   child: Column(
                     children: [
@@ -647,7 +647,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 const SizedBox(height: 12),
                 Container(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.all(18),
                   decoration: AppTheme.glassmorphismDeco(cardColor: cardColor),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -720,7 +720,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 Icons.location_city_outlined,
                               ),
                               border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(16),
+                                borderRadius: BorderRadius.circular(14),
                               ),
                             ),
                             items: [
@@ -762,7 +762,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               Icons.edit_location_alt_outlined,
                             ),
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
+                              borderRadius: BorderRadius.circular(14),
                             ),
                           ),
                           validator: (v) =>
@@ -819,10 +819,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       child: GestureDetector(
         onTap: () => setState(() => _selectedRole = role),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
+          padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
             color: isSelected ? AppTheme.primary : Theme.of(context).cardColor,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: isSelected
                   ? AppTheme.primary

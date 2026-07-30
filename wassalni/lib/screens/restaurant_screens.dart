@@ -51,7 +51,7 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
 
     return Scaffold(
       appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(82.0),
+        preferredSize: const Size.fromHeight(72.0),
         child: Container(
           decoration: BoxDecoration(
             color: Theme.of(context).cardColor,
@@ -83,7 +83,7 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
                             const Icon(
                               Icons.storefront_rounded,
                               color: AppTheme.primary,
-                              size: 24,
+                              size: 22,
                             ),
                             const SizedBox(width: 8),
                             Expanded(
@@ -91,7 +91,7 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
                                 auth.currentUser?.name ?? 'المطعم',
                                 style: const TextStyle(
                                   fontFamily: 'Outfit',
-                                  fontSize: 19,
+                                  fontSize: 17,
                                   fontWeight: FontWeight.bold,
                                 ),
                                 maxLines: 1,
@@ -200,7 +200,7 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
                       borderRadius: BorderRadius.circular(18),
                     ),
                     child: Container(
-                      padding: const EdgeInsets.all(8),
+                      padding: const EdgeInsets.all(7),
                       decoration: BoxDecoration(
                         color: AppTheme.primary.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
@@ -211,7 +211,7 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
                       child: const Icon(
                         Icons.person_rounded,
                         color: AppTheme.primary,
-                        size: 26,
+                        size: 22,
                       ),
                     ),
                     itemBuilder: (ctx) => [

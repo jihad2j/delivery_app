@@ -51,7 +51,7 @@ exports.createOrder = async (req, res) => {
       });
     }
 
-    const finalDeliveryFee = Number(deliveryFee) || 2500;
+    const finalDeliveryFee = Number(deliveryFee) || 0;
     const grandTotal = Number(calculatedTotalAmount) + finalDeliveryFee;
 
     // التحقق من وجود طلب جاري للعميل
