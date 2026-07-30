@@ -23,14 +23,16 @@ class DriverHomeScreen extends StatefulWidget {
 
 class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerProviderStateMixin {
   LatLng? _driverLatLng;
+  LatLng? _previousDriverLatLng;
+  double _driverHeading = 0;
   bool _isDialogShowing = false;
   Timer? _driverLocationTimer;
   Timer? _orderSearchTimer;
+  Timer? _driverAnimationTimer;
   bool _followDriver = true;
   bool _isTogglingAvailability = false;
   late AnimationController _pulseController;
 
-  // Real-time Routing properties (Merged from DeliveryMapScreen)
   List<LatLng> _routePoints = [];
   double _distanceKm = 0.0;
   double _durationMin = 0.0;
@@ -173,11 +175,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
       );
       if (mounted) {
         final newLatLng = LatLng(pos.latitude, pos.longitude);
-        setState(() {
-          _driverLatLng = newLatLng;
-        });
+        _animateDriverTo(newLatLng);
 
-        // Auto-follow: move map camera to driver location
         if (_followDriver) {
           try {
             _mapController.move(newLatLng, _mapController.camera.zoom);
@@ -223,6 +222,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
   void dispose() {
     _driverLocationTimer?.cancel();
     _orderSearchTimer?.cancel();
+    _driverAnimationTimer?.cancel();
     _pulseController.dispose();
     try {
       final orderProv = Provider.of<OrderProvider>(context, listen: false);
@@ -365,6 +365,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
   Future<void> _acceptOrder(String orderId) async {
     final orderProv = Provider.of<OrderProvider>(context, listen: false);
     final err = await orderProv.acceptOrder(orderId);
+    if (!mounted) return;
     if (err == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -773,6 +774,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
             ),
             onTap: () async {
               await auth.logout();
+              if (!mounted) return;
               Navigator.pushReplacementNamed(context, '/login');
             },
           ),
@@ -801,6 +803,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
     }
 
     final err = await auth.toggleDriverAvailability(active);
+    if (!mounted) return;
     if (err == null) {
       if (active) {
         _startDriverLocationUpdates();
@@ -861,6 +864,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
     String status,
   ) async {
     final err = await orderProv.updateStatus(id, status);
+    if (!mounted) return;
     if (err == null) {
       ScaffoldMessenger.of(
         context,
@@ -869,7 +873,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
       Provider.of<AuthProvider>(
         context,
         listen: false,
-      ).tryAutoLogin(); // Update balance
+      ).tryAutoLogin();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
     }
@@ -878,6 +882,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
   Future<void> _confirmDelivery(String orderId) async {
     final orderProv = Provider.of<OrderProvider>(context, listen: false);
     final err = await orderProv.confirmDelivery(orderId);
+    if (!mounted) return;
     if (err == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -989,21 +994,32 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
               _isLoadingRoute = false;
             });
             _checkProximityAndAutoZoom(destinationLatLng);
+            if (!_followDriver && points.length >= 2) {
+              try {
+                final bounds = LatLngBounds.fromPoints(points);
+                _mapController.fitCamera(CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(60)));
+              } catch (_) {}
+            }
           }
           return;
         }
       }
     } catch (_) {}
 
-    // Fallback: straight line
     if (mounted) {
       setState(() {
         _routePoints = [_driverLatLng!, destinationLatLng];
         _distanceKm = _calculateHaversineDistance(_driverLatLng!, destinationLatLng);
-        _durationMin = _distanceKm * 3.0; // rough guess
+        _durationMin = _distanceKm * 3.0;
         _isLoadingRoute = false;
       });
       _checkProximityAndAutoZoom(destinationLatLng);
+      if (!_followDriver) {
+        try {
+          final bounds = LatLngBounds.fromPoints([_driverLatLng!, destinationLatLng]);
+          _mapController.fitCamera(CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(60)));
+        } catch (_) {}
+      }
     }
   }
 
@@ -1040,6 +1056,38 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
     return 2 * R * asin(sqrt(h));
   }
 
+  double _calculateBearing(LatLng a, LatLng b) {
+    final dLon = (b.longitude - a.longitude) * pi / 180;
+    final lat1 = a.latitude * pi / 180;
+    final lat2 = b.latitude * pi / 180;
+    final y = sin(dLon) * cos(lat2);
+    final x = cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(dLon);
+    return (atan2(y, x) * 180 / pi + 360) % 360;
+  }
+
+  void _animateDriverTo(LatLng target) {
+    _driverAnimationTimer?.cancel();
+    final start = _driverLatLng ?? target;
+    final startTime = DateTime.now();
+    const animDuration = Duration(milliseconds: 1500);
+
+    _driverAnimationTimer = Timer.periodic(const Duration(milliseconds: 30), (timer) {
+      final elapsed = DateTime.now().difference(startTime);
+      final t = (elapsed.inMilliseconds / animDuration.inMilliseconds).clamp(0.0, 1.0);
+      final eased = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+      final lat = start.latitude + (target.latitude - start.latitude) * eased;
+      final lng = start.longitude + (target.longitude - start.longitude) * eased;
+      if (!mounted) { timer.cancel(); return; }
+      final newPos = LatLng(lat, lng);
+      _driverHeading = _calculateBearing(_previousDriverLatLng ?? start, newPos);
+      setState(() { _driverLatLng = newPos; });
+      if (t >= 1.0) {
+        timer.cancel();
+        _previousDriverLatLng = target;
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthProvider>(context);
@@ -1067,7 +1115,6 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
     final List<Marker> mapMarkers = [];
 
     if (activeOrders.isEmpty) {
-      // Idle state: show all nearby restaurants
       for (var r in restProv.restaurants) {
         final coords = r.address?.location?.coordinates;
         if (coords != null &&
@@ -1076,15 +1123,36 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
           mapMarkers.add(
             Marker(
               point: LatLng(coords[1], coords[0]),
-              width: 40,
-              height: 40,
-              child: Tooltip(
-                message: r.name,
-                child: const Icon(
-                  Icons.restaurant,
-                  color: Colors.red,
-                  size: 30,
-                ),
+              width: 120,
+              height: 48,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.black87,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      r.name,
+                      style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2),
+                      boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
+                    ),
+                    child: const Icon(Icons.restaurant, color: Colors.white, size: 18),
+                  ),
+                ],
               ),
             ),
           );
@@ -1126,50 +1194,81 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
           mapMarkers.add(
             Marker(
               point: restLatLng,
-              width: 48,
-              height: 48,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.orange,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 3),
-                  boxShadow: const [
-                    BoxShadow(color: Colors.black26, blurRadius: 6),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.restaurant,
-                  color: Colors.white,
-                  size: 24,
-                ),
+              width: 100,
+              height: 64,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade800,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      activeOrders.first.restaurantId is Map
+                          ? ((activeOrders.first.restaurantId as Map)['name'] ?? 'المطعم')
+                          : 'المطعم',
+                      style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.orange,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 3),
+                      boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 6)],
+                    ),
+                    child: const Icon(Icons.restaurant, color: Colors.white, size: 22),
+                  ),
+                ],
               ),
             ),
           );
         }
       } else {
         // Target is customer
-        if (activeOrder.deliveryAddress.location != null) {
-          final coords = activeOrder.deliveryAddress.location!.coordinates;
+        final deliveryAddr = activeOrder.deliveryAddress;
+        if (deliveryAddr.location != null) {
+          final coords = deliveryAddr.location!.coordinates;
           if (coords.length >= 2 && !(coords[0] == 0.0 && coords[1] == 0.0)) {
             mapMarkers.add(
               Marker(
                 point: LatLng(coords[1], coords[0]),
-                width: 48,
-                height: 48,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.red,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 3),
-                    boxShadow: const [
-                      BoxShadow(color: Colors.black26, blurRadius: 6),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.person_pin_circle,
-                    color: Colors.white,
-                    size: 24,
-                  ),
+                width: 100,
+                height: 64,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade800,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        deliveryAddr.street ?? deliveryAddr.label ?? 'العميل',
+                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 3),
+                        boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 6)],
+                      ),
+                      child: const Icon(Icons.person_pin_circle, color: Colors.white, size: 22),
+                    ),
+                  ],
                 ),
               ),
             );
@@ -1178,46 +1277,60 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
       }
     }
 
-    // Always overlay driver's current marker with pulse animation
     if (_driverLatLng != null) {
       mapMarkers.add(
         Marker(
           point: _driverLatLng!,
-          width: 64,
-          height: 64,
+          width: 68,
+          height: 68,
           child: AnimatedBuilder(
             animation: _pulseController,
             builder: (context, child) {
-              final scale = 1.0 + (_pulseController.value * 0.4);
+              final scale = 1.0 + (_pulseController.value * 0.35);
               final opacity = 1.0 - _pulseController.value;
               return Stack(
                 alignment: Alignment.center,
                 children: [
-                  // Pulse ring
                   Container(
-                    width: 48 * scale,
-                    height: 48 * scale,
+                    width: 52 * scale,
+                    height: 52 * scale,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: (isAvailable ? Colors.green : Colors.blue).withValues(alpha: 0.3 * opacity),
+                      color: (isAvailable ? Colors.green : Colors.blue).withValues(alpha: 0.25 * opacity),
                     ),
                   ),
-                  // Driver dot
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: isAvailable ? Colors.green : Colors.blue,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 3),
-                      boxShadow: [
-                        BoxShadow(color: Colors.black.withValues(alpha: 0.25), blurRadius: 8),
-                      ],
+                  Transform.rotate(
+                    angle: _driverHeading * pi / 180,
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: isAvailable ? Colors.green : Colors.blue,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 3),
+                        boxShadow: [
+                          BoxShadow(color: Colors.black.withValues(alpha: 0.25), blurRadius: 8),
+                        ],
+                      ),
+                      child: Icon(
+                        Icons.navigation_rounded,
+                        color: Colors.white,
+                        size: 24,
+                      ),
                     ),
-                    child: const Icon(
-                      Icons.directions_car_rounded,
-                      color: Colors.white,
-                      size: 22,
+                  ),
+                  Positioned(
+                    bottom: 0,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.black87,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '${_distanceKm.toStringAsFixed(1)} كم',
+                        style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
+                      ),
                     ),
                   ),
                 ],
@@ -1275,6 +1388,32 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
               ],
             ),
           ),
+
+          // Route Loading Overlay
+          if (_isLoadingRoute)
+            Positioned(
+              top: 100,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardColor.withValues(alpha: 0.9),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8)],
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                      SizedBox(width: 8),
+                      Text('جاري حساب المسار...', style: TextStyle(fontSize: 12)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
 
           // 2. Map Controls (Left side)
           Positioned(

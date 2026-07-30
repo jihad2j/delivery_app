@@ -39,8 +39,10 @@ class _SplashScreenState extends State<SplashScreen>
   Future<void> _navigateToNext() async {
     final auth = Provider.of<AuthProvider>(context, listen: false);
     await auth.tryAutoLogin();
+    if (!mounted) return;
 
     await Future.delayed(const Duration(milliseconds: 500));
+    if (!mounted) return;
 
     if (auth.isAuthenticated) {
       _routeUser(auth.currentUser!.role);
@@ -337,6 +339,7 @@ class _LoginScreenState extends State<LoginScreen> {
       _emailController.text,
       _passwordController.text,
     );
+    if (!mounted) return;
     if (err != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(err), backgroundColor: Colors.redAccent),
@@ -445,7 +448,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         desiredAccuracy: LocationAccuracy.high,
         timeLimit: const Duration(seconds: 15),
       );
-      Navigator.pop(context); // Close loader
+      if (!mounted) return;
+      Navigator.pop(context);
       setState(() {
         _detectedPosition = pos;
         _gpsDetermined = true;
@@ -454,7 +458,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         const SnackBar(content: Text('تم تثبيت موقع الـ GPS بنجاح!')),
       );
     } catch (e) {
-      Navigator.pop(context); // Close loader
+      if (!mounted) return;
+      Navigator.pop(context);
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('فشل تحديد الموقع: $e')));
@@ -903,6 +908,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       cuisineType: _selectedRole == 'restaurant' ? _selectedCuisine : null,
       address: userAddress,
     );
+    if (!mounted) return;
 
     if (err != null) {
       ScaffoldMessenger.of(context).showSnackBar(

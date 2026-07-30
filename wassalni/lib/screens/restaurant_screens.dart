@@ -120,6 +120,7 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
                             await auth.updateProfile(
                               restaurantInfo: updatedInfo,
                             );
+                            if (!mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(
@@ -192,6 +193,7 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
                           break;
                         case 'logout':
                           await auth.logout();
+                          if (!mounted) return;
                           Navigator.pushReplacementNamed(context, '/login');
                           break;
                       }
@@ -1380,6 +1382,7 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
           imageQuality: 50,
         );
       } else if (choice == 'default') {
+        if (!mounted) return;
         const base64Image =
             'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'; // tiny transparent 1x1 image
         final err = await orderProv.updateStatus(
@@ -1406,6 +1409,7 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
     }
 
     if (pickedFile == null) {
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('تم إلغاء التقاط الصورة')));
@@ -1420,6 +1424,7 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
       'ready',
       packagedPicture: base64Image,
     );
+    if (!mounted) return;
     if (err == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -2005,6 +2010,7 @@ class _ManageMenuScreenState extends State<ManageMenuScreen> {
             onPressed: () async {
               Navigator.pop(ctx);
               final err = await restProv.deleteProduct(id);
+              if (!mounted) return;
               if (err == null) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('تم حذف وجبة "$name" بنجاح')),
@@ -2237,6 +2243,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
       description: _descController.text,
       isAvailable: _isAvailable,
     );
+    if (!mounted) return;
 
     if (err == null) {
       ScaffoldMessenger.of(

@@ -645,6 +645,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                   onPressed: () async {
                     final err =
                         await LocationHelper.checkAndRequestPermissions();
+                    if (!mounted) return;
                     if (err != null) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('فضلاً فعّل الـ GPS')),
@@ -656,6 +657,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                         desiredAccuracy: LocationAccuracy.high,
                         timeLimit: const Duration(seconds: 10),
                       );
+                      if (!mounted) return;
                       setBottomSheetState(() {
                         capturedCoords = [pos.longitude, pos.latitude];
                       });
@@ -663,6 +665,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                         const SnackBar(content: Text('تم التقاط الموقع ✅')),
                       );
                     } catch (e) {
+                      if (!mounted) return;
                       ScaffoldMessenger.of(
                         context,
                       ).showSnackBar(SnackBar(content: Text('خطأ GPS: $e')));

@@ -8,7 +8,8 @@ import 'screens/auth/screens.dart';
 import 'screens/customer/screens.dart';
 import 'screens/driver/screens.dart';
 import 'screens/restaurant/screens.dart';
-import 'screens/shared/screens.dart' show AppRoutes, ProfileScreen;
+import 'screens/shared/screens.dart'
+    show AppRoutes, ProfileScreen;
 import 'models/models.dart' as model;
 
 void main() {
@@ -96,7 +97,10 @@ class WassalniApp extends StatelessWidget {
     );
   }
 
-  static MaterialPageRoute<T> _page<T>(Widget child, RouteSettings settings) {
+  static MaterialPageRoute<T> _page<T>(
+    Widget child,
+    RouteSettings settings,
+  ) {
     return MaterialPageRoute<T>(
       builder: (_) => child,
       settings: settings,
