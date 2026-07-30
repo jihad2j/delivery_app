@@ -142,6 +142,7 @@ class AuthProvider extends ChangeNotifier {
     Address? address,
     List<Address>? addresses,
     RestaurantInfo? restaurantInfo,
+    DriverInfo? driverInfo,
   }) async {
     _isLoading = true;
     notifyListeners();
@@ -154,6 +155,7 @@ class AuthProvider extends ChangeNotifier {
         updates['addresses'] = addresses.map((a) => a.toJson()).toList();
       }
       if (restaurantInfo != null) {
+        updates['restaurantInfo'] = restaurantInfo.toJson();
         updates['description'] = restaurantInfo.description;
         updates['logo'] = restaurantInfo.logo;
         updates['status'] = restaurantInfo.status;
@@ -161,6 +163,15 @@ class AuthProvider extends ChangeNotifier {
         updates['deliveryFee'] = restaurantInfo.deliveryFee;
         updates['cuisineType'] = restaurantInfo.cuisineType;
         updates['firebaseNotifications'] = restaurantInfo.firebaseNotifications;
+        if (restaurantInfo.openingTime != null) {
+          updates['openingTime'] = restaurantInfo.openingTime;
+        }
+        if (restaurantInfo.closingTime != null) {
+          updates['closingTime'] = restaurantInfo.closingTime;
+        }
+      }
+      if (driverInfo != null) {
+        updates['driverInfo'] = driverInfo.toJson();
       }
 
       final res = await ApiService.put('/api/auth/profile', updates);
@@ -507,6 +518,96 @@ class OrderProvider extends ChangeNotifier {
   List<Order> get orders => _orders;
   List<Order> get availableOrders => _availableOrders;
   bool get isLoading => _isLoading;
+
+  // --- Driver Stats Helper Methods ---
+  int completedCountFor(String? driverId) {
+    if (driverId == null || driverId.isEmpty) return 0;
+    return _orders.where((o) =>
+      o.driverIdStr == driverId &&
+      (o.status == 'delivered' || o.status == 'completed' || o.status == 'delivered_pending')
+    ).length;
+  }
+
+  double todayEarningsFor(String? driverId) {
+    if (driverId == null || driverId.isEmpty) return 0.0;
+    final now = DateTime.now();
+    double total = 0.0;
+    for (var o in _orders) {
+      if (o.driverIdStr == driverId &&
+          (o.status == 'delivered' || o.status == 'completed' || o.status == 'delivered_pending')) {
+        final t = o.expectedDeliveryTime ?? DateTime.now();
+        if (t.year == now.year && t.month == now.month && t.day == now.day) {
+          total += (o.driverShare ?? o.deliveryFee);
+        }
+      }
+    }
+    return total;
+  }
+
+  double weeklyEarningsFor(String? driverId) {
+    if (driverId == null || driverId.isEmpty) return 0.0;
+    final cutoff = DateTime.now().subtract(const Duration(days: 7));
+    double total = 0.0;
+    for (var o in _orders) {
+      if (o.driverIdStr == driverId &&
+          (o.status == 'delivered' || o.status == 'completed' || o.status == 'delivered_pending')) {
+        final t = o.expectedDeliveryTime ?? DateTime.now();
+        if (t.isAfter(cutoff)) {
+          total += (o.driverShare ?? o.deliveryFee);
+        }
+      }
+    }
+    return total;
+  }
+
+  double ratingForDriver(String? driverId) {
+    return 4.9;
+  }
+
+  // --- Restaurant Stats Helper Methods ---
+  double todaySalesForRestaurant(String? restaurantId) {
+    if (restaurantId == null || restaurantId.isEmpty) return 0.0;
+    final now = DateTime.now();
+    double total = 0.0;
+    for (var o in _orders) {
+      if (o.restaurantIdStr == restaurantId &&
+          (o.status == 'delivered' || o.status == 'completed' || o.status == 'delivered_pending')) {
+        final t = o.expectedDeliveryTime ?? DateTime.now();
+        if (t.year == now.year && t.month == now.month && t.day == now.day) {
+          total += (o.restaurantShare ?? o.totalAmount);
+        }
+      }
+    }
+    return total;
+  }
+
+  int pendingOrdersCountForRestaurant(String? restaurantId) {
+    if (restaurantId == null || restaurantId.isEmpty) return 0;
+    return _orders.where((o) =>
+      o.restaurantIdStr == restaurantId &&
+      ['pending', 'restaurant_accepted', 'preparing', 'ready'].contains(o.status)
+    ).length;
+  }
+
+  double weeklySalesForRestaurant(String? restaurantId) {
+    if (restaurantId == null || restaurantId.isEmpty) return 0.0;
+    final cutoff = DateTime.now().subtract(const Duration(days: 7));
+    double total = 0.0;
+    for (var o in _orders) {
+      if (o.restaurantIdStr == restaurantId &&
+          (o.status == 'delivered' || o.status == 'completed' || o.status == 'delivered_pending')) {
+        final t = o.expectedDeliveryTime ?? DateTime.now();
+        if (t.isAfter(cutoff)) {
+          total += (o.restaurantShare ?? o.totalAmount);
+        }
+      }
+    }
+    return total;
+  }
+
+  double ratingForRestaurant(String? restaurantId) {
+    return 4.8;
+  }
 
   Future<void> loadOrders([String? status]) async {
     _isLoading = true;

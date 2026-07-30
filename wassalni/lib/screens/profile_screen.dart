@@ -58,9 +58,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('الملف الشخصي'),
-      ),
+      appBar: AppBar(title: const Text('الملف الشخصي')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),
         child: Form(
@@ -72,7 +70,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
-                decoration: AppTheme.premiumGradientDeco().copyWith(
+                decoration: AppTheme.primaryGradient().copyWith(
                   borderRadius: BorderRadius.circular(18),
                 ),
                 child: Column(
@@ -84,7 +82,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           backgroundColor: Colors.white,
                           child: CircleAvatar(
                             radius: 35,
-                            backgroundColor: AppTheme.primary.withValues(alpha: 0.15),
+                            backgroundColor: AppTheme.primary.withValues(
+                              alpha: 0.15,
+                            ),
                             child: const Icon(
                               Icons.person_rounded,
                               size: 38,
@@ -106,7 +106,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const SizedBox(height: 4),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(20),
@@ -159,7 +162,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              '${user?.balance.toStringAsFixed(0)} ل.س',
+                              '${user?.balance.toStringAsFixed(0) ?? '0'} ل.س',
                               style: const TextStyle(
                                 fontFamily: 'Outfit',
                                 fontWeight: FontWeight.bold,
@@ -172,13 +175,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       OutlinedButton(
                         style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 8,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
                         ),
                         onPressed: () {
                           auth.tryAutoLogin();
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('تم تحديث الرصيد الحسابي')),
+                            const SnackBar(
+                              content: Text('تم تحديث الرصيد الحسابي'),
+                            ),
                           );
                         },
                         child: const Text('تحديث'),
@@ -217,7 +227,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           labelText: 'الاسم الكامل',
                           prefixIcon: Icon(Icons.person_outline_rounded),
                         ),
-                        validator: (v) => v!.isEmpty ? 'يرجى إدخال الاسم' : null,
+                        validator: (v) => (v == null || v.isEmpty)
+                            ? 'يرجى إدخال الاسم'
+                            : null,
                       ),
                       const SizedBox(height: 14),
                       TextFormField(
@@ -226,7 +238,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           labelText: 'رقم الهاتف',
                           prefixIcon: Icon(Icons.phone_android_rounded),
                         ),
-                        validator: (v) => v!.isEmpty ? 'يرجى إدخال رقم الهاتف' : null,
+                        validator: (v) => (v == null || v.isEmpty)
+                            ? 'يرجى إدخال رقم الهاتف'
+                            : null,
                       ),
                       const SizedBox(height: 14),
                       TextFormField(
@@ -236,7 +250,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           labelText: 'البريد الإلكتروني (غير قابل للتعديل)',
                           prefixIcon: const Icon(Icons.email_outlined),
                           filled: true,
-                          fillColor: isDark ? Colors.grey[800] : Colors.grey[100],
+                          fillColor: isDark
+                              ? Colors.grey[800]
+                              : Colors.grey[100],
                         ),
                       ),
                     ],
@@ -257,7 +273,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         children: [
                           const Row(
                             children: [
-                              Icon(Icons.location_on_rounded, color: AppTheme.primary),
+                              Icon(
+                                Icons.location_on_rounded,
+                                color: AppTheme.primary,
+                              ),
                               SizedBox(width: 8),
                               Text(
                                 'مواقع التوصيل المحفوظة',
@@ -271,7 +290,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           TextButton.icon(
                             onPressed: () => _openAddressFormDialog(),
-                            icon: const Icon(Icons.add_location_alt_rounded, size: 18),
+                            icon: const Icon(
+                              Icons.add_location_alt_rounded,
+                              size: 18,
+                            ),
                             label: const Text('إضافة موقع'),
                           ),
                         ],
@@ -284,11 +306,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           decoration: BoxDecoration(
                             color: Colors.orange.withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: Colors.orange.withValues(alpha: 0.2)),
+                            border: Border.all(
+                              color: Colors.orange.withValues(alpha: 0.2),
+                            ),
                           ),
                           child: const Column(
                             children: [
-                              Icon(Icons.location_off_outlined, color: Colors.orange, size: 36),
+                              Icon(
+                                Icons.location_off_outlined,
+                                color: Colors.orange,
+                                size: 36,
+                              ),
                               SizedBox(height: 8),
                               Text(
                                 'لا توجد مواقع توصيل محفوظة حتى الآن',
@@ -318,7 +346,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           itemCount: _savedAddresses.length,
                           itemBuilder: (ctx, idx) {
                             final addr = _savedAddresses[idx];
-                            final isMain = user?.address?.street == addr.street &&
+                            final isMain =
+                                user?.address?.street == addr.street &&
                                 user?.address?.city == addr.city;
 
                             return Container(
@@ -342,20 +371,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       Container(
                                         padding: const EdgeInsets.all(8),
                                         decoration: BoxDecoration(
-                                          color: (isMain ? AppTheme.primary : AppTheme.secondary)
-                                              .withValues(alpha: 0.12),
+                                          color:
+                                              (isMain
+                                                      ? AppTheme.primary
+                                                      : AppTheme.secondary)
+                                                  .withValues(alpha: 0.12),
                                           shape: BoxShape.circle,
                                         ),
                                         child: Icon(
                                           _getLabelIcon(addr.label),
-                                          color: isMain ? AppTheme.primary : AppTheme.secondary,
+                                          color: isMain
+                                              ? AppTheme.primary
+                                              : AppTheme.secondary,
                                           size: 20,
                                         ),
                                       ),
                                       const SizedBox(width: 10),
                                       Expanded(
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             Row(
                                               children: [
@@ -370,13 +405,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                 if (isMain) ...[
                                                   const SizedBox(width: 8),
                                                   Container(
-                                                    padding: const EdgeInsets.symmetric(
-                                                      horizontal: 8,
-                                                      vertical: 2,
-                                                    ),
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 8,
+                                                          vertical: 2,
+                                                        ),
                                                     decoration: BoxDecoration(
                                                       color: AppTheme.primary,
-                                                      borderRadius: BorderRadius.circular(10),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            10,
+                                                          ),
                                                     ),
                                                     child: const Text(
                                                       'الرئيسي',
@@ -384,7 +423,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                                         fontFamily: 'Outfit',
                                                         fontSize: 10,
                                                         color: Colors.white,
-                                                        fontWeight: FontWeight.bold,
+                                                        fontWeight:
+                                                            FontWeight.bold,
                                                       ),
                                                     ),
                                                   ),
@@ -397,23 +437,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                               style: TextStyle(
                                                 fontFamily: 'Outfit',
                                                 fontSize: 13,
-                                                color: Theme.of(context).textTheme.bodyMedium?.color,
+                                                color: Theme.of(
+                                                  context,
+                                                ).textTheme.bodyMedium?.color,
                                               ),
                                             ),
                                           ],
                                         ),
                                       ),
                                       IconButton(
-                                        icon: const Icon(Icons.edit_outlined, size: 20, color: Colors.blue),
-                                        onPressed: () => _openAddressFormDialog(addressToEdit: addr, index: idx),
+                                        icon: const Icon(
+                                          Icons.edit_outlined,
+                                          size: 20,
+                                          color: Colors.blue,
+                                        ),
+                                        onPressed: () => _openAddressFormDialog(
+                                          addressToEdit: addr,
+                                          index: idx,
+                                        ),
                                       ),
                                       IconButton(
-                                        icon: const Icon(Icons.delete_outline_rounded, size: 20, color: Colors.red),
+                                        icon: const Icon(
+                                          Icons.delete_outline_rounded,
+                                          size: 20,
+                                          color: Colors.red,
+                                        ),
                                         onPressed: () => _deleteAddress(idx),
                                       ),
                                     ],
                                   ),
-                                  if (addr.details != null && addr.details!.isNotEmpty) ...[
+                                  if (addr.details != null &&
+                                      addr.details!.isNotEmpty) ...[
                                     const SizedBox(height: 6),
                                     Text(
                                       'التفاصيل: ${addr.details}',
@@ -463,21 +517,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       children: [
                         const Text(
                           'موقع المطعم الجغرافي (GPS)',
-                          style: TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.bold, fontSize: 16),
+                          style: TextStyle(
+                            fontFamily: 'Outfit',
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
                         ),
                         const SizedBox(height: 8),
                         Row(
                           children: [
-                            const Icon(Icons.location_on, color: AppTheme.primary),
+                            const Icon(
+                              Icons.location_on,
+                              color: AppTheme.primary,
+                            ),
                             const SizedBox(width: 8),
                             Expanded(
-                              child: Text(
-                                user?.address?.location?.coordinates != null &&
-                                        user!.address!.location!.coordinates.length >= 2
-                                    ? 'خط الطول: ${user.address!.location!.coordinates[0].toStringAsFixed(6)}\nخط العرض: ${user.address!.location!.coordinates[1].toStringAsFixed(6)}'
-                                    : 'لم يتم تحديد موقع المطعم بدقة بعد',
-                                style: const TextStyle(fontSize: 13),
-                              ),
+                              child: () {
+                                final coords =
+                                    user?.address?.location?.coordinates;
+                                if (coords != null && coords.length >= 2) {
+                                  return Text(
+                                    'خط الطول: ${coords[0].toStringAsFixed(6)}\nخط العرض: ${coords[1].toStringAsFixed(6)}',
+                                    style: const TextStyle(fontSize: 13),
+                                  );
+                                }
+                                return const Text(
+                                  'لم يتم تحديد موقع المطعم بدقة بعد',
+                                  style: TextStyle(fontSize: 13),
+                                );
+                              }(),
                             ),
                           ],
                         ),
@@ -485,7 +553,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         OutlinedButton.icon(
                           style: OutlinedButton.styleFrom(
                             minimumSize: const Size(double.infinity, 48),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
                           ),
                           onPressed: () => _updateRestaurantGpsLocation(auth),
                           icon: const Icon(Icons.my_location),
@@ -526,7 +596,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 icon: const Icon(Icons.logout_rounded, color: Colors.redAccent),
                 label: const Text(
                   'تسجيل الخروج من الحساب',
-                  style: TextStyle(color: Colors.redAccent, fontFamily: 'Outfit', fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    color: Colors.redAccent,
+                    fontFamily: 'Outfit',
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
               const SizedBox(height: 24),
@@ -539,21 +613,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   IconData _getLabelIcon(String? label) {
     if (label == null) return Icons.location_on_rounded;
-    if (label.contains('المنزل') || label.contains('بيتي') || label.contains('منزل')) {
+    if (label.contains('المنزل') ||
+        label.contains('بيتي') ||
+        label.contains('منزل')) {
       return Icons.home_rounded;
     }
-    if (label.contains('العمل') || label.contains('مكتب') || label.contains('شرك')) {
+    if (label.contains('العمل') ||
+        label.contains('مكتب') ||
+        label.contains('شرك')) {
       return Icons.work_rounded;
     }
     return Icons.place_rounded;
   }
 
   void _openAddressFormDialog({model.Address? addressToEdit, int? index}) {
-    final labelCtrl = TextEditingController(text: addressToEdit?.label ?? 'المنزل 🏠');
-    final govCtrl = TextEditingController(text: addressToEdit?.governorate ?? 'دمشق');
-    final regCtrl = TextEditingController(text: addressToEdit?.region ?? addressToEdit?.city ?? '');
+    final labelCtrl = TextEditingController(
+      text: addressToEdit?.label ?? 'المنزل 🏠',
+    );
+    final govCtrl = TextEditingController(
+      text: addressToEdit?.governorate ?? 'دمشق',
+    );
+    final regCtrl = TextEditingController(
+      text: addressToEdit?.region ?? addressToEdit?.city ?? '',
+    );
     final streetCtrl = TextEditingController(text: addressToEdit?.street ?? '');
-    final detailsCtrl = TextEditingController(text: addressToEdit?.details ?? '');
+    final detailsCtrl = TextEditingController(
+      text: addressToEdit?.details ?? '',
+    );
     List<double>? capturedCoords = addressToEdit?.location?.coordinates;
 
     showModalBottomSheet(
@@ -579,7 +665,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      addressToEdit != null ? 'تعديل موقع التوصيل' : 'إضافة موقع توصيل جديد',
+                      addressToEdit != null
+                          ? 'تعديل موقع التوصيل'
+                          : 'إضافة موقع توصيل جديد',
                       style: const TextStyle(
                         fontFamily: 'Outfit',
                         fontWeight: FontWeight.bold,
@@ -602,16 +690,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: ['دمشق', 'ريف دمشق', 'حلب', 'حمص', 'اللاذقية', 'طرطوس', 'حماة'].contains(govCtrl.text)
+                  value:
+                      [
+                        'دمشق',
+                        'ريف دمشق',
+                        'حلب',
+                        'حمص',
+                        'اللاذقية',
+                        'طرطوس',
+                        'حماة',
+                      ].contains(govCtrl.text)
                       ? govCtrl.text
                       : 'دمشق',
                   decoration: const InputDecoration(
                     labelText: 'المحافظة',
                     prefixIcon: Icon(Icons.map_outlined),
                   ),
-                  items: ['دمشق', 'ريف دمشق', 'حلب', 'حمص', 'اللاذقية', 'طرطوس', 'حماة']
-                      .map((g) => DropdownMenuItem(value: g, child: Text(g)))
-                      .toList(),
+                  items:
+                      [
+                            'دمشق',
+                            'ريف دمشق',
+                            'حلب',
+                            'حمص',
+                            'اللاذقية',
+                            'طرطوس',
+                            'حماة',
+                          ]
+                          .map(
+                            (g) => DropdownMenuItem(value: g, child: Text(g)),
+                          )
+                          .toList(),
                   onChanged: (v) {
                     if (v != null) govCtrl.text = v;
                   },
@@ -647,13 +755,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size(double.infinity, 46),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
                   onPressed: () async {
-                    final err = await LocationHelper.checkAndRequestPermissions();
+                    final err =
+                        await LocationHelper.checkAndRequestPermissions();
                     if (err != null) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('الرجاء تفعيل الـ GPS في جهازك')),
+                        const SnackBar(
+                          content: Text('الرجاء تفعيل الـ GPS في جهازك'),
+                        ),
                       );
                       return;
                     }
@@ -666,17 +779,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         capturedCoords = [pos.longitude, pos.latitude];
                       });
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('تم التقاط الإحداثيات عبر الـ GPS بنجاح! 🎯')),
+                        const SnackBar(
+                          content: Text(
+                            'تم التقاط الإحداثيات عبر الـ GPS بنجاح! 🎯',
+                          ),
+                        ),
                       );
                     } catch (e) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('تعذر تحديد الموقع الجغرافي: $e')),
+                        SnackBar(
+                          content: Text('تعذر تحديد الموقع الجغرافي: $e'),
+                        ),
                       );
                     }
                   },
                   icon: Icon(
-                    capturedCoords != null ? Icons.gps_fixed_rounded : Icons.gps_not_fixed_rounded,
-                    color: capturedCoords != null ? Colors.green : AppTheme.primary,
+                    capturedCoords != null
+                        ? Icons.gps_fixed_rounded
+                        : Icons.gps_not_fixed_rounded,
+                    color: capturedCoords != null
+                        ? Colors.green
+                        : AppTheme.primary,
                   ),
                   label: Text(
                     capturedCoords != null
@@ -719,7 +842,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     );
                   },
-                  child: Text(addressToEdit != null ? 'تعديل الموقع' : 'إضافة الموقع'),
+                  child: Text(
+                    addressToEdit != null ? 'تعديل الموقع' : 'إضافة الموقع',
+                  ),
                 ),
               ],
             ),
@@ -734,7 +859,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('حذف موقع التوصيل'),
-        content: const Text('هل أنت تأكد من رغبتك في حذف هذا الموقع من قائمة مواقك المحفوظة؟'),
+        content: const Text(
+          'هل أنت تأكد من رغبتك في حذف هذا الموقع من قائمة مواقك المحفوظة؟',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -761,6 +888,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _setDefaultAddress(model.Address addr) async {
     final auth = Provider.of<AuthProvider>(context, listen: false);
     await auth.updateProfile(address: addr);
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('تم تعيين هذا الموقع كعنوان رئيسي للتوصيل')),
     );
@@ -768,9 +896,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _updateRestaurantGpsLocation(AuthProvider auth) async {
     final err = await LocationHelper.checkAndRequestPermissions();
+    if (!mounted) return;
     if (err != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('الرجاء تفعيل الـ GPS لتحديد موقع المطعم')),
+        const SnackBar(
+          content: Text('الرجاء تفعيل الـ GPS لتحديد موقع المطعم'),
+        ),
       );
       return;
     }
@@ -787,27 +918,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
         location: model.Location(coordinates: [pos.longitude, pos.latitude]),
       );
       await auth.updateProfile(address: updatedAddress);
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('تم تحديث موقع المطعم بالـ GPS بنجاح')),
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('فشل قراءة الـ GPS: $e')),
-      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('فشل قراءة الـ GPS: $e')));
     }
   }
 
   Future<void> _saveProfile(AuthProvider auth) async {
-    if (!_formKey.currentState!.validate()) return;
+    final formState = _formKey.currentState;
+    if (formState == null || !formState.validate()) return;
     await auth.updateProfile(
       name: _nameController.text,
       phone: _phoneController.text,
       address: _savedAddresses.isNotEmpty ? _savedAddresses.first : null,
       addresses: _savedAddresses,
     );
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('تم حفظ معلومات الحساب والمواقع المحفوظة بنجاح')),
+      const SnackBar(
+        content: Text('تم حفظ معلومات الحساب والمواقع المحفوظة بنجاح'),
+      ),
     );
   }
 }
-

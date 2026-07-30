@@ -525,7 +525,7 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
           // Header Card: Balance and Quick Info
           Container(
             padding: const EdgeInsets.all(24),
-            decoration: AppTheme.premiumGradientDeco().copyWith(
+            decoration: AppTheme.primaryGradient().copyWith(
               borderRadius: BorderRadius.circular(24),
             ),
             child: Column(
@@ -2057,7 +2057,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(24),
-                decoration: AppTheme.premiumGradientDeco().copyWith(
+                decoration: AppTheme.primaryGradient().copyWith(
                   borderRadius: BorderRadius.circular(22),
                 ),
                 child: const Column(
@@ -2300,7 +2300,7 @@ class _CompletedOrdersScreenState extends State<CompletedOrdersScreen> {
             // Summary Header Card
             Container(
               padding: const EdgeInsets.all(22),
-              decoration: AppTheme.premiumGradientDeco().copyWith(
+              decoration: AppTheme.primaryGradient().copyWith(
                 borderRadius: BorderRadius.circular(22),
               ),
               child: Column(

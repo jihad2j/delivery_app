@@ -8,28 +8,8 @@ import 'screens/auth/screens.dart';
 import 'screens/customer/screens.dart';
 import 'screens/driver/screens.dart';
 import 'screens/restaurant/screens.dart';
-import 'screens/shared/screens.dart';
+import 'screens/shared/screens.dart' show AppRoutes, ProfileScreen;
 import 'models/models.dart' as model;
-
-/// Route names for named navigation — avoids typos in magic strings.
-class AppRoutes {
-  static const String splash = '/';
-  static const String login = '/login';
-  static const String register = '/register';
-  static const String customerHome = '/customer-home';
-  static const String restaurantDetail = '/restaurant-detail';
-  static const String cart = '/cart';
-  static const String customerOrders = '/customer-orders';
-  static const String orderTrack = '/order-track';
-  static const String driverHome = '/driver-home';
-  static const String restaurantHome = '/restaurant-home';
-  static const String manageMenu = '/manage-menu';
-  static const String addProduct = '/add-product';
-  static const String completedOrders = '/completed-orders';
-  static const String profile = '/profile';
-
-  const AppRoutes._();
-}
 
 void main() {
   runApp(
@@ -116,10 +96,7 @@ class WassalniApp extends StatelessWidget {
     );
   }
 
-  static MaterialPageRoute<T> _page<T>(
-    Widget child,
-    RouteSettings settings,
-  ) {
+  static MaterialPageRoute<T> _page<T>(Widget child, RouteSettings settings) {
     return MaterialPageRoute<T>(
       builder: (_) => child,
       settings: settings,

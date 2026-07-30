@@ -536,7 +536,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(14),
-              decoration: AppTheme.walletGradientDeco(isSecondary: false),
+              decoration: AppTheme.walletGradient(isSecondary: false),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -569,7 +569,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(14),
-              decoration: AppTheme.walletGradientDeco(isSecondary: true),
+              decoration: AppTheme.walletGradient(isSecondary: true),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -669,7 +669,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
       child: Column(
         children: [
           UserAccountsDrawerHeader(
-            decoration: AppTheme.premiumGradientDeco(),
+            decoration: AppTheme.primaryGradient(),
             currentAccountPicture: CircleAvatar(
               backgroundColor: Colors.white,
               child: Text(

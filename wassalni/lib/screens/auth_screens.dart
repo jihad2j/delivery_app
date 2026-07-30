@@ -71,7 +71,7 @@ class _SplashScreenState extends State<SplashScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: AppTheme.premiumGradientDeco(),
+        decoration: AppTheme.primaryGradient(),
         child: Center(
           child: ScaleTransition(
             scale: _animation,
@@ -190,7 +190,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   Container(
                     padding: const EdgeInsets.all(20),
-                    decoration: AppTheme.glassmorphismDeco(
+                    decoration: AppTheme.glassCard(
                       cardColor: cardColor,
                     ),
                     child: Column(
@@ -510,7 +510,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                 Container(
                   padding: const EdgeInsets.all(18),
-                  decoration: AppTheme.glassmorphismDeco(cardColor: cardColor),
+                  decoration: AppTheme.glassCard(cardColor: cardColor),
                   child: Column(
                     children: [
                       TextFormField(
@@ -648,7 +648,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.all(18),
-                  decoration: AppTheme.glassmorphismDeco(cardColor: cardColor),
+                  decoration: AppTheme.glassCard(cardColor: cardColor),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [

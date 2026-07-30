@@ -78,6 +78,14 @@ class User {
       'driverEarningsWallet': driverEarningsWallet,
     };
   }
+
+  // Restaurant profile helper getters
+  String get restaurantName => name;
+  String? get restaurantDescription => restaurantInfo?.description;
+  String? get cuisineType => restaurantInfo?.cuisineType;
+  String? get openingTime => restaurantInfo?.openingTime;
+  String? get closingTime => restaurantInfo?.closingTime;
+  bool get isRestaurantOpen => restaurantInfo?.status == 'open';
 }
 
 class Address {
@@ -162,6 +170,8 @@ class RestaurantInfo {
   final List<String> menu;
   final String cuisineType; // مشروبات - حلويات - مشاوي - شاورما فروج
   final bool firebaseNotifications; // تفعيل التنبيهات أو إيقافها
+  final String? openingTime;
+  final String? closingTime;
 
   RestaurantInfo({
     this.description,
@@ -172,6 +182,8 @@ class RestaurantInfo {
     required this.menu,
     this.cuisineType = 'مشاوي',
     this.firebaseNotifications = true,
+    this.openingTime,
+    this.closingTime,
   });
 
   factory RestaurantInfo.fromJson(Map<String, dynamic> json) {
@@ -189,6 +201,8 @@ class RestaurantInfo {
       }).toList(),
       cuisineType: json['cuisineType'] ?? 'مشاوي',
       firebaseNotifications: json['firebaseNotifications'] ?? true,
+      openingTime: json['openingTime'],
+      closingTime: json['closingTime'],
     );
   }
 
@@ -202,6 +216,8 @@ class RestaurantInfo {
       'menu': menu,
       'cuisineType': cuisineType,
       'firebaseNotifications': firebaseNotifications,
+      'openingTime': openingTime,
+      'closingTime': closingTime,
     };
   }
 }
