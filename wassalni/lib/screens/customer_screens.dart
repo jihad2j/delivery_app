@@ -2966,103 +2966,175 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
     final isDelivered = _currentOrder.status == 'delivered';
 
     return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          // App Bar
-          SliverAppBar(
-            expandedHeight: hasDriver || isDelivered || isCancelled ? 0 : 112,
-            pinned: true,
-            stretch: true,
-            flexibleSpace: FlexibleSpaceBar(
-              background: _buildMapSection(mapCenter, mapMarkers, orderProv),
-            ),
-            title: Row(
-              children: [
-                Text('طلب #${_currentOrder.id.length > 6 ? _currentOrder.id.substring(_currentOrder.id.length - 6) : _currentOrder.id}',
-                    style: const TextStyle(fontSize: 15)),
-                const Spacer(),
-                IconButton(
-                  icon: const Icon(Icons.refresh_rounded, size: 20),
-                  onPressed: () { orderProv.loadOrders(); _fetchRoute(); },
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
+      body: Stack(
+        children: [
+          // Full Screen Map Background
+          Positioned.fill(
+            child: _buildMapSection(mapCenter, mapMarkers, orderProv),
+          ),
+
+          // Floating Header Bar (Top Navigation)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    // Back button
+                    Material(
+                      elevation: 4,
+                      shadowColor: Colors.black26,
+                      shape: const CircleBorder(),
+                      color: Theme.of(context).cardColor,
+                      child: IconButton(
+                        icon: const Icon(Icons.arrow_back_ios_rounded, size: 18),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    // Order ID Card & Refresh
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).cardColor,
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: const [
+                            BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 2)),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            Text(
+                              'طلب #${_currentOrder.id.length > 6 ? _currentOrder.id.substring(_currentOrder.id.length - 6) : _currentOrder.id}',
+                              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                            ),
+                            const Spacer(),
+                            IconButton(
+                              icon: const Icon(Icons.refresh_rounded, size: 20),
+                              onPressed: () {
+                                orderProv.loadOrders();
+                                _fetchRoute();
+                              },
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios_rounded, size: 20),
-              onPressed: () => Navigator.pop(context),
+              ),
             ),
           ),
 
-          // Status info chip
-          if (!hasDriver && !isDelivered && !isCancelled)
-            SliverToBoxAdapter(child: _buildMapInfoCard(hasDriver)),
+          // Bottom Sheet - 50% initial screen height with rest of details
+          DraggableScrollableSheet(
+            initialChildSize: 0.5,
+            minChildSize: 0.25,
+            maxChildSize: 0.88,
+            snap: true,
+            builder: (context, scrollController) {
+              return Container(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.15),
+                      blurRadius: 15,
+                      offset: const Offset(0, -4),
+                    ),
+                  ],
+                ),
+                child: ListView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  children: [
+                    // Sheet Drag Handle Indicator
+                    Center(
+                      child: Container(
+                        width: 44,
+                        height: 5,
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withValues(alpha: 0.35),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
 
-          // Driver info card
-          if (hasDriver) SliverToBoxAdapter(child: _buildDriverInfoCard()),
+                    // Status info chip
+                    if (!hasDriver && !isDelivered && !isCancelled)
+                      _buildMapInfoCard(hasDriver),
 
-          // If delivered or cancelled show final state
-          if (isDelivered || isCancelled)
-            SliverToBoxAdapter(child: _buildFinalStateCard(orderProv)),
+                    // Driver info card
+                    if (hasDriver) _buildDriverInfoCard(),
 
-          // Timeline
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('حالة الطلب', style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 16),
-                  _buildStepTimeline(context),
-                ],
-              ),
-            ),
+                    // If delivered or cancelled show final state
+                    if (isDelivered || isCancelled)
+                      _buildFinalStateCard(orderProv),
+
+                    // Timeline Section
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('حالة الطلب', style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 16),
+                          _buildStepTimeline(context),
+                        ],
+                      ),
+                    ),
+
+                    // Order summary
+                    _buildOrderSummaryCard(),
+
+                    // Receipt section
+                    if (_currentOrder.status == 'delivered_pending')
+                      _buildReceiptSection(orderProv),
+
+                    if (isDelivered)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                        child: Center(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Text('تم توصيل الطلب بنجاح', style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold, fontSize: 15)),
+                          ),
+                        ),
+                      ),
+
+                    if (isCancelled)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                        child: Center(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: Colors.red.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: const Text('تم إلغاء الطلب', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 15)),
+                          ),
+                        ),
+                      ),
+
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              );
+            },
           ),
-
-          // Order summary
-          SliverToBoxAdapter(child: _buildOrderSummaryCard()),
-
-          // Receipt section
-          if (_currentOrder.status == 'delivered_pending')
-            SliverToBoxAdapter(child: _buildReceiptSection(orderProv)),
-
-          if (isDelivered)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                child: Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Text('تم توصيل الطلب بنجاح', style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold, fontSize: 15)),
-                  ),
-                ),
-              ),
-            ),
-
-          if (isCancelled)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                child: Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.red.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: const Text('تم إلغاء الطلب', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 15)),
-                  ),
-                ),
-              ),
-            ),
-
-          const SliverToBoxAdapter(child: SizedBox(height: 24)),
         ],
       ),
     );
@@ -3095,7 +3167,7 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
         // Loading indicator
         if (_isLoadingRoute)
           Positioned(
-            top: 12, left: 0, right: 0,
+            top: 75, left: 0, right: 0,
             child: Center(
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -3117,7 +3189,7 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
           ),
         // Zoom controls
         Positioned(
-          bottom: 16, left: 16,
+          top: 75, left: 16,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [

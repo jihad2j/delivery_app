@@ -99,15 +99,58 @@ exports.getProfile = async (req, res) => {
 exports.updateProfile = async (req, res) => {
   try {
     const updates = req.body;
+    const incomingStatus = updates.status;
     delete updates.password;
     delete updates.role;
     delete updates.email;
     delete updates.balance;
     delete updates.status;
 
-    const user = await User.findByIdAndUpdate(req.user.userId, updates, { returnDocument: 'after' }).select('-password');
-    if (!user) return res.status(404).json({ message: 'لم يتم العثور على العميل' });
-    res.json(user);
+    const user = await User.findById(req.user.userId);
+    if (!user) return res.status(404).json({ message: 'لم يتم العثور على المستخدم' });
+
+    const $set = {};
+
+    if (updates.name !== undefined) $set.name = updates.name;
+    if (updates.phone !== undefined) $set.phone = updates.phone;
+    if (updates.address !== undefined) $set.address = updates.address;
+    if (updates.addresses !== undefined) $set.addresses = updates.addresses;
+    if (updates.profilePicture !== undefined) $set.profilePicture = updates.profilePicture;
+
+    if (user.role === 'restaurant') {
+      const restaurantFields = ['description', 'logo', 'status', 'minOrderAmount', 'deliveryFee', 'cuisineType', 'firebaseNotifications', 'openingTime', 'closingTime'];
+      
+      const newRestaurantStatus = updates.restaurantInfo?.status || incomingStatus;
+      if (newRestaurantStatus && ['open', 'closed', 'busy'].includes(newRestaurantStatus)) {
+        $set['restaurantInfo.status'] = newRestaurantStatus;
+      }
+
+      if (updates.restaurantInfo && typeof updates.restaurantInfo === 'object') {
+        for (const key of restaurantFields) {
+          if (updates.restaurantInfo[key] !== undefined) {
+            $set[`restaurantInfo.${key}`] = updates.restaurantInfo[key];
+          }
+        }
+      }
+
+      for (const key of restaurantFields) {
+        if (updates[key] !== undefined) {
+          $set[`restaurantInfo.${key}`] = updates[key];
+        }
+      }
+    }
+
+    if (user.role === 'driver' && updates.driverInfo) {
+      $set.driverInfo = updates.driverInfo;
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user.userId,
+      Object.keys($set).length > 0 ? { $set } : updates,
+      { returnDocument: 'after' }
+    ).select('-password');
+
+    res.json(updatedUser);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

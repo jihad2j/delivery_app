@@ -20,6 +20,20 @@ exports.createOrder = async (req, res) => {
   try {
     const { restaurantId, items, deliveryAddress, paymentMethod, deliveryFee } = req.body;
 
+    if (!restaurantId) {
+      return res.status(400).json({ message: 'معرف المطعم مطلوب' });
+    }
+
+    // التحقق من وجود المطعم وأنه مفتوح
+    const restaurant = await User.findById(restaurantId);
+    if (!restaurant || restaurant.role !== 'restaurant') {
+      return res.status(404).json({ message: 'المطعم غير موجود' });
+    }
+
+    if (restaurant.restaurantInfo && restaurant.restaurantInfo.status !== 'open') {
+      return res.status(400).json({ message: 'المطعم مغلق حالياً، لا يمكنك إرسال طلب لهذا المطعم' });
+    }
+
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ message: 'الطلب يجب أن يحتوي على منتجات' });
     }
