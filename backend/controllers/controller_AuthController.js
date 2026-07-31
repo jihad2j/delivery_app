@@ -175,10 +175,13 @@ exports.getRegions = async (req, res) => {
     }
     const regionsSub = await User.distinct('addresses.region', filterSub);
 
-    // دمج النتائج وحذف المكرر والقيم الفارغة
-    const allRegions = Array.from(new Set([...regionsMain, ...regionsSub]))
+    // دمج النتائج وحذف المكرر والقيم الفارغة بعد التهذيب (Trim)
+    const cleaned = [...regionsMain, ...regionsSub]
       .filter(Boolean)
-      .map(r => r.trim());
+      .map(r => (typeof r === 'string' ? r.trim() : String(r)))
+      .filter(r => r.length > 0 && r !== 'manual_entry');
+
+    const allRegions = Array.from(new Set(cleaned));
 
     res.json(allRegions);
   } catch (error) {

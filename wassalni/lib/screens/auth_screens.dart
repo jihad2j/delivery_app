@@ -473,9 +473,25 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
 
   Future<void> _onGovernorateChanged(String? val, AuthProvider auth) async {
     if (val == null) return;
-    setState(() { _selectedGovernorate = val; _selectedRegion = null; _isManualRegion = false; _loadingRegions = true; _availableRegions = []; });
+    setState(() {
+      _selectedGovernorate = val;
+      _selectedRegion = null;
+      _isManualRegion = false;
+      _loadingRegions = true;
+      _availableRegions = [];
+    });
     final regions = await auth.fetchRegions(val);
-    setState(() { _availableRegions = regions; _loadingRegions = false; });
+    final cleanRegions = regions
+        .map((r) => r.trim())
+        .where((r) => r.isNotEmpty && r != 'manual_entry')
+        .toSet()
+        .toList();
+    if (mounted) {
+      setState(() {
+        _availableRegions = cleanRegions;
+        _loadingRegions = false;
+      });
+    }
   }
 
   @override
@@ -649,7 +665,9 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                         _loadingRegions
                             ? const Center(child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator(strokeWidth: 3)))
                             : DropdownButtonFormField<String>(
-                                value: _selectedRegion,
+                                value: (_selectedRegion != null && _availableRegions.contains(_selectedRegion))
+                                    ? _selectedRegion
+                                    : null,
                                 decoration: const InputDecoration(labelText: 'المنطقة', prefixIcon: Icon(Icons.location_city_outlined, size: 20)),
                                 items: [
                                   ..._availableRegions.map((r) => DropdownMenuItem(value: r, child: Text(r))),
