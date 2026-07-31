@@ -4,6 +4,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -41,6 +42,34 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
   String? _lastRoutedOrderStatus;
   bool _hasAutoZoomedProximity = false;
   final MapController _mapController = MapController();
+
+  String? _topNotificationMessage;
+  Color? _topNotificationColor;
+  IconData? _topNotificationIcon;
+  Timer? _topNotificationTimer;
+
+  void _showTopNotification(
+    String message, {
+    Color color = AppTheme.primary,
+    IconData icon = Icons.info_outline_rounded,
+    int durationSeconds = 4,
+  }) {
+    _topNotificationTimer?.cancel();
+    if (!mounted) return;
+    setState(() {
+      _topNotificationMessage = message;
+      _topNotificationColor = color;
+      _topNotificationIcon = icon;
+    });
+
+    _topNotificationTimer = Timer(Duration(seconds: durationSeconds), () {
+      if (mounted) {
+        setState(() {
+          _topNotificationMessage = null;
+        });
+      }
+    });
+  }
 
   @override
   void initState() {
@@ -220,6 +249,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
 
   @override
   void dispose() {
+    _topNotificationTimer?.cancel();
     _driverLocationTimer?.cancel();
     _orderSearchTimer?.cancel();
     _driverAnimationTimer?.cancel();
@@ -437,254 +467,21 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
     final err = await orderProv.acceptOrder(orderId);
     if (!mounted) return;
     if (err == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('تم قبول الطلب! اتبع مسار الخريطة للوصول للمطعم'),
-        ),
+      _showTopNotification(
+        'تم قبول الطلب! اتبع مسار الخريطة للوصول للمطعم',
+        color: Colors.green,
+        icon: Icons.check_circle_rounded,
       );
       await orderProv.loadOrders();
       await orderProv.loadAvailableOrders();
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
+      _showTopNotification(err, color: Colors.red, icon: Icons.error_outline_rounded);
     }
   }
 
-  String _getStatusText(String status) {
-    switch (status) {
-      case 'pending':
-        return 'قيد الانتظار';
-      case 'restaurant_accepted':
-        return 'مقبول من المطعم';
-      case 'preparing':
-        return 'جاري التحضير';
-      case 'ready':
-        return 'جاهز للتوصيل';
-      case 'delivery_accepted':
-        return 'مقبول من السائق';
-      case 'onTheWay':
-        return 'في الطريق';
-      case 'delivered_pending':
-        return 'بانتظار العميل';
-      case 'delivered':
-        return 'تم التوصيل بنجاح';
-      case 'cancelled':
-        return 'ملغى';
-      default:
-        return status;
-    }
-  }
 
-  void _showHistoryDialog(
-    BuildContext context,
-    OrderProvider orderProv,
-    String? userId,
-  ) {
-    final driverOrders = orderProv.orders
-        .where((o) => o.driverIdStr == userId)
-        .toList();
 
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('سجل الطلبات المكتملة', textAlign: TextAlign.right),
-        content: SizedBox(
-          width: double.maxFinite,
-          height: 400,
-          child: driverOrders.isEmpty
-              ? const Center(child: Text('لا توجد طلبات سابقة'))
-              : ListView.builder(
-                  itemCount: driverOrders.length,
-                  itemBuilder: (context, idx) {
-                    final order = driverOrders[idx];
-                    final isDelivered = order.status == 'delivered';
-                    final statusColor = isDelivered ? Colors.green : Colors.red;
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        color: Theme.of(context).cardColor,
-                        border: Border.all(
-                          color: statusColor.withValues(alpha: 0.2),
-                          width: 1.2,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: statusColor.withValues(alpha: 0.12),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              isDelivered ? Icons.check_circle_rounded : Icons.cancel_rounded,
-                              color: statusColor,
-                              size: 22,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'طلب #${order.id.substring(order.id.length - 6)}',
-                                  style: const TextStyle(
-                                    fontFamily: 'Outfit',
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'أجر التوصيل: ${order.deliveryFee.toStringAsFixed(0)} ل.س',
-                                  style: TextStyle(
-                                    fontFamily: 'Outfit',
-                                    fontSize: 12,
-                                    color: Theme.of(context).textTheme.bodyMedium?.color,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: statusColor.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              _getStatusText(order.status),
-                              style: TextStyle(
-                                fontFamily: 'Outfit',
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: statusColor,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('إغلاق'),
-          ),
-        ],
-      ),
-    );
-  }
 
-  void _showWalletDialog(
-    BuildContext context,
-    AuthProvider auth,
-    double totalEarnings,
-  ) {
-    final driver = auth.currentUser;
-    final customerPayments = driver?.customerPaymentsWallet ?? 0;
-    final driverEarnings = driver?.driverEarningsWallet ?? 0;
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
-          children: [
-            Icon(Icons.account_balance_wallet_rounded, color: AppTheme.primary, size: 24),
-            SizedBox(width: 8),
-            Text('محافظ السائق المزدوجة', style: TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.bold, fontSize: 16)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // 1. محفظة أرباح الدليفري
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(14),
-              decoration: AppTheme.walletGradient(isSecondary: false),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(Icons.stars_rounded, color: Colors.white, size: 18),
-                      SizedBox(width: 6),
-                      Text(
-                        'رصيد أرباح الدليفري (أجرك الخاص)',
-                        style: TextStyle(fontFamily: 'Outfit', color: Colors.white70, fontSize: 13),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '${driverEarnings.toStringAsFixed(0)} ل.س',
-                    style: const TextStyle(
-                      fontFamily: 'Outfit',
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 14),
-
-            // 2. محفظة مدفوعات زبائن (كاش)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(14),
-              decoration: AppTheme.walletGradient(isSecondary: true),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(Icons.payments_rounded, color: Colors.white, size: 18),
-                      SizedBox(width: 6),
-                      Text(
-                        'رصيد مدفوعات زبائن (مبالغ كاش)',
-                        style: TextStyle(fontFamily: 'Outfit', color: Colors.white70, fontSize: 13),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '${customerPayments.toStringAsFixed(0)} ل.س',
-                    style: const TextStyle(
-                      fontFamily: 'Outfit',
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 14),
-            Text(
-              'ملاحظة: يتم تسوية مبالغ الكاش المستلمة وأرباح التوصيل بالتنسيق مع الإدارة.',
-              style: TextStyle(fontFamily: 'Outfit', fontSize: 12, color: Theme.of(context).textTheme.bodyMedium?.color),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-        actions: [
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(minimumSize: const Size(100, 40)),
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('حسناً'),
-          ),
-        ],
-      ),
-    );
-  }
 
   void _showProfileDialog(BuildContext context, AuthProvider auth) {
     showDialog(
@@ -729,13 +526,6 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
     bool isAvailable,
     OrderProvider orderProv,
   ) {
-    final double totalEarnings = orderProv.orders
-        .where(
-          (o) =>
-              o.driverIdStr == auth.currentUser?.id && o.status == 'delivered',
-        )
-        .fold(0.0, (sum, o) => sum + o.deliveryFee);
-
     return Drawer(
       child: Column(
         children: [
@@ -761,55 +551,21 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
               style: const TextStyle(fontSize: 14),
             ),
           ),
-          SwitchListTile(
-            title: const Text(
-              'جاهز للعمل',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            subtitle: Text(
-              orderProv.orders.any((o) =>
-                  o.driverIdStr == auth.currentUser?.id &&
-                  ['delivery_accepted', 'preparing', 'ready', 'onTheWay', 'delivered_pending'].contains(o.status))
-                    ? 'لديك طلب نشط جاري توصيله'
-                    : (isAvailable ? 'أنت متصل وتستقبل الطلبات' : 'متوقف عن العمل'),
-              style: TextStyle(
-                color: orderProv.orders.any((o) =>
-                    o.driverIdStr == auth.currentUser?.id &&
-                    ['delivery_accepted', 'preparing', 'ready', 'onTheWay', 'delivered_pending'].contains(o.status))
-                    ? Colors.orange
-                    : (isAvailable ? Colors.green : Colors.grey),
-              ),
-            ),
-            value: isAvailable,
-            activeColor: Colors.green,
-            onChanged: orderProv.orders.any((o) =>
-                    o.driverIdStr == auth.currentUser?.id &&
-                    ['delivery_accepted', 'preparing', 'ready', 'onTheWay', 'delivered_pending'].contains(o.status))
-                ? null
-                : (val) {
-                    _toggleAvailability(auth, val);
-                  },
-            secondary: Icon(
-              Icons.radar,
-              color: isAvailable ? Colors.green : Colors.grey,
-            ),
-          ),
-          const Divider(),
           ListTile(
-            leading: const Icon(Icons.history, color: Colors.blue),
-            title: const Text('الطلبات السابقة'),
+            leading: const Icon(Icons.table_chart_rounded, color: Colors.blue),
+            title: const Text('الطلبات السابقة (جدول وتصدير)'),
             trailing: const Icon(Icons.chevron_left),
             onTap: () {
               Navigator.pop(context);
-              _showHistoryDialog(context, orderProv, auth.currentUser?.id);
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const DriverOrdersHistoryScreen()));
             },
           ),
           ListTile(
             leading: const Icon(
-              Icons.account_balance_wallet,
+              Icons.account_balance_wallet_rounded,
               color: Colors.green,
             ),
-            title: const Text('الرصيد'),
+            title: const Text('الرصيد والمحفظة (جدول كشف)'),
             trailing: Chip(
               label: Text(
                 '${auth.currentUser?.balance.toStringAsFixed(0)} ل.س',
@@ -822,7 +578,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
             ),
             onTap: () {
               Navigator.pop(context);
-              _showWalletDialog(context, auth, totalEarnings);
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const DriverWalletScreen()));
             },
           ),
           ListTile(
@@ -863,11 +619,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
     );
 
     if (hasActiveOrder && !active) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('لا يمكنك إيقاف العمل أثناء وجود طلب نشط قيد التوصيل!'),
-          backgroundColor: Colors.red,
-        ),
+      _showTopNotification(
+        'لا يمكنك إيقاف العمل أثناء وجود طلب نشط قيد التوصيل!',
+        color: Colors.red,
+        icon: Icons.warning_amber_rounded,
       );
       return;
     }
@@ -886,14 +641,12 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
         _driverLocationTimer?.cancel();
         _stopOrderSearchTimer();
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            active
-                ? 'تم تفعيل الاتصال واستقبال الطلبات'
-                : 'تم إيقاف استقبال الطلبات',
-          ),
-        ),
+      _showTopNotification(
+        active
+            ? 'تم تفعيل الاتصال واستقبال الطلبات'
+            : 'تم إيقاف استقبال الطلبات',
+        color: active ? Colors.green : Colors.orange,
+        icon: active ? Icons.radar_rounded : Icons.power_settings_new_rounded,
       );
     } else {
       if (err == 'GPS_DISABLED') {
@@ -905,9 +658,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
           'صلاحية الوصول للموقع معطلة. يرجى إعطاء صلاحية الموقع للتطبيق.',
         );
       } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(err)));
+        _showTopNotification(err, color: Colors.red, icon: Icons.error_outline_rounded);
       }
     }
   }
@@ -936,16 +687,14 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
     final err = await orderProv.updateStatus(id, status);
     if (!mounted) return;
     if (err == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('تم تحديث حالة الطلب')));
+      _showTopNotification('تم تحديث حالة الطلب', color: Colors.blue, icon: Icons.sync_rounded);
       orderProv.loadOrders();
       Provider.of<AuthProvider>(
         context,
         listen: false,
       ).tryAutoLogin();
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
+      _showTopNotification(err, color: Colors.red, icon: Icons.error_outline_rounded);
     }
   }
 
@@ -954,15 +703,13 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
     final err = await orderProv.confirmDelivery(orderId);
     if (!mounted) return;
     if (err == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'تم إرسال طلب تأكيد الاستلام للعميل. يرجى الانتظار لتأكيد المعاملة.',
-          ),
-        ),
+      _showTopNotification(
+        'تم إرسال طلب تأكيد الاستلام للعميل. يرجى الانتظار لتأكيد المعاملة.',
+        color: Colors.orange,
+        icon: Icons.send_rounded,
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
+      _showTopNotification(err, color: Colors.red, icon: Icons.error_outline_rounded);
     }
   }
 
@@ -1100,12 +847,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
         _hasAutoZoomedProximity = true;
         _mapController.move(_driverLatLng!, 17.5);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('أنت قريب جداً من الوجهة! تم تكبير الخريطة لتوضيح الشوارع والمباني'),
-              duration: Duration(seconds: 3),
-              backgroundColor: AppTheme.primary,
-            ),
+          _showTopNotification(
+            'أنت قريب جداً من الوجهة! تم تكبير الخريطة لتوضيح الشوارع والمباني',
+            color: AppTheme.primary,
+            icon: Icons.my_location_rounded,
           );
         }
       }
@@ -1565,80 +1310,148 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                       ),
                     ),
                     const SizedBox(width: 8),
-                    // Destination Info
+                    // Destination Info & Expandable Top Rectangle for Messages with Smooth Grow/Shrink Animation
                     Expanded(
                       child: _GlassCard(
-                        child: Container(
-                          height: 44,
-                          padding: const EdgeInsets.symmetric(horizontal: 10),
-                          alignment: Alignment.center,
-                          child: activeOrders.isNotEmpty
-                              ? Row(
-                                  children: [
-                                    Icon(
-                                      ['delivery_accepted', 'preparing', 'ready'].contains(activeOrders.first.status)
-                                          ? Icons.restaurant_rounded : Icons.person_pin_circle_rounded,
-                                      color: ['delivery_accepted', 'preparing', 'ready'].contains(activeOrders.first.status)
-                                          ? Colors.orange : Colors.red,
-                                      size: 18,
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Expanded(
-                                      child: Column(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 450),
+                          curve: Curves.fastOutSlowIn,
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              SizedBox(
+                                height: 32,
+                                child: activeOrders.isNotEmpty
+                                    ? Row(
                                         children: [
-                                          Text(
+                                          Icon(
                                             ['delivery_accepted', 'preparing', 'ready'].contains(activeOrders.first.status)
-                                                ? 'التوجه للمطعم' : 'التوجه للعميل',
-                                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
+                                                ? Icons.restaurant_rounded : Icons.person_pin_circle_rounded,
+                                            color: ['delivery_accepted', 'preparing', 'ready'].contains(activeOrders.first.status)
+                                                ? Colors.orange : Colors.red,
+                                            size: 18,
                                           ),
-                                          _isLoadingRoute
-                                              ? const Text('جاري المسار...', style: TextStyle(color: Colors.grey, fontSize: 9))
-                                              : Text(
-                                                  '${_distanceKm.toStringAsFixed(1)} كم • ${_durationMin.toStringAsFixed(0)} د',
-                                                  style: const TextStyle(fontFamily: 'Outfit', color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 10),
+                                          const SizedBox(width: 6),
+                                          Expanded(
+                                            child: Column(
+                                              mainAxisAlignment: MainAxisAlignment.center,
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  ['delivery_accepted', 'preparing', 'ready'].contains(activeOrders.first.status)
+                                                      ? 'التوجه للمطعم' : 'التوجه للعميل',
+                                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
                                                 ),
+                                                _isLoadingRoute
+                                                    ? const Text('جاري المسار...', style: TextStyle(color: Colors.grey, fontSize: 9))
+                                                    : Text(
+                                                        '${_distanceKm.toStringAsFixed(1)} كم • ${_durationMin.toStringAsFixed(0)} د',
+                                                        style: const TextStyle(fontFamily: 'Outfit', color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 10),
+                                                      ),
+                                              ],
+                                            ),
+                                          ),
+                                          InkWell(
+                                            onTap: () { _lastRoutedOrderId = null; _fetchRouteForOrder(activeOrders.first); },
+                                            child: const Padding(
+                                              padding: EdgeInsets.all(4),
+                                              child: Icon(Icons.refresh_rounded, color: Colors.green, size: 16),
+                                            ),
+                                          ),
+                                        ],
+                                      )
+                                    : const Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Icon(Icons.near_me_rounded, color: AppTheme.primary, size: 16),
+                                          SizedBox(width: 6),
+                                          Text('بانتظار طلب', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
                                         ],
                                       ),
-                                    ),
-                                    InkWell(
-                                      onTap: () { _lastRoutedOrderId = null; _fetchRouteForOrder(activeOrders.first); },
-                                      child: const Padding(
-                                        padding: EdgeInsets.all(4),
-                                        child: Icon(Icons.refresh_rounded, color: Colors.green, size: 16),
-                                      ),
-                                    ),
-                                  ],
-                                )
-                              : const Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.near_me_rounded, color: AppTheme.primary, size: 16),
-                                    SizedBox(width: 6),
-                                    Text('بانتظار طلب', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
-                                  ],
-                                ),
+                              ),
+
+                              // Message display expanding downwards with smooth animation (grow/shrink)
+                              AnimatedSize(
+                                duration: const Duration(milliseconds: 450),
+                                curve: Curves.fastOutSlowIn,
+                                clipBehavior: Clip.antiAlias,
+                                child: _topNotificationMessage != null
+                                    ? Padding(
+                                        padding: const EdgeInsets.only(top: 6),
+                                        child: AnimatedOpacity(
+                                          duration: const Duration(milliseconds: 350),
+                                          opacity: _topNotificationMessage != null ? 1.0 : 0.0,
+                                          curve: Curves.easeInOut,
+                                          child: AnimatedScale(
+                                            duration: const Duration(milliseconds: 350),
+                                            scale: _topNotificationMessage != null ? 1.0 : 0.9,
+                                            curve: Curves.easeOutBack,
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                              decoration: BoxDecoration(
+                                                color: (_topNotificationColor ?? AppTheme.primary).withValues(alpha: 0.15),
+                                                borderRadius: BorderRadius.circular(12),
+                                                border: Border.all(
+                                                  color: (_topNotificationColor ?? AppTheme.primary).withValues(alpha: 0.4),
+                                                  width: 1.2,
+                                                ),
+                                                boxShadow: [
+                                                  BoxShadow(
+                                                    color: (_topNotificationColor ?? AppTheme.primary).withValues(alpha: 0.1),
+                                                    blurRadius: 8,
+                                                    offset: const Offset(0, 2),
+                                                  ),
+                                                ],
+                                              ),
+                                              child: Row(
+                                                children: [
+                                                  Icon(
+                                                    _topNotificationIcon ?? Icons.info_outline_rounded,
+                                                    size: 16,
+                                                    color: _topNotificationColor ?? AppTheme.primary,
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  Expanded(
+                                                    child: Text(
+                                                      _topNotificationMessage ?? '',
+                                                      style: TextStyle(
+                                                        fontSize: 11,
+                                                        fontWeight: FontWeight.bold,
+                                                        color: Theme.of(context).textTheme.bodyLarge?.color,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      )
+                                    : const SizedBox.shrink(),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                    // Availability Toggle
-                    if (activeOrders.isEmpty) ...[
-                      const SizedBox(width: 8),
-                      _AvailabilityBtn(
-                        isAvailable: isAvailable,
-                        isLoading: _isTogglingAvailability,
-                        onTap: _isTogglingAvailability
-                            ? null
-                            : () async {
-                                setState(() => _isTogglingAvailability = true);
-                                await _toggleAvailability(auth, !isAvailable);
-                                if (mounted) setState(() => _isTogglingAvailability = false);
-                              },
-                      ),
-                    ],
+                    // Availability Toggle (Always visible, non-clickable/disabled during active order delivery)
+                    const SizedBox(width: 8),
+                    _AvailabilityBtn(
+                      isAvailable: isAvailable,
+                      isLoading: _isTogglingAvailability,
+                      isDisabled: activeOrders.isNotEmpty,
+                      onTap: (activeOrders.isNotEmpty || _isTogglingAvailability)
+                          ? null
+                          : () async {
+                              setState(() => _isTogglingAvailability = true);
+                              await _toggleAvailability(auth, !isAvailable);
+                              if (mounted) setState(() => _isTogglingAvailability = false);
+                            },
+                    ),
                   ],
                 ),
               ),
@@ -1968,8 +1781,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                 if (updated.isEmpty || updated.first.status == 'delivered') {
                   _triggerDeliveryConfirmedSuccess();
                 } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('العميل لم يقم بالتأكيد بعد، يرجى تذكيره بالنقر على تأكيد الاستلام.')),
+                  _showTopNotification(
+                    'العميل لم يقم بالتأكيد بعد، يرجى تذكيره بالنقر على تأكيد الاستلام.',
+                    color: Colors.orange,
+                    icon: Icons.timer_outlined,
                   );
                 }
               },
@@ -2022,43 +1837,68 @@ class _GlassCard extends StatelessWidget {
 class _AvailabilityBtn extends StatelessWidget {
   final bool isAvailable;
   final bool isLoading;
+  final bool isDisabled;
   final VoidCallback? onTap;
-  const _AvailabilityBtn({required this.isAvailable, required this.isLoading, this.onTap});
+
+  const _AvailabilityBtn({
+    required this.isAvailable,
+    required this.isLoading,
+    this.isDisabled = false,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final effectiveColor = isDisabled
+        ? (isAvailable ? Colors.green.shade800.withValues(alpha: 0.55) : Colors.grey.shade700)
+        : (isAvailable ? Colors.green.shade600 : Colors.red.shade700);
+
     return Material(
-      elevation: 3,
+      elevation: isDisabled ? 1 : 3,
       borderRadius: BorderRadius.circular(14),
       color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          height: 44,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            color: isAvailable ? Colors.green.shade600 : Colors.red.shade700,
-            boxShadow: [
-              BoxShadow(
-                color: (isAvailable ? Colors.green : Colors.red).withValues(alpha: 0.3),
-                blurRadius: 8,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (isLoading)
-                const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-              else
-                Icon(isAvailable ? Icons.wifi_tethering_rounded : Icons.power_settings_new_rounded, color: Colors.white, size: 18),
-              const SizedBox(width: 4),
-              Text(isAvailable ? 'جاهز' : 'متوقف', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
-            ],
+      child: Tooltip(
+        message: isDisabled ? 'لا يمكنك تغيير الحالة أثناء وجود طلب نشط قيد التوصيل' : '',
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            height: 44,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              color: effectiveColor,
+              boxShadow: isDisabled
+                  ? null
+                  : [
+                      BoxShadow(
+                        color: (isAvailable ? Colors.green : Colors.red).withValues(alpha: 0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (isLoading)
+                  const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                else
+                  Icon(
+                    isDisabled
+                        ? Icons.lock_outline_rounded
+                        : (isAvailable ? Icons.wifi_tethering_rounded : Icons.power_settings_new_rounded),
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                const SizedBox(width: 4),
+                Text(
+                  isAvailable ? 'جاهز' : 'متوقف',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -2108,6 +1948,513 @@ class _StepLine extends StatelessWidget {
           color: filled ? AppTheme.primary : Colors.grey[300],
           borderRadius: BorderRadius.circular(2),
         ),
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// 1. صفحة الطلبات السابقة كجدول بكامل تفاصيل الطلبات وتصدير Excel وفلتر 20 طلب
+// ============================================================================
+class DriverOrdersHistoryScreen extends StatefulWidget {
+  const DriverOrdersHistoryScreen({super.key});
+
+  @override
+  State<DriverOrdersHistoryScreen> createState() => _DriverOrdersHistoryScreenState();
+}
+
+class _DriverOrdersHistoryScreenState extends State<DriverOrdersHistoryScreen> {
+  bool _showLast20Only = true;
+
+  void _exportToExcel(List<model.Order> orders) {
+    if (orders.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('لا توجد طلبات لتصديرها')),
+      );
+      return;
+    }
+
+    final sb = StringBuffer();
+    // UTF-8 BOM for Microsoft Excel Arabic compatibility
+    sb.write('\uFEFF');
+    sb.writeln('رقم الطلب,التاريخ والوقت,المطعم,العميل,أجر التوصيل (ل.س),إجمالي الطلب (ل.س),طريقة الدفع,الحالة');
+
+    for (var o in orders) {
+      final idStr = o.id.length > 6 ? o.id.substring(o.id.length - 6) : o.id;
+      final dateStr = o.createdAt != null
+          ? '${o.createdAt!.year}-${o.createdAt!.month.toString().padLeft(2, '0')}-${o.createdAt!.day.toString().padLeft(2, '0')} ${o.createdAt!.hour.toString().padLeft(2, '0')}:${o.createdAt!.minute.toString().padLeft(2, '0')}'
+          : '--';
+      final restName = o.restaurantId is Map ? ((o.restaurantId as Map)['name'] ?? 'مطعم') : 'مطعم';
+      final custName = o.deliveryAddress.street ?? o.deliveryAddress.region ?? 'عميل';
+      final deliveryFee = o.deliveryFee.toStringAsFixed(0);
+      final totalAmount = o.totalAmount.toStringAsFixed(0);
+      final payMethod = o.paymentMethod == 'wallet' ? 'محفظة' : 'كاش';
+      final statusStr = o.status == 'delivered' ? 'مكتمل' : (o.status == 'cancelled' ? 'ملغى' : o.status);
+
+      sb.writeln('"$idStr","$dateStr","$restName","$custName",$deliveryFee,$totalAmount,"$payMethod","$statusStr"');
+    }
+
+    final csvText = sb.toString();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.table_chart_rounded, color: Colors.green, size: 26),
+            SizedBox(width: 10),
+            Text('تصدير بيانات Excel', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle_rounded, color: Colors.green, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'تم إعداد ملف Excel لعدد ${orders.length} طلب جاهز للتصدير.',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'معاينة نص التصدير (CSV المتوافق مع Excel):',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
+            ),
+            const SizedBox(height: 6),
+            Container(
+              height: 140,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+              ),
+              child: SingleChildScrollView(
+                child: SelectableText(
+                  csvText,
+                  style: const TextStyle(fontFamily: 'monospace', fontSize: 10),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          OutlinedButton.icon(
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: csvText));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('تم نسخ بيانات Excel إلى الحافظة بنجاح ✅')),
+              );
+            },
+            icon: const Icon(Icons.copy_rounded, size: 16),
+            label: const Text('نسخ البيانات'),
+          ),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: csvText));
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('تم حفظ وتصدير ملف Excel بنجاح!')),
+              );
+            },
+            icon: const Icon(Icons.download_done_rounded, size: 16),
+            label: const Text('حفظ وخروج'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = Provider.of<AuthProvider>(context);
+    final orderProv = Provider.of<OrderProvider>(context);
+
+    final allDriverOrders = orderProv.orders
+        .where((o) => o.driverIdStr == auth.currentUser?.id)
+        .toList();
+    
+    allDriverOrders.sort((a, b) {
+      if (a.createdAt != null && b.createdAt != null) {
+        return b.createdAt!.compareTo(a.createdAt!);
+      }
+      return 0;
+    });
+
+    final displayedOrders = _showLast20Only
+        ? allDriverOrders.take(20).toList()
+        : allDriverOrders;
+
+    final double totalDeliveryFees = displayedOrders.fold(0.0, (sum, o) => sum + o.deliveryFee);
+    final double totalOrdersAmount = displayedOrders.fold(0.0, (sum, o) => sum + o.totalAmount);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('سجل الطلبات كجدول'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded),
+            onPressed: () => orderProv.loadOrders(),
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          // Top Control & Filter Bar
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              boxShadow: [
+                BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 2)),
+              ],
+            ),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    FilterChip(
+                      selected: _showLast20Only,
+                      label: const Text('آخر 20 طلب'),
+                      onSelected: (v) => setState(() => _showLast20Only = true),
+                      selectedColor: AppTheme.primary.withValues(alpha: 0.2),
+                      checkmarkColor: AppTheme.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    FilterChip(
+                      selected: !_showLast20Only,
+                      label: Text('جميع الطلبات (${allDriverOrders.length})'),
+                      onSelected: (v) => setState(() => _showLast20Only = false),
+                      selectedColor: AppTheme.primary.withValues(alpha: 0.2),
+                      checkmarkColor: AppTheme.primary,
+                    ),
+                    const Spacer(),
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green.shade700,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () => _exportToExcel(displayedOrders),
+                      icon: const Icon(Icons.table_chart_rounded, size: 16),
+                      label: const Text('تصدير Excel', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          // Orders Data Table
+          Expanded(
+            child: displayedOrders.isEmpty
+                ? const Center(child: Text('لا توجد طلبات سابقة تنطبق عليها هذا الفلتر'))
+                : SingleChildScrollView(
+                    scrollDirection: Axis.vertical,
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: DataTable(
+                        headingRowColor: WidgetStateProperty.all(AppTheme.primary.withValues(alpha: 0.1)),
+                        columns: const [
+                          DataColumn(label: Text('رقم الطلب', style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text('التاريخ والوقت', style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text('المطعم', style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text('العميل والمنطقة', style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text('أجر التوصيل', style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text('إجمالي الطلب', style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text('الدفع', style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text('الحالة', style: TextStyle(fontWeight: FontWeight.bold))),
+                        ],
+                        rows: List.generate(displayedOrders.length, (idx) {
+                          final o = displayedOrders[idx];
+                          final idStr = o.id.length > 6 ? o.id.substring(o.id.length - 6) : o.id;
+                          final dateStr = o.createdAt != null
+                              ? '${o.createdAt!.day}/${o.createdAt!.month} ${o.createdAt!.hour}:${o.createdAt!.minute.toString().padLeft(2, '0')}'
+                              : '--';
+                          final restName = o.restaurantId is Map ? ((o.restaurantId as Map)['name'] ?? 'مطعم') : 'مطعم';
+                          final custAddr = o.deliveryAddress.region ?? o.deliveryAddress.city ?? 'عميل';
+                          final isDelivered = o.status == 'delivered';
+
+                          return DataRow(
+                            color: WidgetStateProperty.all(idx % 2 == 0 ? Theme.of(context).cardColor : Theme.of(context).cardColor.withValues(alpha: 0.5)),
+                            cells: [
+                              DataCell(Text('#$idStr', style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Outfit'))),
+                              DataCell(Text(dateStr, style: const TextStyle(fontSize: 12))),
+                              DataCell(Text(restName, style: const TextStyle(fontSize: 12))),
+                              DataCell(Text(custAddr, style: const TextStyle(fontSize: 12))),
+                              DataCell(Text('${o.deliveryFee.toStringAsFixed(0)} ل.س', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green, fontFamily: 'Outfit'))),
+                              DataCell(Text('${o.totalAmount.toStringAsFixed(0)} ل.س', style: const TextStyle(fontFamily: 'Outfit'))),
+                              DataCell(Chip(
+                                label: Text(o.paymentMethod == 'wallet' ? 'محفظة' : 'كاش', style: const TextStyle(fontSize: 10, color: Colors.white)),
+                                backgroundColor: o.paymentMethod == 'wallet' ? Colors.purple : Colors.orange,
+                                padding: EdgeInsets.zero,
+                                visualDensity: VisualDensity.compact,
+                              )),
+                              DataCell(Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: (isDelivered ? Colors.green : Colors.red).withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  isDelivered ? 'مكتمل' : 'ملغى',
+                                  style: TextStyle(color: isDelivered ? Colors.green : Colors.red, fontWeight: FontWeight.bold, fontSize: 11),
+                                ),
+                              )),
+                            ],
+                          );
+                        }),
+                      ),
+                    ),
+                  ),
+          ),
+
+          // Total Summary Footer Row
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppTheme.primary.withValues(alpha: 0.08),
+              border: Border(top: BorderSide(color: AppTheme.primary.withValues(alpha: 0.2))),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'المجموع الكلي (${displayedOrders.length} طلب):',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                Row(
+                  children: [
+                    const Text('أرباح التوصيل: ', style: TextStyle(fontSize: 12)),
+                    Text(
+                      '${totalDeliveryFees.toStringAsFixed(0)} ل.س',
+                      style: TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.bold, fontSize: 15, color: Colors.green.shade700),
+                    ),
+                    const SizedBox(width: 14),
+                    const Text('المبيعات: ', style: TextStyle(fontSize: 12)),
+                    Text(
+                      '${totalOrdersAmount.toStringAsFixed(0)} ل.س',
+                      style: TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.bold, fontSize: 15, color: AppTheme.primary),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// 2. صفحة جدول كشف الرصيد والمحفظة بالتفاصيل والمجموع الكلي
+// ============================================================================
+class DriverWalletScreen extends StatelessWidget {
+  const DriverWalletScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = Provider.of<AuthProvider>(context);
+    final orderProv = Provider.of<OrderProvider>(context);
+
+    final driver = auth.currentUser;
+    final customerPayments = driver?.customerPaymentsWallet ?? 0.0;
+    final driverEarnings = driver?.driverEarningsWallet ?? 0.0;
+    final grandTotal = customerPayments + driverEarnings;
+
+    final driverOrders = orderProv.orders
+        .where((o) => o.driverIdStr == driver?.id && o.status == 'delivered')
+        .toList();
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('جدول كشف الرصيد والمحفظة'),
+      ),
+      body: Column(
+        children: [
+          // 3 Top Wallet Summary Cards
+          Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    // Card 1: أرباح التوصيل
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: AppTheme.walletGradient(isSecondary: false),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(Icons.stars_rounded, color: Colors.white, size: 16),
+                                SizedBox(width: 4),
+                                Expanded(child: Text('أرباح التوصيل', style: TextStyle(color: Colors.white70, fontSize: 11))),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              '${driverEarnings.toStringAsFixed(0)} ل.س',
+                              style: const TextStyle(fontFamily: 'Outfit', color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    // Card 2: كاش الزبائن
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: AppTheme.walletGradient(isSecondary: true),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(Icons.payments_rounded, color: Colors.white, size: 16),
+                                SizedBox(width: 4),
+                                Expanded(child: Text('كاش الزبائن', style: TextStyle(color: Colors.white70, fontSize: 11))),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              '${customerPayments.toStringAsFixed(0)} ل.س',
+                              style: const TextStyle(fontFamily: 'Outfit', color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                // Card 3: المجموع الكلي للرصيد
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(colors: [Color(0xFF2E7D32), Color(0xFF1B5E20)]),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 3))],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.account_balance_wallet_rounded, color: Colors.white, size: 24),
+                          SizedBox(width: 10),
+                          Text('المجموع الكلي للرصيد المالي:', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                        ],
+                      ),
+                      Text(
+                        '${grandTotal.toStringAsFixed(0)} ل.س',
+                        style: const TextStyle(fontFamily: 'Outfit', color: Colors.white, fontWeight: FontWeight.bold, fontSize: 22),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Text('جدول تفاصيل حركة الطلبات والرصيد:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            ),
+          ),
+          const SizedBox(height: 4),
+
+          // Balance Breakdown Table
+          Expanded(
+            child: driverOrders.isEmpty
+                ? const Center(child: Text('لا توجد طلبات مكتملة مسجلة في الرصيد حالياً'))
+                : SingleChildScrollView(
+                    scrollDirection: Axis.vertical,
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: DataTable(
+                        headingRowColor: WidgetStateProperty.all(Colors.green.withValues(alpha: 0.1)),
+                        columns: const [
+                          DataColumn(label: Text('رقم الطلب', style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text('التاريخ', style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text('أجر التوصيل (أرباحك +)', style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text('مبلغ الكاش المستلم', style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text('طريقة الدفع', style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Text('إجمالي حركة الطلب', style: TextStyle(fontWeight: FontWeight.bold))),
+                        ],
+                        rows: List.generate(driverOrders.length, (idx) {
+                          final o = driverOrders[idx];
+                          final idStr = o.id.length > 6 ? o.id.substring(o.id.length - 6) : o.id;
+                          final dateStr = o.createdAt != null
+                              ? '${o.createdAt!.day}/${o.createdAt!.month} ${o.createdAt!.hour}:${o.createdAt!.minute.toString().padLeft(2, '0')}'
+                              : '--';
+                          final isCash = o.paymentMethod == 'cash';
+                          final cashReceived = isCash ? (o.totalAmount + o.deliveryFee) : 0.0;
+
+                          return DataRow(
+                            cells: [
+                              DataCell(Text('#$idStr', style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Outfit'))),
+                              DataCell(Text(dateStr, style: const TextStyle(fontSize: 12))),
+                              DataCell(Text('+${o.deliveryFee.toStringAsFixed(0)} ل.س', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green, fontFamily: 'Outfit'))),
+                              DataCell(Text('${cashReceived.toStringAsFixed(0)} ل.س', style: TextStyle(fontFamily: 'Outfit', color: isCash ? Colors.orange.shade800 : Colors.grey))),
+                              DataCell(Chip(
+                                label: Text(isCash ? 'كاش' : 'محفظة', style: const TextStyle(fontSize: 10, color: Colors.white)),
+                                backgroundColor: isCash ? Colors.orange : Colors.purple,
+                                visualDensity: VisualDensity.compact,
+                              )),
+                              DataCell(Text('${(o.deliveryFee + cashReceived).toStringAsFixed(0)} ل.س', style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Outfit'))),
+                            ],
+                          );
+                        }),
+                      ),
+                    ),
+                  ),
+          ),
+
+          // Total Summary Footer Row
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.green.withValues(alpha: 0.1),
+              border: Border(top: BorderSide(color: Colors.green.withValues(alpha: 0.3))),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('المجموع الكلي النهائي:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                Text(
+                  '${grandTotal.toStringAsFixed(0)} ل.س',
+                  style: TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.bold, fontSize: 20, color: Colors.green.shade800),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
