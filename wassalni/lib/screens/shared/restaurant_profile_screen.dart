@@ -328,7 +328,7 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> {
               if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text(v ? 'المطعم مفتوح ✅' : 'تم إيقاف استقبال الطلبات'),
+                  content: Text(v ? 'المطعم مفتوح' : 'تم إيقاف استقبال الطلبات'),
                   backgroundColor: v ? AppColors.success : AppColors.error,
                 ),
               );
@@ -377,7 +377,7 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> {
         ),
         StatCard(
           title: 'التقييم',
-          value: '${rating.toStringAsFixed(1)}⭐',
+          value: rating.toStringAsFixed(1),
           icon: Icons.star_rate_rounded,
           color: AppColors.warning,
         ),
@@ -703,7 +703,7 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> {
       await auth.updateProfile(address: updatedAddr);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('✅ تم تحديث موقع المطعم بنجاح')));
+          const SnackBar(content: Text('تم تحديث موقع المطعم بنجاح')));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
@@ -734,7 +734,7 @@ class _RestaurantProfileScreenState extends State<RestaurantProfileScreen> {
     );
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('✅ تم حفظ كل إعدادات المطعم بنجاح')));
+        const SnackBar(content: Text('تم حفظ كل إعدادات المطعم بنجاح')));
   }
 
   static String _formatTime(TimeOfDay t) =>

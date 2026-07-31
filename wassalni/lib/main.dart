@@ -56,7 +56,7 @@ class WassalniApp extends StatelessWidget {
               (MediaQuery.of(context).textScaleFactor).clamp(0.85, 1.2),
             ),
           ),
-          child: child ?? const SizedBox.shrink(),
+          child: child ?? const SizedBox(width: 1, height: 1),
         );
       },
       onGenerateRoute: (settings) {

@@ -203,7 +203,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
               color: AppColors.secondary,
               onTap: () {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('قريباً ✨ لا توجد عروض حالياً')),
+                  const SnackBar(content: Text('قريباً لا توجد عروض حالياً')),
                 );
               },
             ),
@@ -517,7 +517,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
 
   void _openAddressFormDialog({model.Address? addressToEdit, int? index}) {
     final labelCtrl = TextEditingController(
-      text: addressToEdit?.label ?? 'المنزل 🏠',
+      text: addressToEdit?.label ?? 'المنزل',
     );
     final govCtrl = TextEditingController(
       text: addressToEdit?.governorate ?? 'دمشق',
@@ -662,7 +662,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
                         capturedCoords = [pos.longitude, pos.latitude];
                       });
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('تم التقاط الموقع ✅')),
+                        const SnackBar(content: Text('تم التقاط الموقع')),
                       );
                     } catch (e) {
                       if (!mounted) return;
@@ -767,7 +767,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(const SnackBar(content: Text('تم حفظ التغييرات بنجاح ✅')));
+    ).showSnackBar(const SnackBar(content: Text('تم حفظ التغييرات بنجاح')));
   }
 }
 

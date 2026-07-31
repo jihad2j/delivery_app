@@ -94,7 +94,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                             children: [
                               Expanded(
                                 child: Text(
-                                  'مرحباً ${auth.currentUser?.name ?? "عميلنا العزيز"} 👋',
+                                  'مرحباً ${auth.currentUser?.name ?? "عميلنا العزيز"}',
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 22,
@@ -1632,7 +1632,7 @@ class _CartScreenState extends State<CartScreen> {
                                       ),
                                       label: Text(
                                         _gpsDetermined
-                                            ? 'تم تحديد موقعك بنجاح ✓'
+                                            ? 'تم تحديد موقعك بنجاح'
                                             : 'انقر لتحديد الموقع بالـ GPS',
                                         style: const TextStyle(
                                           fontFamily: 'Outfit',

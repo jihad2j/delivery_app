@@ -141,7 +141,7 @@ class ApiService {
       final url = Uri.parse('$currentBase$path');
       return http
           .get(url, headers: _headers)
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 4));
     });
   }
 
@@ -153,7 +153,7 @@ class ApiService {
       final url = Uri.parse('$currentBase$path');
       return http
           .post(url, headers: _headers, body: jsonEncode(body))
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 4));
     });
   }
 
@@ -165,7 +165,7 @@ class ApiService {
       final url = Uri.parse('$currentBase$path');
       return http
           .put(url, headers: _headers, body: jsonEncode(body))
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 4));
     });
   }
 
@@ -174,7 +174,7 @@ class ApiService {
       final url = Uri.parse('$currentBase$path');
       return http
           .delete(url, headers: _headers)
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 4));
     });
   }
 }

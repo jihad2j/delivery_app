@@ -232,7 +232,7 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
                       onPressed: () {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('سيتم تفعيل شحن المحفظة قريباً 💳'),
+                            content: Text('سيتم تفعيل شحن المحفظة قريباً'),
                           ),
                         );
                       },
@@ -371,7 +371,7 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
-                      v ? 'تم التفعيل، ابدأ التوصيل 🚀' : 'تم الإيقاف المؤقت',
+                      v ? 'تم التفعيل، ابدأ التوصيل' : 'تم الإيقاف المؤقت',
                     ),
                     backgroundColor: v ? AppColors.success : Colors.grey,
                   ),
@@ -420,7 +420,7 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
         ),
         StatCard(
           title: 'التقييم',
-          value: rating > 0 ? '${rating.toStringAsFixed(1)}⭐' : '4.8⭐',
+          value: rating > 0 ? rating.toStringAsFixed(1) : '4.8',
           icon: Icons.star_half_rounded,
           color: AppColors.warning,
         ),
@@ -486,7 +486,7 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
           const InfoListTile(
             icon: Icons.verified_user_outlined,
             label: 'حالة المستندات',
-            value: 'جاهزة ومراجعة ✅',
+            value: 'جاهزة ومراجعة',
             iconColor: AppColors.success,
           ),
         ],
@@ -723,7 +723,7 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('✅ تم تحديث موقعك بنجاح')));
+      ).showSnackBar(const SnackBar(content: Text('تم تحديث موقعك بنجاح')));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -754,7 +754,7 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
     );
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('✅ تم حفظ كل التغييرات بنجاح')),
+      const SnackBar(content: Text('تم حفظ كل التغييرات بنجاح')),
     );
   }
 }

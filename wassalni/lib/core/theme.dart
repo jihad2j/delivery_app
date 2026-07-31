@@ -1176,7 +1176,7 @@ class AppTheme {
       case 'delivered_pending':
         return 'بانتظار العميل';
       case 'delivered':
-        return 'تم التوصيل بنجاح ✓';
+        return 'تم التوصيل بنجاح';
       case 'cancelled':
         return 'ملغى';
       case 'open':

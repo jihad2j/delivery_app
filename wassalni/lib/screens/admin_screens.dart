@@ -115,14 +115,76 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     final currentPerm = allowedPermissions[_selectedIndex];
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('لوحة التحكم - ${currentPerm.title}'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            onPressed: () => setState(() {}),
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(100),
+        child: Container(
+          decoration: AppTheme.primaryGradient().copyWith(
+            borderRadius: BorderRadius.zero,
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.primary.withValues(alpha: 0.25),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-        ],
+          child: SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+              child: Row(
+                children: [
+                  IconButton(
+                    onPressed: () => Scaffold.of(context).openDrawer(),
+                    icon: const Icon(Icons.menu_rounded, color: Colors.white),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(currentPerm.icon, color: Colors.white, size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'لوحة التحكم — ${currentUser.name}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          currentPerm.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => setState(() {}),
+                    icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
       drawer: _buildAdminDrawer(context, auth, currentUser, allowedPermissions),
       body: _buildSelectedScreen(currentPerm.key),
@@ -345,7 +407,7 @@ class _AdminPermissionsScreenState extends State<AdminPermissionsScreen> {
                   if (mounted) {
                     if (err == null) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('تم حفظ وتحديث صلاحيات ${adminUser.name} بنجاح ✅'), backgroundColor: Colors.green),
+                        SnackBar(content: Text('تم حفظ وتحديث صلاحيات ${adminUser.name} بنجاح'), backgroundColor: Colors.green),
                       );
                       _loadAdmins();
                     } else {
@@ -856,7 +918,7 @@ class _AdminBalancesScreenState extends State<AdminBalancesScreen> {
       if (mounted) {
         if (err == null) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('تم إرسال طلب الترصيد لـ $driverName بنجاح 📩 بانتظار موافقته.'), backgroundColor: Colors.green),
+            SnackBar(content: Text('تم إرسال طلب الترصيد لـ $driverName بنجاح وبانتظار موافقته'), backgroundColor: Colors.green),
           );
           _fetchBalancesData();
         } else {

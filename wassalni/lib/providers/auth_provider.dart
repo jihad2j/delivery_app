@@ -187,8 +187,6 @@ class AuthProvider extends ChangeNotifier {
       if (active) {
         final err = await LocationHelper.checkAndRequestPermissions();
         if (err != null) {
-          _isLoading = false;
-          notifyListeners();
           return err;
         }
       }
@@ -197,19 +195,18 @@ class AuthProvider extends ChangeNotifier {
         'driverInfo': {'availability': active},
       });
 
-      _isLoading = false;
-      notifyListeners();
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         _currentUser = User.fromJson(data);
         return null;
       } else {
-        return 'Failed to update status';
+        return 'فشل تغيير حالة الاتصال';
       }
     } catch (e) {
+      return e.toString();
+    } finally {
       _isLoading = false;
       notifyListeners();
-      return e.toString();
     }
   }
 
