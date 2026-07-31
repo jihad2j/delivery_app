@@ -906,8 +906,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthProvider>(context);
+    final currentUser = auth.currentUser;
     final orderProv = Provider.of<OrderProvider>(context);
-    final isAvailable = auth.currentUser?.driverInfo?.availability ?? false;
+    final isAvailable = currentUser?.driverInfo?.availability ?? false;
 
     final activeOrders = orderProv.orders
         .where(
@@ -1518,6 +1519,15 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
               ),
             ),
 
+          // 5.5 Pending Settlement Request Banner (Admin requested settlement confirmation)
+          if (currentUser?.pendingSettlement != null && currentUser!.pendingSettlement!['requestId'] != null)
+            Positioned(
+              top: 100,
+              left: 16,
+              right: 16,
+              child: _buildPendingSettlementCard(auth, currentUser),
+            ),
+
           // 6. Bottom card overlay (only active order)
           if (activeOrders.isNotEmpty)
             Positioned(
@@ -1526,6 +1536,92 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
               right: 16,
               child: _buildActiveOrderCard(orderProv, activeOrders.first),
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPendingSettlementCard(AuthProvider auth, model.User user) {
+    final pending = user.pendingSettlement;
+    if (pending == null) return const SizedBox.shrink();
+
+    final typeLabel = pending['settlementType'] == 'cash'
+        ? 'تسديد وتصفير كاش الزبائن'
+        : (pending['settlementType'] == 'earnings'
+            ? 'صرف وتصفير أرباح التوصيل'
+            : 'تصفير شامل للحسابين');
+    final amount = (pending['amount'] ?? 0).toDouble();
+    final adminName = pending['requestedByName'] ?? 'الأدمن المحاسب';
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.amber.shade900,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 12, offset: Offset(0, 4))],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.mark_email_unread_rounded, color: Colors.white, size: 22),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'طلب ترصيد وتأكيد من الأدمن: $adminName',
+                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 13),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'يطلب الأدمن إجراء ($typeLabel) بمبلغ: ${amount.toStringAsFixed(0)} ل.س.',
+            style: const TextStyle(color: Colors.white70, fontSize: 12),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  side: const BorderSide(color: Colors.white70),
+                  visualDensity: VisualDensity.compact,
+                ),
+                onPressed: () async {
+                  await auth.respondDriverSettlement(false);
+                },
+                child: const Text('رفض الطلب', style: TextStyle(fontSize: 11)),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: Colors.amber.shade900,
+                  visualDensity: VisualDensity.compact,
+                ),
+                onPressed: () async {
+                  final err = await auth.respondDriverSettlement(true);
+                  if (mounted) {
+                    if (err == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('تم تأكيد الترصيد وتصفير الحساب بنجاح ✅'), backgroundColor: Colors.green),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(err), backgroundColor: Colors.red),
+                      );
+                    }
+                  }
+                },
+                icon: const Icon(Icons.check_circle_rounded, size: 16),
+                label: const Text('تأكيد وموافقة', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+              ),
+            ],
+          ),
         ],
       ),
     );

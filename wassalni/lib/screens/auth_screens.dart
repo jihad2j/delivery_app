@@ -58,6 +58,8 @@ class _SplashScreenState extends State<SplashScreen>
       Navigator.pushReplacementNamed(context, '/driver-home');
     } else if (role == 'restaurant') {
       Navigator.pushReplacementNamed(context, '/restaurant-home');
+    } else if (role == 'admin') {
+      Navigator.pushReplacementNamed(context, '/admin-home');
     } else {
       Navigator.pushReplacementNamed(context, '/login');
     }

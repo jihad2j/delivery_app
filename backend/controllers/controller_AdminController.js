@@ -101,3 +101,93 @@ exports.getCurrencyRate = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// الحصول على قائمة كافة مديرين النظام (Admins) مع صلاحياتهم
+exports.getAllAdmins = async (req, res) => {
+  try {
+    const admins = await User.find({ role: 'admin' }).select('-password');
+    res.json(admins);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// تحديث صلاحيات مدير نظام محدد (Admin Permissions)
+exports.updateAdminPermissions = async (req, res) => {
+  try {
+    const { permissions } = req.body; // Array of strings e.g. ['users_management', 'drivers_management']
+    if (!Array.isArray(permissions)) {
+      return res.status(400).json({ message: 'الصلاحيات يجب أن تكون مصفوفة نصية' });
+    }
+
+    const adminUser = await User.findByIdAndUpdate(
+      req.params.id,
+      { adminPermissions: permissions },
+      { returnDocument: 'after' }
+    ).select('-password');
+
+    if (!adminUser) return res.status(404).json({ message: 'الأدمن غير موجود' });
+    res.json(adminUser);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// طلب ترصيد حساب كابتن من قبل الأدمن (إرسال طلب تأكيد للسائق)
+exports.requestDriverSettlement = async (req, res) => {
+  try {
+    const { driverId, settlementType } = req.body;
+    const adminUser = await User.findById(req.user.userId);
+    const driver = await User.findById(driverId);
+
+    if (!driver || driver.role !== 'driver') {
+      return res.status(404).json({ message: 'عامل التوصيل غير موجود' });
+    }
+
+    let amount = 0;
+    if (settlementType === 'cash') {
+      amount = driver.customerPaymentsWallet || 0;
+    } else if (settlementType === 'earnings') {
+      amount = driver.driverEarningsWallet || 0;
+    } else if (settlementType === 'both') {
+      amount = (driver.customerPaymentsWallet || 0) + (driver.driverEarningsWallet || 0);
+    } else {
+      return res.status(400).json({ message: 'نوع الترصيد غير صالح' });
+    }
+
+    if (amount <= 0) {
+      return res.status(400).json({ message: 'لا يوجد رصيد قابل للترصيد لهذا الحساب حالياً' });
+    }
+
+    const requestId = 'REQ_' + Date.now();
+    driver.pendingSettlement = {
+      requestId,
+      settlementType,
+      amount,
+      requestedByName: adminUser?.name || 'الأدمن المحاسب',
+      requestedAt: new Date()
+    };
+
+    await driver.save();
+
+    res.json({
+      message: 'تم إرسال طلب الترصيد للسائق بنجاح، بانتظار تأكيد وموافقة السائق',
+      driver
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// الحصول على إجمالي خزينة الشركة والسيولة المجمعة من الكاش
+exports.getCompanyTreasury = async (req, res) => {
+  try {
+    let treasurySetting = await Setting.findOne({ key: 'companyTreasury' });
+    if (!treasurySetting) {
+      treasurySetting = await Setting.create({ key: 'companyTreasury', value: { totalCashCollected: 0 } });
+    }
+    res.json(treasurySetting.value);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

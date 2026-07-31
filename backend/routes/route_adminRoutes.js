@@ -14,5 +14,9 @@ router.get('/dashboard', adminController.getDashboardStats);
 router.get('/settings', adminController.getSettings);
 router.put('/settings', adminController.updateSettings);
 router.put('/currency-rate', adminController.updateCurrencyRate);
+router.get('/admins', adminController.getAllAdmins);
+router.put('/admins/:id/permissions', adminController.updateAdminPermissions);
+router.post('/request-settlement', adminController.requestDriverSettlement);
+router.get('/treasury', adminController.getCompanyTreasury);
 
 module.exports = router;

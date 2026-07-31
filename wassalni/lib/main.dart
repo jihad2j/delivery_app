@@ -8,6 +8,7 @@ import 'screens/auth/screens.dart';
 import 'screens/customer/screens.dart';
 import 'screens/driver/screens.dart';
 import 'screens/restaurant/screens.dart';
+import 'screens/admin_screens.dart';
 import 'screens/shared/screens.dart'
     show AppRoutes, ProfileScreen;
 import 'models/models.dart' as model;
@@ -90,6 +91,8 @@ class WassalniApp extends StatelessWidget {
             return _page(const CompletedOrdersScreen(), settings);
           case AppRoutes.profile:
             return _page(const ProfileScreen(), settings);
+          case AppRoutes.adminHome:
+            return _page(const AdminHomeScreen(), settings);
           default:
             return _page(const SplashScreen(), settings);
         }

@@ -13,6 +13,8 @@ class User {
   final double balance;
   final double customerPaymentsWallet;
   final double driverEarningsWallet;
+  final List<String> adminPermissions;
+  final Map<String, dynamic>? pendingSettlement;
 
   User({
     required this.id,
@@ -29,7 +31,22 @@ class User {
     required this.balance,
     this.customerPaymentsWallet = 0,
     this.driverEarningsWallet = 0,
+    this.adminPermissions = const [
+      'users_management',
+      'drivers_management',
+      'restaurants_management',
+      'orders_management',
+      'balances_management',
+      'permissions_management'
+    ],
+    this.pendingSettlement,
   });
+
+  bool hasAdminPermission(String permission) {
+    if (role != 'admin') return false;
+    if (adminPermissions.contains('all') || adminPermissions.contains('*')) return true;
+    return adminPermissions.contains(permission);
+  }
 
   factory User.fromJson(Map<String, dynamic> json) {
     var addrList = <Address>[];
@@ -37,6 +54,19 @@ class User {
       addrList = List<Address>.from(
         (json['addresses'] as List).map((x) => Address.fromJson(x))
       );
+    }
+    var permsList = <String>[];
+    if (json['adminPermissions'] != null) {
+      permsList = List<String>.from((json['adminPermissions'] as List).map((x) => x.toString()));
+    } else {
+      permsList = [
+        'users_management',
+        'drivers_management',
+        'restaurants_management',
+        'orders_management',
+        'balances_management',
+        'permissions_management'
+      ];
     }
     return User(
       id: json['_id'] ?? json['id'] ?? '',
@@ -57,6 +87,10 @@ class User {
       balance: (json['balance'] ?? 0).toDouble(),
       customerPaymentsWallet: (json['customerPaymentsWallet'] ?? 0).toDouble(),
       driverEarningsWallet: (json['driverEarningsWallet'] ?? 0).toDouble(),
+      adminPermissions: permsList,
+      pendingSettlement: json['pendingSettlement'] != null
+          ? Map<String, dynamic>.from(json['pendingSettlement'])
+          : null,
     );
   }
 
@@ -76,6 +110,8 @@ class User {
       'balance': balance,
       'customerPaymentsWallet': customerPaymentsWallet,
       'driverEarningsWallet': driverEarningsWallet,
+      'adminPermissions': adminPermissions,
+      'pendingSettlement': pendingSettlement,
     };
   }
 

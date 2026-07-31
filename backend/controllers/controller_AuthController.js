@@ -197,14 +197,17 @@ exports.settleDriverWallet = async (req, res) => {
 
     const updateFields = {};
     let message = '';
+    let cashAmountToAdd = 0;
 
     if (settlementType === 'cash') {
+      cashAmountToAdd = user.customerPaymentsWallet || 0;
       updateFields.customerPaymentsWallet = 0;
       message = 'تم ترصيد وتصفير ذمة كاش الزبائن بنجاح';
     } else if (settlementType === 'earnings') {
       updateFields.driverEarningsWallet = 0;
       message = 'تم ترصيد وتصفير أرباح التوصيل بنجاح';
     } else if (settlementType === 'both') {
+      cashAmountToAdd = user.customerPaymentsWallet || 0;
       updateFields.customerPaymentsWallet = 0;
       updateFields.driverEarningsWallet = 0;
       message = 'تم ترصيد وتصفير كامل حسابات السائق بنجاح';
@@ -212,14 +215,89 @@ exports.settleDriverWallet = async (req, res) => {
       return res.status(400).json({ message: 'نوع الترصيد غير صالح' });
     }
 
+    updateFields.pendingSettlement = null;
+
     const updatedUser = await User.findByIdAndUpdate(
       userId,
       { $set: updateFields },
       { returnDocument: 'after' }
     ).select('-password');
 
+    // تحويل كاش الزبائن المستلم إلى خزينة الشركة المركزية
+    if (cashAmountToAdd > 0) {
+      const Setting = require('../models/model_Setting');
+      let treasury = await Setting.findOne({ key: 'companyTreasury' });
+      const currentVal = treasury?.value?.totalCashCollected || 0;
+      await Setting.findOneAndUpdate(
+        { key: 'companyTreasury' },
+        { value: { totalCashCollected: currentVal + cashAmountToAdd, updatedAt: new Date() } },
+        { upsert: true }
+      );
+    }
+
     res.json({
       message,
+      user: updatedUser
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// إجابة السائق على طلب الترصيد (موافقة أو رفض)
+exports.respondDriverSettlement = async (req, res) => {
+  try {
+    const { approved } = req.body;
+    const userId = req.user.userId;
+
+    const user = await User.findById(userId);
+    if (!user || !user.pendingSettlement || !user.pendingSettlement.requestId) {
+      return res.status(400).json({ message: 'لا يوجد طلب ترصيد معلّق حالياً' });
+    }
+
+    if (!approved) {
+      user.pendingSettlement = null;
+      await user.save();
+      return res.json({ message: 'تم رفض طلب الترصيد', user });
+    }
+
+    const { settlementType } = user.pendingSettlement;
+    let cashAmountToAdd = 0;
+    const updateFields = {};
+
+    if (settlementType === 'cash') {
+      cashAmountToAdd = user.customerPaymentsWallet || 0;
+      updateFields.customerPaymentsWallet = 0;
+    } else if (settlementType === 'earnings') {
+      updateFields.driverEarningsWallet = 0;
+    } else if (settlementType === 'both') {
+      cashAmountToAdd = user.customerPaymentsWallet || 0;
+      updateFields.customerPaymentsWallet = 0;
+      updateFields.driverEarningsWallet = 0;
+    }
+
+    updateFields.pendingSettlement = null;
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { $set: updateFields },
+      { returnDocument: 'after' }
+    ).select('-password');
+
+    // تحويل كاش الزبائن المستلم إلى خزينة الشركة المركزية
+    if (cashAmountToAdd > 0) {
+      const Setting = require('../models/model_Setting');
+      let treasury = await Setting.findOne({ key: 'companyTreasury' });
+      const currentVal = treasury?.value?.totalCashCollected || 0;
+      await Setting.findOneAndUpdate(
+        { key: 'companyTreasury' },
+        { value: { totalCashCollected: currentVal + cashAmountToAdd, updatedAt: new Date() } },
+        { upsert: true }
+      );
+    }
+
+    res.json({
+      message: 'تم تأكيد الترصيد وتصفير الحساب بنجاح',
       user: updatedUser
     });
   } catch (error) {

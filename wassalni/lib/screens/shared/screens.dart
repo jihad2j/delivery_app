@@ -47,6 +47,7 @@ class AppRoutes {
   static const String addProduct = '/add-product';
   static const String completedOrders = '/completed-orders';
   static const String profile = '/profile';
+  static const String adminHome = '/admin-home';
 
   const AppRoutes._();
 }

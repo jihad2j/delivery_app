@@ -296,6 +296,95 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  Future<List<User>> fetchAllAdmins() async {
+    try {
+      final res = await ApiService.get('/api/admin/admins');
+      if (res.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(res.body);
+        return data.map((x) => User.fromJson(x)).toList();
+      }
+    } catch (e) {
+      debugPrint('Fetch admins error: $e');
+    }
+    return [];
+  }
+
+  Future<String?> updateAdminPermissions(String adminId, List<String> permissions) async {
+    try {
+      final res = await ApiService.put('/api/admin/admins/$adminId/permissions', {
+        'permissions': permissions,
+      });
+      if (res.statusCode == 200) {
+        notifyListeners();
+        return null;
+      } else {
+        final err = jsonDecode(res.body);
+        return err['message'] ?? 'فشل تحديث الصلاحيات';
+      }
+    } catch (e) {
+      return e.toString();
+    }
+  }
+
+  Future<String?> requestDriverSettlement(String driverId, String settlementType) async {
+    try {
+      final res = await ApiService.post('/api/admin/request-settlement', {
+        'driverId': driverId,
+        'settlementType': settlementType,
+      });
+      if (res.statusCode == 200) {
+        notifyListeners();
+        return null;
+      } else {
+        final err = jsonDecode(res.body);
+        return err['message'] ?? 'فشل إرسال طلب الترصيد';
+      }
+    } catch (e) {
+      return e.toString();
+    }
+  }
+
+  Future<String?> respondDriverSettlement(bool approved) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final res = await ApiService.post('/api/auth/respond-settlement', {
+        'approved': approved,
+      });
+      _isLoading = false;
+      notifyListeners();
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        if (data['user'] != null) {
+          _currentUser = User.fromJson(data['user']);
+          await ApiService.saveCachedUserData(data['user']);
+        }
+        notifyListeners();
+        return null;
+      } else {
+        final err = jsonDecode(res.body);
+        return err['message'] ?? 'فشل تأكيد طلب الترصيد';
+      }
+    } catch (e) {
+      _isLoading = false;
+      notifyListeners();
+      return e.toString();
+    }
+  }
+
+  Future<double> fetchCompanyTreasury() async {
+    try {
+      final res = await ApiService.get('/api/admin/treasury');
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        return (data['totalCashCollected'] ?? 0).toDouble();
+      }
+    } catch (e) {
+      debugPrint('Fetch treasury error: $e');
+    }
+    return 0.0;
+  }
+
   Future<void> logout() async {
     _currentUser = null;
     await ApiService.setToken(null);

@@ -74,7 +74,27 @@ const userSchema = new mongoose.Schema({
   // محفظة مدفوعات الزبائن النقدية (خاصة بالسائق)
   customerPaymentsWallet: { type: Number, default: 0 },
   // محفظة أرباح التوصيل (خاصة بالسائق)
-  driverEarningsWallet: { type: Number, default: 0 }
+  driverEarningsWallet: { type: Number, default: 0 },
+  // صلاحيات الأدمن المخصصة
+  adminPermissions: {
+    type: [String],
+    default: [
+      'users_management',
+      'drivers_management',
+      'restaurants_management',
+      'orders_management',
+      'balances_management',
+      'permissions_management'
+    ]
+  },
+  // طلب ترصيد معلّق بانتظار تأكيد السائق
+  pendingSettlement: {
+    requestId: String,
+    settlementType: { type: String, enum: ['cash', 'earnings', 'both'] },
+    amount: { type: Number, default: 0 },
+    requestedByName: { type: String, default: 'الإدارة' },
+    requestedAt: Date
+  }
 }, { timestamps: true });
 // معلومات المستخدم
 userSchema.index({ 'address.location': '2dsphere' });
