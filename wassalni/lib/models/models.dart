@@ -365,6 +365,7 @@ class Order {
   final double? driverShare;
   final String? packagedPicture; // تصوير الطلب وتغليفه (من المطعم)
   final String? receivedPicture; // تصوير الطلب عند الاستلام (من العميل)
+  final DateTime? createdAt;
 
   Order({
     required this.id,
@@ -385,6 +386,7 @@ class Order {
     this.driverShare,
     this.packagedPicture,
     this.receivedPicture,
+    this.createdAt,
   });
 
   String get driverIdStr {
@@ -426,7 +428,7 @@ class Order {
       paymentMethod: json['paymentMethod'] ?? 'cash',
       paymentStatus: json['paymentStatus'] ?? 'unpaid',
       expectedDeliveryTime: json['expectedDeliveryTime'] != null
-          ? DateTime.parse(json['expectedDeliveryTime'])
+          ? DateTime.tryParse(json['expectedDeliveryTime'].toString())
           : null,
       platformCommission: json['platformCommission'] != null
           ? (json['platformCommission'] as num).toDouble()
@@ -439,6 +441,9 @@ class Order {
           : null,
       packagedPicture: json['packagedPicture'],
       receivedPicture: json['receivedPicture'],
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt'].toString())
+          : null,
     );
   }
 
@@ -459,6 +464,7 @@ class Order {
       'expectedDeliveryTime': expectedDeliveryTime?.toIso8601String(),
       'packagedPicture': packagedPicture,
       'receivedPicture': receivedPicture,
+      'createdAt': createdAt?.toIso8601String(),
     };
   }
 }
