@@ -19,5 +19,6 @@ router.post('/login', authLimiter, authController.login);
 router.get('/regions', authController.getRegions);
 router.get('/profile', authenticate, authController.getProfile);
 router.put('/profile', authenticate, authController.updateProfile);
+router.post('/settle-driver', authenticate, authController.settleDriverWallet);
 
 module.exports = router;

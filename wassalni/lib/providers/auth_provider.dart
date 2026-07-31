@@ -268,6 +268,34 @@ class AuthProvider extends ChangeNotifier {
     return [];
   }
 
+  Future<String?> settleDriverWallet(String settlementType) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final res = await ApiService.post('/api/auth/settle-driver', {
+        'settlementType': settlementType,
+      });
+      _isLoading = false;
+      notifyListeners();
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        if (data['user'] != null) {
+          _currentUser = User.fromJson(data['user']);
+          await ApiService.saveCachedUserData(data['user']);
+        }
+        notifyListeners();
+        return null;
+      } else {
+        final err = jsonDecode(res.body);
+        return err['message'] ?? 'فشل ترصيد ومحاسبة السائق';
+      }
+    } catch (e) {
+      _isLoading = false;
+      notifyListeners();
+      return e.toString();
+    }
+  }
+
   Future<void> logout() async {
     _currentUser = null;
     await ApiService.setToken(null);

@@ -2268,8 +2268,77 @@ class _DriverOrdersHistoryScreenState extends State<DriverOrdersHistoryScreen> {
 // ============================================================================
 // 2. صفحة جدول كشف الرصيد والمحفظة بالتفاصيل والمجموع الكلي
 // ============================================================================
-class DriverWalletScreen extends StatelessWidget {
+class DriverWalletScreen extends StatefulWidget {
   const DriverWalletScreen({super.key});
+
+  @override
+  State<DriverWalletScreen> createState() => _DriverWalletScreenState();
+}
+
+class _DriverWalletScreenState extends State<DriverWalletScreen> {
+  bool _isSettling = false;
+
+  Future<void> _confirmAndSettle(BuildContext context, AuthProvider auth, String settlementType, String title, String body) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(
+              settlementType == 'cash'
+                  ? Icons.payments_rounded
+                  : (settlementType == 'earnings' ? Icons.stars_rounded : Icons.account_balance_wallet_rounded),
+              color: settlementType == 'cash' ? Colors.orange.shade800 : Colors.green.shade700,
+              size: 24,
+            ),
+            const SizedBox(width: 8),
+            Expanded(child: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+          ],
+        ),
+        content: Text(body, style: const TextStyle(fontSize: 13)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: settlementType == 'cash' ? Colors.orange.shade800 : Colors.green.shade700,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            icon: const Icon(Icons.check_circle_rounded, size: 18),
+            label: const Text('تأكيد الترصيد والتصفير'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      setState(() => _isSettling = true);
+      final err = await auth.settleDriverWallet(settlementType);
+      if (mounted) setState(() => _isSettling = false);
+
+      if (err == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(settlementType == 'cash'
+                ? 'تم تسديد وتصفير كاش الزبائن بنجاح ✅'
+                : (settlementType == 'earnings'
+                    ? 'تم صرف وتصفير أرباح التوصيل بنجاح ✅'
+                    : 'تم ترصيد وتصفير كامل الحسابات بنجاح ✅')),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(err), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -2279,7 +2348,6 @@ class DriverWalletScreen extends StatelessWidget {
     final driver = auth.currentUser;
     final customerPayments = driver?.customerPaymentsWallet ?? 0.0;
     final driverEarnings = driver?.driverEarningsWallet ?? 0.0;
-    final grandTotal = customerPayments + driverEarnings;
 
     final driverOrders = orderProv.orders
         .where((o) => o.driverIdStr == driver?.id && o.status == 'delivered')
@@ -2287,173 +2355,232 @@ class DriverWalletScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('جدول كشف الرصيد والمحفظة'),
+        title: const Text('جدول كشف الرصيد وتصفير الحسابات'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded),
+            onPressed: () => orderProv.loadOrders(),
+          ),
+        ],
       ),
-      body: Column(
+      body: Stack(
         children: [
-          // 3 Top Wallet Summary Cards
-          Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              children: [
-                Row(
+          Column(
+            children: [
+              // 2 Main Wallet Cards with Independent Zeroing Buttons
+              Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
                   children: [
-                    // Card 1: أرباح التوصيل
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: AppTheme.walletGradient(isSecondary: false),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Row(
+                    Row(
+                      children: [
+                        // Card 1: أرباح التوصيل المستحقة للسائق
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(colors: [Color(0xFF2E7D32), Color(0xFF1B5E20)]),
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 2))],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Icon(Icons.stars_rounded, color: Colors.white, size: 16),
-                                SizedBox(width: 4),
-                                Expanded(child: Text('أرباح التوصيل', style: TextStyle(color: Colors.white70, fontSize: 11))),
+                                const Row(
+                                  children: [
+                                    Icon(Icons.stars_rounded, color: Colors.amber, size: 16),
+                                    SizedBox(width: 4),
+                                    Expanded(
+                                      child: Text(
+                                        'أرباح التوصيل (مستحقاتك)',
+                                        style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  '${driverEarnings.toStringAsFixed(0)} ل.س',
+                                  style: const TextStyle(fontFamily: 'Outfit', color: Colors.white, fontWeight: FontWeight.bold, fontSize: 17),
+                                ),
+                                const SizedBox(height: 10),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton.icon(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.white,
+                                      foregroundColor: Colors.green.shade800,
+                                      padding: const EdgeInsets.symmetric(vertical: 6),
+                                      visualDensity: VisualDensity.compact,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                    ),
+                                    onPressed: driverEarnings <= 0
+                                        ? null
+                                        : () => _confirmAndSettle(
+                                              context,
+                                              auth,
+                                              'earnings',
+                                              'قبض أرباح التوصيل',
+                                              'هل تم قبض أرباح التوصيل كاش من المحاسب بقيمة ${driverEarnings.toStringAsFixed(0)} ل.س؟ عند التأكيد سيتم تصفير محفظة الأرباح.',
+                                            ),
+                                    icon: const Icon(Icons.check_circle_outline_rounded, size: 14),
+                                    label: const Text('قبض وتصفير الأرباح', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                                  ),
+                                ),
                               ],
                             ),
-                            const SizedBox(height: 6),
-                            Text(
-                              '${driverEarnings.toStringAsFixed(0)} ل.س',
-                              style: const TextStyle(fontFamily: 'Outfit', color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    // Card 2: كاش الزبائن
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: AppTheme.walletGradient(isSecondary: true),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Row(
+                        const SizedBox(width: 10),
+
+                        // Card 2: كاش الزبائن المجمّع لدى السائق
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(colors: [Color(0xFFE65100), Color(0xFFBF360C)]),
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 2))],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Icon(Icons.payments_rounded, color: Colors.white, size: 16),
-                                SizedBox(width: 4),
-                                Expanded(child: Text('كاش الزبائن', style: TextStyle(color: Colors.white70, fontSize: 11))),
+                                const Row(
+                                  children: [
+                                    Icon(Icons.payments_rounded, color: Colors.white, size: 16),
+                                    SizedBox(width: 4),
+                                    Expanded(
+                                      child: Text(
+                                        'كاش الزبائن (ذمة بيدك)',
+                                        style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  '${customerPayments.toStringAsFixed(0)} ل.س',
+                                  style: const TextStyle(fontFamily: 'Outfit', color: Colors.white, fontWeight: FontWeight.bold, fontSize: 17),
+                                ),
+                                const SizedBox(height: 10),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton.icon(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.white,
+                                      foregroundColor: Colors.deepOrange.shade900,
+                                      padding: const EdgeInsets.symmetric(vertical: 6),
+                                      visualDensity: VisualDensity.compact,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                    ),
+                                    onPressed: customerPayments <= 0
+                                        ? null
+                                        : () => _confirmAndSettle(
+                                              context,
+                                              auth,
+                                              'cash',
+                                              'تسديد كاش الزبائن',
+                                              'هل تم تسليم كاش الزبائن للمحاسب بقيمة ${customerPayments.toStringAsFixed(0)} ل.س؟ عند التأكيد سيتم تصفير ذمة الكاش.',
+                                            ),
+                                    icon: const Icon(Icons.outbox_rounded, size: 14),
+                                    label: const Text('تسديد وتصفير الكاش', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                                  ),
+                                ),
                               ],
                             ),
-                            const SizedBox(height: 6),
-                            Text(
-                              '${customerPayments.toStringAsFixed(0)} ل.س',
-                              style: const TextStyle(fontFamily: 'Outfit', color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
+                      ],
                     ),
+
+                    const SizedBox(height: 10),
+                    // Optional Bulk Zeroing Option
+                    if (customerPayments > 0 && driverEarnings > 0)
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppTheme.primary,
+                          side: BorderSide(color: AppTheme.primary.withValues(alpha: 0.5)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        onPressed: () => _confirmAndSettle(
+                          context,
+                          auth,
+                          'both',
+                          'ترصيد الخزينتين معاً',
+                          'هل تم إجراء التسوية الشاملة مع المحاسب لكاش الزبائن (${customerPayments.toStringAsFixed(0)} ل.س) ولأرباح التوصيل (${driverEarnings.toStringAsFixed(0)} ل.س)؟ سيتم تصفير الرصيدين معاً.',
+                        ),
+                        icon: const Icon(Icons.published_with_changes_rounded, size: 16),
+                        label: const Text('تصفيرات الخزينتين معاً (ترصيد شامل)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                      ),
                   ],
                 ),
-                const SizedBox(height: 10),
-                // Card 3: المجموع الكلي للرصيد
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(colors: [Color(0xFF2E7D32), Color(0xFF1B5E20)]),
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 3))],
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Row(
-                        children: [
-                          Icon(Icons.account_balance_wallet_rounded, color: Colors.white, size: 24),
-                          SizedBox(width: 10),
-                          Text('المجموع الكلي للرصيد المالي:', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-                        ],
-                      ),
-                      Text(
-                        '${grandTotal.toStringAsFixed(0)} ل.س',
-                        style: const TextStyle(fontFamily: 'Outfit', color: Colors.white, fontWeight: FontWeight.bold, fontSize: 22),
-                      ),
-                    ],
-                  ),
+              ),
+
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Text('سجل حركة الطلبات التي كوّنت الرصيد الحالي:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                 ),
-              ],
-            ),
-          ),
+              ),
+              const SizedBox(height: 4),
 
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: Text('جدول تفاصيل حركة الطلبات والرصيد:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-            ),
-          ),
-          const SizedBox(height: 4),
-
-          // Balance Breakdown Table
-          Expanded(
-            child: driverOrders.isEmpty
-                ? const Center(child: Text('لا توجد طلبات مكتملة مسجلة في الرصيد حالياً'))
-                : SingleChildScrollView(
-                    scrollDirection: Axis.vertical,
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: DataTable(
-                        headingRowColor: WidgetStateProperty.all(Colors.green.withValues(alpha: 0.1)),
-                        columns: const [
-                          DataColumn(label: Text('رقم الطلب', style: TextStyle(fontWeight: FontWeight.bold))),
-                          DataColumn(label: Text('التاريخ', style: TextStyle(fontWeight: FontWeight.bold))),
-                          DataColumn(label: Text('أجر التوصيل (أرباحك +)', style: TextStyle(fontWeight: FontWeight.bold))),
-                          DataColumn(label: Text('مبلغ الكاش المستلم', style: TextStyle(fontWeight: FontWeight.bold))),
-                          DataColumn(label: Text('طريقة الدفع', style: TextStyle(fontWeight: FontWeight.bold))),
-                          DataColumn(label: Text('إجمالي حركة الطلب', style: TextStyle(fontWeight: FontWeight.bold))),
-                        ],
-                        rows: List.generate(driverOrders.length, (idx) {
-                          final o = driverOrders[idx];
-                          final idStr = o.id.length > 6 ? o.id.substring(o.id.length - 6) : o.id;
-                          final dateStr = o.createdAt != null
-                              ? '${o.createdAt!.day}/${o.createdAt!.month} ${o.createdAt!.hour}:${o.createdAt!.minute.toString().padLeft(2, '0')}'
-                              : '--';
-                          final isCash = o.paymentMethod == 'cash';
-                          final cashReceived = isCash ? (o.totalAmount + o.deliveryFee) : 0.0;
-
-                          return DataRow(
-                            cells: [
-                              DataCell(Text('#$idStr', style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Outfit'))),
-                              DataCell(Text(dateStr, style: const TextStyle(fontSize: 12))),
-                              DataCell(Text('+${o.deliveryFee.toStringAsFixed(0)} ل.س', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green, fontFamily: 'Outfit'))),
-                              DataCell(Text('${cashReceived.toStringAsFixed(0)} ل.س', style: TextStyle(fontFamily: 'Outfit', color: isCash ? Colors.orange.shade800 : Colors.grey))),
-                              DataCell(Chip(
-                                label: Text(isCash ? 'كاش' : 'محفظة', style: const TextStyle(fontSize: 10, color: Colors.white)),
-                                backgroundColor: isCash ? Colors.orange : Colors.purple,
-                                visualDensity: VisualDensity.compact,
-                              )),
-                              DataCell(Text('${(o.deliveryFee + cashReceived).toStringAsFixed(0)} ل.س', style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Outfit'))),
+              // Balance Breakdown Data Table
+              Expanded(
+                child: driverOrders.isEmpty
+                    ? const Center(child: Text('لا توجد طلبات مكتملة مسجلة في الرصيد حالياً'))
+                    : SingleChildScrollView(
+                        scrollDirection: Axis.vertical,
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: DataTable(
+                            headingRowColor: WidgetStateProperty.all(AppTheme.primary.withValues(alpha: 0.1)),
+                            columns: const [
+                              DataColumn(label: Text('رقم الطلب', style: TextStyle(fontWeight: FontWeight.bold))),
+                              DataColumn(label: Text('التاريخ', style: TextStyle(fontWeight: FontWeight.bold))),
+                              DataColumn(label: Text('أرباحك التوصيل (+)', style: TextStyle(fontWeight: FontWeight.bold))),
+                              DataColumn(label: Text('كاش الزبون (ذمة)', style: TextStyle(fontWeight: FontWeight.bold))),
+                              DataColumn(label: Text('طريقة الدفع', style: TextStyle(fontWeight: FontWeight.bold))),
+                              DataColumn(label: Text('الحالة', style: TextStyle(fontWeight: FontWeight.bold))),
                             ],
-                          );
-                        }),
+                            rows: List.generate(driverOrders.length, (idx) {
+                              final o = driverOrders[idx];
+                              final idStr = o.id.length > 6 ? o.id.substring(o.id.length - 6) : o.id;
+                              final dateStr = o.createdAt != null
+                                  ? '${o.createdAt!.day}/${o.createdAt!.month} ${o.createdAt!.hour}:${o.createdAt!.minute.toString().padLeft(2, '0')}'
+                                  : '--';
+                              final isCash = o.paymentMethod == 'cash';
+                              final cashReceived = isCash ? (o.totalAmount + o.deliveryFee) : 0.0;
+
+                              return DataRow(
+                                cells: [
+                                  DataCell(Text('#$idStr', style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Outfit'))),
+                                  DataCell(Text(dateStr, style: const TextStyle(fontSize: 12))),
+                                  DataCell(Text('+${o.deliveryFee.toStringAsFixed(0)} ل.س', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green, fontFamily: 'Outfit'))),
+                                  DataCell(Text('${cashReceived.toStringAsFixed(0)} ل.س', style: TextStyle(fontFamily: 'Outfit', color: isCash ? Colors.orange.shade900 : Colors.grey, fontWeight: isCash ? FontWeight.bold : FontWeight.normal))),
+                                  DataCell(Chip(
+                                    label: Text(isCash ? 'كاش' : 'محفظة', style: const TextStyle(fontSize: 10, color: Colors.white)),
+                                    backgroundColor: isCash ? Colors.orange : Colors.purple,
+                                    visualDensity: VisualDensity.compact,
+                                  )),
+                                  DataCell(const Icon(Icons.check_circle_outline_rounded, color: Colors.green, size: 18)),
+                                ],
+                              );
+                            }),
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
+              ),
+            ],
           ),
 
-          // Total Summary Footer Row
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.green.withValues(alpha: 0.1),
-              border: Border(top: BorderSide(color: Colors.green.withValues(alpha: 0.3))),
+          if (_isSettling)
+            Container(
+              color: Colors.black38,
+              child: const Center(
+                child: CircularProgressIndicator(),
+              ),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('المجموع الكلي النهائي:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                Text(
-                  '${grandTotal.toStringAsFixed(0)} ل.س',
-                  style: TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.bold, fontSize: 20, color: Colors.green.shade800),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );

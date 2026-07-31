@@ -185,3 +185,44 @@ exports.getRegions = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// ترصيد محفظة السائق (تصفير كاش الزبائن، أو تصفير أرباح التوصيل، أو الاثنين منفصلين)
+exports.settleDriverWallet = async (req, res) => {
+  try {
+    const { settlementType } = req.body; // 'cash' | 'earnings' | 'both'
+    const userId = req.user.userId;
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: 'المستخدم غير موجود' });
+
+    const updateFields = {};
+    let message = '';
+
+    if (settlementType === 'cash') {
+      updateFields.customerPaymentsWallet = 0;
+      message = 'تم ترصيد وتصفير ذمة كاش الزبائن بنجاح';
+    } else if (settlementType === 'earnings') {
+      updateFields.driverEarningsWallet = 0;
+      message = 'تم ترصيد وتصفير أرباح التوصيل بنجاح';
+    } else if (settlementType === 'both') {
+      updateFields.customerPaymentsWallet = 0;
+      updateFields.driverEarningsWallet = 0;
+      message = 'تم ترصيد وتصفير كامل حسابات السائق بنجاح';
+    } else {
+      return res.status(400).json({ message: 'نوع الترصيد غير صالح' });
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { $set: updateFields },
+      { returnDocument: 'after' }
+    ).select('-password');
+
+    res.json({
+      message,
+      user: updatedUser
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
