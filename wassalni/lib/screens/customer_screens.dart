@@ -27,6 +27,9 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   String _selectedCategory = 'الكل';
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  String? _detectedGovernorate;
+  String? _detectedRegion;
+  bool _isDetectingLocation = true;
 
   final List<Map<String, dynamic>> _categories = [
     {'name': 'الكل', 'icon': Icons.dashboard_rounded},
@@ -40,8 +43,136 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   void initState() {
     super.initState();
     Future.microtask(() {
-      Provider.of<RestaurantProvider>(context, listen: false).loadRestaurants();
+      _initUserLocation();
     });
+  }
+
+  Future<void> _initUserLocation() async {
+    if (!mounted) return;
+    setState(() => _isDetectingLocation = true);
+
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final user = auth.currentUser;
+
+    String? gov;
+    String? reg;
+
+    // 1. الأولوية الأولى: موقع الـ GPS
+    try {
+      final gpsErr = await LocationHelper.checkAndRequestPermissions();
+      if (gpsErr == null) {
+        final pos = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.medium,
+          timeLimit: const Duration(seconds: 5),
+        );
+
+        // مطابقة الـ GPS مع العناوين المخزنة القريبة أولاً للمطابقة التامة
+        if (user != null) {
+          if (user.address?.location?.coordinates != null &&
+              user.address!.location!.coordinates.length == 2) {
+            final double sLng = user.address!.location!.coordinates[0];
+            final double sLat = user.address!.location!.coordinates[1];
+            if (sLat != 0 && sLng != 0) {
+              final dist = Geolocator.distanceBetween(
+                pos.latitude,
+                pos.longitude,
+                sLat,
+                sLng,
+              );
+              if (dist < 3000 &&
+                  (user.address?.governorate?.isNotEmpty ?? false) &&
+                  (user.address?.region?.isNotEmpty ?? false)) {
+                gov = user.address!.governorate;
+                reg = user.address!.region;
+              }
+            }
+          }
+
+          if (gov == null) {
+            for (final addr in user.addresses) {
+              if (addr.location?.coordinates != null &&
+                  addr.location!.coordinates.length == 2) {
+                final double sLng = addr.location!.coordinates[0];
+                final double sLat = addr.location!.coordinates[1];
+                if (sLat != 0 && sLng != 0) {
+                  final dist = Geolocator.distanceBetween(
+                    pos.latitude,
+                    pos.longitude,
+                    sLat,
+                    sLng,
+                  );
+                  if (dist < 3000 &&
+                      (addr.governorate?.isNotEmpty ?? false) &&
+                      (addr.region?.isNotEmpty ?? false)) {
+                    gov = addr.governorate;
+                    reg = addr.region;
+                    break;
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        // إذا لم تطابق عنواناً مخزناً، نقوم بعكس الترميز من OSM Nominatim
+        if (gov == null) {
+          final geo = await LocationHelper.reverseGeocode(pos.latitude, pos.longitude);
+          if (geo != null &&
+              ((geo['governorate']?.isNotEmpty ?? false) ||
+                  (geo['region']?.isNotEmpty ?? false))) {
+            gov = geo['governorate'];
+            reg = geo['region'];
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('GPS location resolution error: $e');
+    }
+
+    // 2. الأولوية الثانية: الموقع الأساسي للمستخدم (currentUser.address)
+    if ((gov == null || gov.isEmpty) && (reg == null || reg.isEmpty) && user?.address != null) {
+      if (user!.address?.governorate != null && user.address!.governorate!.isNotEmpty) {
+        gov = user.address!.governorate;
+        reg = user.address!.region ?? '';
+      }
+    }
+
+    // 3. الأولوية الثالثة: أحد المواقع المخزنة سابقاً (currentUser.addresses)
+    if ((gov == null || gov.isEmpty) && (reg == null || reg.isEmpty) && user != null && user.addresses.isNotEmpty) {
+      for (final addr in user.addresses) {
+        if (addr.governorate != null && addr.governorate!.isNotEmpty) {
+          gov = addr.governorate;
+          reg = addr.region ?? '';
+          break;
+        }
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _detectedGovernorate = gov;
+        _detectedRegion = reg;
+        _isDetectingLocation = false;
+      });
+
+      Provider.of<RestaurantProvider>(context, listen: false).loadRestaurants(
+        governorate: gov,
+        region: reg,
+      );
+    }
+  }
+
+  String get _locationSubtitle {
+    final gov = _detectedGovernorate?.trim() ?? '';
+    final reg = _detectedRegion?.trim() ?? '';
+    if (gov.isNotEmpty && reg.isNotEmpty) {
+      return 'موقعك الحالي $gov - $reg';
+    } else if (gov.isNotEmpty) {
+      return 'موقعك الحالي $gov';
+    } else if (reg.isNotEmpty) {
+      return 'موقعك الحالي $reg';
+    }
+    return 'موقعك غير محدد';
   }
 
   @override
@@ -61,7 +192,26 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
           r.restaurantInfo?.cuisineType == _selectedCategory;
       final matchesSearch = _searchQuery.isEmpty ||
           r.name.toLowerCase().contains(_searchQuery.toLowerCase());
-      return matchesCategory && matchesSearch;
+
+      bool matchesLocation = true;
+      final currentGov = _detectedGovernorate?.trim().toLowerCase();
+      final currentReg = _detectedRegion?.trim().toLowerCase();
+
+      if (currentReg != null && currentReg.isNotEmpty) {
+        final restReg = (r.address?.region ?? '').trim().toLowerCase();
+        final restGov = (r.address?.governorate ?? '').trim().toLowerCase();
+
+        final regionMatch = restReg.isNotEmpty &&
+            (restReg == currentReg || restReg.contains(currentReg) || currentReg.contains(restReg));
+        final govMatch = currentGov != null && currentGov.isNotEmpty && restGov.isNotEmpty && restGov == currentGov;
+
+        matchesLocation = regionMatch || govMatch;
+      } else if (currentGov != null && currentGov.isNotEmpty) {
+        final restGov = (r.address?.governorate ?? '').trim().toLowerCase();
+        matchesLocation = restGov.isEmpty || restGov == currentGov;
+      }
+
+      return matchesCategory && matchesSearch && matchesLocation;
     }).toList();
 
     final activeOrders = Provider.of<OrderProvider>(context).orders
@@ -70,13 +220,13 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
 
     return Scaffold(
       body: RefreshIndicator(
-        onRefresh: () => restProv.loadRestaurants(),
+        onRefresh: () => _initUserLocation(),
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
             // 1. Header with Gradient
             SliverAppBar(
-              expandedHeight: 180,
+              expandedHeight: 185,
               pinned: true,
               stretch: true,
               flexibleSpace: FlexibleSpaceBar(
@@ -86,20 +236,51 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                   child: SafeArea(
                     bottom: false,
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 50, 20, 20),
+                      padding: const EdgeInsets.fromLTRB(20, 45, 20, 20),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
                             children: [
                               Expanded(
-                                child: Text(
-                                  'مرحباً ${auth.currentUser?.name ?? "عميلنا العزيز"}',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      'مرحباً ${auth.currentUser?.name ?? "عميلنا العزيز"}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.location_on_rounded,
+                                          color: Colors.white70,
+                                          size: 13,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Expanded(
+                                          child: Text(
+                                            _isDetectingLocation
+                                                ? 'جاري تحديد موقعك...'
+                                                : _locationSubtitle,
+                                            style: TextStyle(
+                                              color: Colors.white.withValues(alpha: 0.8),
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w400,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
                                 ),
                               ),
                               _HeaderBtn(
@@ -115,7 +296,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                           ),
                           const Spacer(),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                             decoration: BoxDecoration(
                               color: Colors.white.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(16),

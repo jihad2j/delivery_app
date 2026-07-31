@@ -12,11 +12,23 @@ class RestaurantProvider extends ChangeNotifier {
   List<Product> get currentMenu => _currentMenu;
   bool get isLoading => _isLoading;
 
-  Future<void> loadRestaurants() async {
+  Future<void> loadRestaurants({String? governorate, String? region}) async {
     _isLoading = true;
     notifyListeners();
     try {
-      final res = await ApiService.get('/api/restaurants');
+      String path = '/api/restaurants';
+      final queryParams = <String>[];
+      if (governorate != null && governorate.isNotEmpty) {
+        queryParams.add('governorate=${Uri.encodeComponent(governorate)}');
+      }
+      if (region != null && region.isNotEmpty) {
+        queryParams.add('region=${Uri.encodeComponent(region)}');
+      }
+      if (queryParams.isNotEmpty) {
+        path += '?${queryParams.join('&')}';
+      }
+
+      final res = await ApiService.get(path);
       if (res.statusCode == 200) {
         final List<dynamic> data = jsonDecode(res.body);
         _restaurants = data.map((x) => User.fromJson(x)).toList();

@@ -202,6 +202,41 @@ class LocationHelper {
 
     return null;
   }
+
+  /// Attempts to perform reverse geocoding via OpenStreetMap Nominatim
+  /// to resolve Governorate and Region in Arabic.
+  static Future<Map<String, String>?> reverseGeocode(double lat, double lng) async {
+    try {
+      final url = Uri.parse(
+        'https://nominatim.openstreetmap.org/reverse?format=json&lat=$lat&lon=$lng&accept-language=ar',
+      );
+      final res = await http.get(url, headers: {
+        'User-Agent': 'WassalniApp/1.0',
+      }).timeout(const Duration(seconds: 5));
+
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        final addr = data['address'] as Map<String, dynamic>?;
+        if (addr != null) {
+          String governorate = (addr['state'] ?? addr['province'] ?? addr['county'] ?? '').toString();
+          String region = (addr['city'] ?? addr['town'] ?? addr['suburb'] ?? addr['district'] ?? addr['village'] ?? addr['neighbourhood'] ?? '').toString();
+
+          governorate = governorate.replaceAll('محافظة', '').trim();
+          region = region.replaceAll('منطقة', '').replaceAll('مدينة', '').replaceAll('بلدية', '').trim();
+
+          if (governorate.isNotEmpty || region.isNotEmpty) {
+            return {
+              'governorate': governorate,
+              'region': region,
+            };
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Reverse geocode error: $e');
+    }
+    return null;
+  }
 }
 
 class SocketService {

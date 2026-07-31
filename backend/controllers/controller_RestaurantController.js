@@ -31,10 +31,12 @@ exports.createRestaurant = async (req, res) => {
 // الحصول على قائمة المطعمين
 exports.getRestaurants = async (req, res) => {
   try {
-    const { status, city } = req.query;
+    const { status, city, governorate, region } = req.query;
     const filter = { role: 'restaurant' };
     if (status) filter['restaurantInfo.status'] = status;
     if (city) filter['address.city'] = city;
+    if (governorate) filter['address.governorate'] = governorate;
+    if (region) filter['address.region'] = region;
 
     const restaurants = await User.find(filter).populate('restaurantInfo.menu');
     res.json(restaurants);
