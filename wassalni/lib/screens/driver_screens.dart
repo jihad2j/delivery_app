@@ -105,7 +105,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
         icon: const Icon(Icons.check_circle, color: Colors.green, size: 64),
-        title: const Text('تم تأكيد التوصيل! 🎉'),
+        title: const Text('تم تأكيد التوصيل!'),
         content: const Text(
           'قام العميل بتأكيد استلام الطلب بنجاح وتم تسوية المبالغ المالية بأرباحك ومحفظتك.',
         ),
@@ -310,53 +310,123 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
     _isDialogShowing = true;
     _dismissedOrderIds.add(order.id);
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.notifications_active, color: AppTheme.primary),
-            SizedBox(width: 8),
-            Text('يوجد طلب قريب!'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('سعر التوصيل: ${order.deliveryFee.toStringAsFixed(0)} ل.س'),
-            const SizedBox(height: 8),
-            Text('المسافة: 2.5 كم تقريباً'),
-            const SizedBox(height: 12),
-            const Text(
-              'تفاصيل الوجبة:',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            ...order.items.map((it) => Text('• ${it.name} (${it.quantity})')),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              final orderProv = Provider.of<OrderProvider>(
-                context,
-                listen: false,
-              );
-              orderProv.rejectOrder(order.id);
-            },
-            child: const Text('رفض'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _acceptOrder(order.id);
-            },
-            child: const Text('قبول (تأكيد)'),
-          ),
-        ],
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
+      builder: (ctx) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: const Icon(Icons.delivery_dining_rounded, color: AppTheme.primary, size: 32),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('طلب جديد قريب منك', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        const SizedBox(height: 4),
+                        Text('أجر التوصيل: ${order.deliveryFee.toStringAsFixed(0)} ل.س', style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text('2.5 كم', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green[700])),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.grey[850] : Colors.grey[100],
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('تفاصيل الطلب:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                    const SizedBox(height: 6),
+                    ...order.items.map((it) => Padding(
+                      padding: const EdgeInsets.only(bottom: 3),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(color: AppTheme.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
+                            child: Text('×${it.quantity}', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primary, fontSize: 11)),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(it.name, style: TextStyle(fontSize: 13, color: isDark ? Colors.grey[300] : Colors.grey[700])),
+                        ],
+                      ),
+                    )),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        side: BorderSide(color: Colors.red[300]!),
+                        foregroundColor: Colors.red,
+                      ),
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        final orderProv = Provider.of<OrderProvider>(context, listen: false);
+                        orderProv.rejectOrder(order.id);
+                      },
+                      child: const Text('رفض', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 2,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        elevation: 0,
+                      ),
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _acceptOrder(order.id);
+                      },
+                      child: const Text('قبول', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
     ).then((_) {
       _isDialogShowing = false;
     });
@@ -396,7 +466,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
       case 'delivered_pending':
         return 'بانتظار العميل';
       case 'delivered':
-        return 'تم التوصيل بنجاح ✓';
+        return 'تم التوصيل بنجاح';
       case 'cancelled':
         return 'ملغى';
       default:
@@ -700,8 +770,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
               orderProv.orders.any((o) =>
                   o.driverIdStr == auth.currentUser?.id &&
                   ['delivery_accepted', 'preparing', 'ready', 'onTheWay', 'delivered_pending'].contains(o.status))
-                  ? 'لديك طلب نشط جاري توصيله 🛵'
-                  : (isAvailable ? 'أنت متصل وتستقبل الطلبات' : 'متوقف عن العمل'),
+                    ? 'لديك طلب نشط جاري توصيله'
+                    : (isAvailable ? 'أنت متصل وتستقبل الطلبات' : 'متوقف عن العمل'),
               style: TextStyle(
                 color: orderProv.orders.any((o) =>
                     o.driverIdStr == auth.currentUser?.id &&
@@ -1032,7 +1102,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('🎯 أنت قريب جداً من الوجهة! تم تكبير الخريطة لتوضيح الشوارع والمباني'),
+              content: Text('أنت قريب جداً من الوجهة! تم تكبير الخريطة لتوضيح الشوارع والمباني'),
               duration: Duration(seconds: 3),
               backgroundColor: AppTheme.primary,
             ),
@@ -1477,46 +1547,27 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
             ),
           ),
 
-          // 3. Top Bar: Semi-transparent Menu (Right) + Destination Box (Center) + Status Toggle (Left)
+          // 3. Top Bar
           Positioned(
             top: 0,
             left: 0,
             right: 0,
             child: SafeArea(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 child: Row(
                   children: [
-                    // Drawer Menu Button (Right side)
+                    // Menu
                     Builder(
-                      builder: (context) => Material(
-                        elevation: 2,
-                        borderRadius: BorderRadius.circular(14),
-                        color: Theme.of(context).cardColor.withValues(alpha: 0.85),
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(14),
-                          onTap: () => Scaffold.of(context).openDrawer(),
-                          child: Container(
-                            width: 44,
-                            height: 44,
-                            alignment: Alignment.center,
-                            child: Icon(
-                              Icons.menu_rounded,
-                              color: Theme.of(context).textTheme.bodyLarge?.color,
-                              size: 22,
-                            ),
-                          ),
-                        ),
+                      builder: (menuCtx) => _GlassBtn(
+                        child: Icon(Icons.menu_rounded, size: 20, color: Theme.of(context).textTheme.bodyLarge?.color),
+                        onTap: () => Scaffold.of(menuCtx).openDrawer(),
                       ),
                     ),
                     const SizedBox(width: 8),
-
-                    // Destination Box (Center)
+                    // Destination Info
                     Expanded(
-                      child: Material(
-                        elevation: 2,
-                        borderRadius: BorderRadius.circular(14),
-                        color: Theme.of(context).cardColor.withValues(alpha: 0.85),
+                      child: _GlassCard(
                         child: Container(
                           height: 44,
                           padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -1526,12 +1577,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                                   children: [
                                     Icon(
                                       ['delivery_accepted', 'preparing', 'ready'].contains(activeOrders.first.status)
-                                          ? Icons.restaurant_rounded
-                                          : Icons.person_pin_circle_rounded,
+                                          ? Icons.restaurant_rounded : Icons.person_pin_circle_rounded,
                                       color: ['delivery_accepted', 'preparing', 'ready'].contains(activeOrders.first.status)
-                                          ? Colors.orange
-                                          : Colors.red,
-                                      size: 20,
+                                          ? Colors.orange : Colors.red,
+                                      size: 18,
                                     ),
                                     const SizedBox(width: 6),
                                     Expanded(
@@ -1541,41 +1590,25 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                                         children: [
                                           Text(
                                             ['delivery_accepted', 'preparing', 'ready'].contains(activeOrders.first.status)
-                                                ? 'التوجه للمطعم'
-                                                : 'التوجه للعميل',
-                                            style: const TextStyle(
-                                              fontFamily: 'Outfit',
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 11.5,
-                                            ),
+                                                ? 'التوجه للمطعم' : 'التوجه للعميل',
+                                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
                                           ),
                                           _isLoadingRoute
-                                              ? const Text(
-                                                  'جاري المسار...',
-                                                  style: TextStyle(color: Colors.grey, fontSize: 10),
-                                                )
+                                              ? const Text('جاري المسار...', style: TextStyle(color: Colors.grey, fontSize: 9))
                                               : Text(
                                                   '${_distanceKm.toStringAsFixed(1)} كم • ${_durationMin.toStringAsFixed(0)} د',
-                                                  style: const TextStyle(
-                                                    fontFamily: 'Outfit',
-                                                    color: Colors.blue,
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 10.5,
-                                                  ),
+                                                  style: const TextStyle(fontFamily: 'Outfit', color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 10),
                                                 ),
                                         ],
                                       ),
                                     ),
                                     InkWell(
-                                      onTap: () {
-                                        _lastRoutedOrderId = null;
-                                        _fetchRouteForOrder(activeOrders.first);
-                                      },
+                                      onTap: () { _lastRoutedOrderId = null; _fetchRouteForOrder(activeOrders.first); },
                                       child: const Padding(
                                         padding: EdgeInsets.all(4),
-                                        child: Icon(Icons.refresh_rounded, color: Colors.green, size: 18),
+                                        child: Icon(Icons.refresh_rounded, color: Colors.green, size: 16),
                                       ),
                                     ),
                                   ],
@@ -1583,88 +1616,27 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                               : const Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Icon(Icons.near_me_rounded, color: AppTheme.primary, size: 18),
+                                    Icon(Icons.near_me_rounded, color: AppTheme.primary, size: 16),
                                     SizedBox(width: 6),
-                                    Text(
-                                      'الوجهة: بانتظار طلب',
-                                      style: TextStyle(
-                                        fontFamily: 'Outfit',
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 12,
-                                      ),
-                                    ),
+                                    Text('بانتظار طلب', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
                                   ],
                                 ),
                         ),
                       ),
                     ),
-                    // Compact & Semi-transparent Status Button (Left side - only visible when NO active order)
+                    // Availability Toggle
                     if (activeOrders.isEmpty) ...[
                       const SizedBox(width: 8),
-                      Material(
-                        elevation: 2,
-                        borderRadius: BorderRadius.circular(14),
-                        color: Colors.transparent,
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(14),
-                          onTap: _isTogglingAvailability
-                              ? null
-                              : () async {
-                                  setState(() => _isTogglingAvailability = true);
-                                  await _toggleAvailability(auth, !isAvailable);
-                                  if (mounted) setState(() => _isTogglingAvailability = false);
-                                },
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 300),
-                            height: 44,
-                            padding: const EdgeInsets.symmetric(horizontal: 10),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(14),
-                              color: !isAvailable
-                                  ? Colors.red.shade700.withValues(alpha: 0.85)
-                                  : Colors.green.shade600.withValues(alpha: 0.85),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: (!isAvailable ? Colors.red : Colors.green).withValues(alpha: 0.25),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 3),
-                                ),
-                              ],
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (_isTogglingAvailability)
-                                  const SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                else
-                                  Icon(
-                                    !isAvailable
-                                        ? Icons.power_settings_new_rounded
-                                        : Icons.wifi_tethering_rounded,
-                                    color: Colors.white,
-                                    size: 18,
-                                  ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  !isAvailable ? 'متوقف' : 'جاهز',
-                                  style: const TextStyle(
-                                    fontFamily: 'Outfit',
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12.5,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
+                      _AvailabilityBtn(
+                        isAvailable: isAvailable,
+                        isLoading: _isTogglingAvailability,
+                        onTap: _isTogglingAvailability
+                            ? null
+                            : () async {
+                                setState(() => _isTogglingAvailability = true);
+                                await _toggleAvailability(auth, !isAvailable);
+                                if (mounted) setState(() => _isTogglingAvailability = false);
+                              },
                       ),
                     ],
                   ],
@@ -1769,96 +1741,101 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
   }
 
 
+  String _orderStatusLabel(String status) {
+    switch (status) {
+      case 'restaurant_accepted': return 'في المطعم';
+      case 'preparing': return 'قيد التحضير';
+      case 'ready': return 'جاهز للاستلام';
+      case 'delivery_accepted': return 'في الطريق';
+      case 'onTheWay': return 'توصيل';
+      case 'delivered_pending': return 'بانتظار التأكيد';
+      default: return '';
+    }
+  }
+
   Widget _buildActiveOrderCard(OrderProvider orderProv, model.Order order) {
+    final statusSteps = ['restaurant_accepted', 'preparing', 'ready', 'delivery_accepted', 'onTheWay', 'delivered_pending'];
+    final currentStepIdx = statusSteps.indexOf(order.status);
+    final statusLabel = _orderStatusLabel(order.status);
+
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         color: Theme.of(context).cardColor,
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.12),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 16, offset: const Offset(0, 4)),
         ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Header strip
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-              gradient: LinearGradient(
-                colors: [AppTheme.primary, AppTheme.primary.withValues(alpha: 0.8)],
-              ),
+              gradient: const LinearGradient(colors: [AppTheme.primary, AppTheme.primaryDark]),
             ),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    const Icon(Icons.delivery_dining_rounded, color: Colors.white, size: 20),
-                    const SizedBox(width: 8),
-                    Text(
-                      'طلب نشط #${order.id.substring(order.id.length - 6)}',
-                      style: const TextStyle(
-                        fontFamily: 'Outfit',
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        fontSize: 14,
+                const Icon(Icons.delivery_dining_rounded, color: Colors.white, size: 22),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'طلب #${order.id.substring(order.id.length - 6)}',
+                        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 14),
                       ),
-                    ),
-                  ],
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    '${order.deliveryFee.toStringAsFixed(0)} ل.س',
-                    style: const TextStyle(
-                      fontFamily: 'Outfit',
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      fontSize: 13,
-                    ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '$statusLabel • ${order.deliveryFee.toStringAsFixed(0)} ل.س',
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 11),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
           ),
+          // Progress Steps
           Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            child: Row(
               children: [
-                Row(
-                  children: [
-                    Icon(Icons.location_on_rounded, size: 16, color: Colors.grey[600]),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        '${order.deliveryAddress.city ?? ""} - ${order.deliveryAddress.street ?? ""}',
-                        style: TextStyle(
-                          fontFamily: 'Outfit',
-                          fontSize: 13,
-                          color: Theme.of(context).textTheme.bodyMedium?.color,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                _buildOrderActionButtons(orderProv, order),
+                _StepDot(filled: currentStepIdx >= 0, label: 'قبول'),
+                _StepLine(filled: currentStepIdx >= 1),
+                _StepDot(filled: currentStepIdx >= 1, label: 'تحضير'),
+                _StepLine(filled: currentStepIdx >= 2),
+                _StepDot(filled: currentStepIdx >= 2, label: 'جاهز'),
+                _StepLine(filled: currentStepIdx >= 3),
+                _StepDot(filled: currentStepIdx >= 3, label: 'توصيل'),
+                _StepLine(filled: currentStepIdx >= 4),
+                _StepDot(filled: currentStepIdx >= 4, label: 'استلام'),
               ],
             ),
           ),
+          // Address
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Icon(Icons.location_on_rounded, size: 14, color: Colors.grey[500]),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    '${order.deliveryAddress.city ?? ""} - ${order.deliveryAddress.street ?? ""}',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 4),
+          _buildOrderActionButtons(orderProv, order),
+          const SizedBox(height: 8),
         ],
       ),
     );
@@ -1997,12 +1974,141 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> with SingleTickerPr
                 }
               },
               icon: const Icon(Icons.refresh_rounded, size: 18),
-              label: const Text('تحديث حالة التأكيد 🔄', style: TextStyle(fontFamily: 'Outfit', fontSize: 12, fontWeight: FontWeight.bold)),
+              label: const Text('تحديث حالة التأكيد', style: TextStyle(fontFamily: 'Outfit', fontSize: 12, fontWeight: FontWeight.bold)),
             ),
           ),
         ],
       );
     }
     return const SizedBox();
+  }
+}
+
+class _GlassBtn extends StatelessWidget {
+  final Widget child;
+  final VoidCallback onTap;
+  const _GlassBtn({required this.child, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      elevation: 2,
+      borderRadius: BorderRadius.circular(14),
+      color: Theme.of(context).cardColor.withValues(alpha: 0.88),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: Container(width: 44, height: 44, alignment: Alignment.center, child: child),
+      ),
+    );
+  }
+}
+
+class _GlassCard extends StatelessWidget {
+  final Widget child;
+  const _GlassCard({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      elevation: 2,
+      borderRadius: BorderRadius.circular(14),
+      color: Theme.of(context).cardColor.withValues(alpha: 0.88),
+      child: child,
+    );
+  }
+}
+
+class _AvailabilityBtn extends StatelessWidget {
+  final bool isAvailable;
+  final bool isLoading;
+  final VoidCallback? onTap;
+  const _AvailabilityBtn({required this.isAvailable, required this.isLoading, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      elevation: 3,
+      borderRadius: BorderRadius.circular(14),
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          height: 44,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            color: isAvailable ? Colors.green.shade600 : Colors.red.shade700,
+            boxShadow: [
+              BoxShadow(
+                color: (isAvailable ? Colors.green : Colors.red).withValues(alpha: 0.3),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (isLoading)
+                const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+              else
+                Icon(isAvailable ? Icons.wifi_tethering_rounded : Icons.power_settings_new_rounded, color: Colors.white, size: 18),
+              const SizedBox(width: 4),
+              Text(isAvailable ? 'جاهز' : 'متوقف', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StepDot extends StatelessWidget {
+  final bool filled;
+  final String label;
+  const _StepDot({required this.filled, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 24, height: 24,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: filled ? AppTheme.primary : Colors.grey[300],
+          ),
+          child: Icon(
+            filled ? Icons.check_rounded : Icons.circle_outlined,
+            size: 14, color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(label, style: TextStyle(fontSize: 8, color: filled ? AppTheme.primary : Colors.grey[400], fontWeight: FontWeight.bold)),
+      ],
+    );
+  }
+}
+
+class _StepLine extends StatelessWidget {
+  final bool filled;
+  const _StepLine({required this.filled});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        height: 3,
+        margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 10),
+        decoration: BoxDecoration(
+          color: filled ? AppTheme.primary : Colors.grey[300],
+          borderRadius: BorderRadius.circular(2),
+        ),
+      ),
+    );
   }
 }

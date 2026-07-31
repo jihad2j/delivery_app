@@ -125,8 +125,8 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
                               SnackBar(
                                 content: Text(
                                   newStatus == 'open'
-                                      ? 'تم فتح المطعم بنجاح واستقبال الطلبات 🟢'
-                                      : 'تم إغلاق المطعم وتوقف استقبال الطلبات 🔴',
+                                      ? 'تم فتح المطعم بنجاح واستقبال الطلبات'
+                                      : 'تم إغلاق المطعم وتوقف استقبال الطلبات',
                                 ),
                                 duration: const Duration(seconds: 2),
                               ),
@@ -159,10 +159,10 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
                                   ),
                                 ),
                                 const SizedBox(width: 6),
-                                Text(
-                                  isOpen
-                                      ? 'المطعم: مفتوح (انقر للتغيير 🟢)'
-                                      : 'المطعم: مغلق (انقر للتغيير 🔴)',
+                        Text(
+                          isOpen
+                              ? 'المطعم: مفتوح (انقر للتغيير)'
+                              : 'المطعم: مغلق (انقر للتغيير)',
                                   style: TextStyle(
                                     fontFamily: 'Outfit',
                                     fontSize: 11,
@@ -498,7 +498,6 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
   Widget _buildDashboard(AuthProvider auth, OrderProvider orderProv) {
     final restaurantInfo = auth.currentUser?.restaurantInfo;
 
-    // Calculations
     final completedOrders = orderProv.orders
         .where((o) => o.status == 'delivered')
         .toList();
@@ -508,204 +507,109 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
     );
 
     final preparingCount = orderProv.orders
-        .where(
-          (o) =>
-              o.status == 'restaurant_accepted' ||
-              o.status == 'delivery_accepted' ||
-              o.status == 'preparing',
-        )
+        .where((o) => o.status == 'restaurant_accepted' || o.status == 'delivery_accepted' || o.status == 'preparing')
         .length;
     final newCount = orderProv.orders
         .where((o) => o.status == 'pending')
         .length;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header Card: Balance and Quick Info
+          // Header Card
           Container(
-            padding: const EdgeInsets.all(24),
-            decoration: AppTheme.primaryGradient().copyWith(
-              borderRadius: BorderRadius.circular(24),
-            ),
+            padding: const EdgeInsets.all(20),
+            decoration: AppTheme.primaryGradient().copyWith(borderRadius: BorderRadius.circular(24)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'الرصيد المتاح:',
-                  style: TextStyle(color: Colors.white70, fontSize: 14),
+                Row(
+                  children: [
+                    const Icon(Icons.account_balance_wallet_rounded, color: Colors.white70, size: 20),
+                    const SizedBox(width: 8),
+                    const Text('الرصيد المتاح', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                  ],
                 ),
+                const SizedBox(height: 6),
                 Text(
                   '${auth.currentUser?.balance.toStringAsFixed(0)} ل.س',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: const TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'حالة المطعم: ${restaurantInfo?.status == 'open' ? 'مفتوح 🟢' : 'مغلق 🔴'}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    _DashboardBadge(
+                      icon: Icons.storefront_rounded,
+                      label: restaurantInfo?.status == 'open' ? 'مفتوح' : 'مغلق',
+                      color: restaurantInfo?.status == 'open' ? Colors.green : Colors.red,
                     ),
-                    Text(
-                      'التصنيف: ${restaurantInfo?.cuisineType ?? 'غير محدد'}',
-                      style: const TextStyle(color: Colors.white70),
+                    const SizedBox(width: 8),
+                    _DashboardBadge(
+                      icon: Icons.restaurant_menu_rounded,
+                      label: restaurantInfo?.cuisineType ?? 'غير محدد',
+                      color: Colors.amberAccent,
                     ),
                   ],
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
 
-          // Sales statistics
-          const Text(
-            'إحصائيات المبيعات',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-          ),
-          const SizedBox(height: 12),
+          // Stats Grid
           Row(
             children: [
               Expanded(
-                child: Card(
-                  color: Colors.green.withValues(alpha: 0.05),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'حجم المبيعات',
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          '${salesVolume.toStringAsFixed(0)} ل.س',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 20,
-                            color: Colors.green,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                child: _StatCard(
+                  title: 'حجم المبيعات',
+                  value: '${salesVolume.toStringAsFixed(0)} ل.س',
+                  icon: Icons.trending_up_rounded,
+                  color: Colors.green,
+                  bgColor: Colors.green.withValues(alpha: 0.08),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: InkWell(
-                  onTap: () {
-                    Navigator.pushNamed(context, '/completed-orders');
-                  },
-                  borderRadius: BorderRadius.circular(12),
-                  child: Card(
-                    color: Colors.blue.withValues(alpha: 0.05),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'الطلبات المكتملة',
-                            style: TextStyle(color: Colors.grey),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            '${completedOrders.length}',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 20,
-                              color: Colors.blue,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                child: _StatCard(
+                  title: 'الطلبات المكتملة',
+                  value: '${completedOrders.length}',
+                  icon: Icons.check_circle_rounded,
+                  color: Colors.blue,
+                  bgColor: Colors.blue.withValues(alpha: 0.08),
+                  onTap: () => Navigator.pushNamed(context, '/completed-orders'),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 24),
-
-          // Action Items
-          const Text(
-            'الطلبات المشتراة التي يجب تحضيرها',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-          ),
           const SizedBox(height: 12),
           Row(
             children: [
-              _buildStatCounter(
-                context,
-                'طلبات جديدة',
-                newCount,
-                Colors.redAccent,
-                onTap: () {
-                  setState(() {
-                    _tabIndex = 1;
-                  });
-                },
+              Expanded(
+                child: _StatCard(
+                  title: 'طلبات جديدة',
+                  value: '$newCount',
+                  icon: Icons.fiber_new_rounded,
+                  color: Colors.redAccent,
+                  bgColor: Colors.redAccent.withValues(alpha: 0.08),
+                  onTap: () => setState(() => _tabIndex = 1),
+                ),
               ),
               const SizedBox(width: 12),
-              _buildStatCounter(
-                context,
-                'قيد التحضير',
-                preparingCount,
-                Colors.orange,
-                onTap: () {
-                  setState(() {
-                    _tabIndex = 1;
-                  });
-                },
+              Expanded(
+                child: _StatCard(
+                  title: 'قيد التحضير',
+                  value: '$preparingCount',
+                  icon: Icons.soup_kitchen_rounded,
+                  color: Colors.orange,
+                  bgColor: Colors.orange.withValues(alpha: 0.08),
+                  onTap: () => setState(() => _tabIndex = 1),
+                ),
               ),
             ],
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildStatCounter(
-    BuildContext context,
-    String title,
-    int count,
-    Color color, {
-    VoidCallback? onTap,
-  }) {
-    return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                Text(title, style: const TextStyle(color: Colors.grey)),
-                const SizedBox(height: 8),
-                Text(
-                  '$count',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 28,
-                    color: color,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -822,7 +726,7 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
                       ),
                       SizedBox(width: 6),
                       Text(
-                        'الطلبات المكتملة 🟢',
+                        'الطلبات المكتملة',
                         style: TextStyle(
                           fontFamily: 'Outfit',
                           fontSize: 12,
@@ -888,28 +792,28 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
     switch (order.status) {
       case 'pending':
         statusColor = AppTheme.error;
-        statusLabel = 'جديد 🔴';
+        statusLabel = 'جديد';
         statusIcon = Icons.new_releases_rounded;
         break;
       case 'restaurant_accepted':
       case 'preparing':
         statusColor = Colors.orange;
-        statusLabel = 'قيد التحضير 🍳';
+        statusLabel = 'قيد التحضير';
         statusIcon = Icons.soup_kitchen_rounded;
         break;
       case 'ready':
         statusColor = Colors.green;
-        statusLabel = 'جاهزة للتوصيل 🟢';
+        statusLabel = 'جاهزة للتوصيل';
         statusIcon = Icons.check_circle_rounded;
         break;
       case 'delivery_accepted':
         statusColor = Colors.blue;
-        statusLabel = 'مع الكابتن 🛵';
+        statusLabel = 'مع الكابتن';
         statusIcon = Icons.directions_bike_rounded;
         break;
       case 'delivered':
         statusColor = Colors.green;
-        statusLabel = 'مكتمل ومسلّم 🟢';
+        statusLabel = 'مكتمل ومسلّم';
         statusIcon = Icons.check_circle_rounded;
         break;
       default:
@@ -986,7 +890,7 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        isWallet ? '💳 محفظة' : '💵 كاش',
+                        isWallet ? 'محفظة' : 'كاش',
                         style: const TextStyle(
                           fontFamily: 'Outfit',
                           fontSize: 11,
@@ -1317,7 +1221,7 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
             SizedBox(width: 8),
             Expanded(
               child: Text(
-                'تم توصيل هذا الطلب للعميل واستلامه بنجاح 🟢',
+                'تم توصيل هذا الطلب للعميل واستلامه بنجاح',
                 style: TextStyle(
                   fontFamily: 'Outfit',
                   color: Colors.green,
@@ -1442,77 +1346,212 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
     final info = auth.currentUser?.restaurantInfo;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'إعدادات المطعم',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-              ),
-              const SizedBox(height: 16),
-
-              // Open/Closed Dropdown
-              DropdownButtonFormField<String>(
-                value: info?.status ?? 'open',
-                decoration: const InputDecoration(
-                  labelText: 'حالة فتح/إغلاق المطعم',
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: AppTheme.primaryGradient().copyWith(borderRadius: BorderRadius.circular(22)),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(14)),
+                  child: const Icon(Icons.settings_rounded, color: Colors.white, size: 28),
                 ),
-                items: const [
-                  DropdownMenuItem(
-                    value: 'open',
-                    child: Text('مفتوح حالياً (يستقبل طلبات)'),
+                const SizedBox(width: 14),
+                const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('إعدادات المطعم', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                    Text('تحكم في حالة المطعم والإشعارات', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          // Status Card
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Colors.grey.withValues(alpha: 0.12)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.storefront_rounded, size: 18, color: AppTheme.primary),
+                    const SizedBox(width: 8),
+                    const Text('حالة المطعم', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: info?.status ?? 'open',
+                  decoration: InputDecoration(
+                    labelText: 'حالة فتح/إغلاق المطعم',
+                    prefixIcon: Icon(
+                      info?.status == 'open' ? Icons.check_circle_rounded : Icons.cancel_rounded,
+                      color: info?.status == 'open' ? Colors.green : Colors.red,
+                    ),
                   ),
-                  DropdownMenuItem(
-                    value: 'closed',
-                    child: Text('مغلق حالياً (لا يستقبل طلبات)'),
-                  ),
-                ],
-                onChanged: (val) {
-                  if (val != null) {
+                  items: const [
+                    DropdownMenuItem(value: 'open', child: Text('مفتوح حالياً (يستقبل طلبات)')),
+                    DropdownMenuItem(value: 'closed', child: Text('مغلق حالياً (لا يستقبل طلبات)')),
+                  ],
+                  onChanged: (val) {
+                    if (val != null) {
+                      auth.updateProfile(
+                        restaurantInfo: model.RestaurantInfo(
+                          logo: info?.logo ?? '',
+                          status: val,
+                          minOrderAmount: info?.minOrderAmount ?? 0,
+                          deliveryFee: info?.deliveryFee ?? 0,
+                          menu: info?.menu ?? [],
+                          cuisineType: info?.cuisineType ?? 'مشاوي',
+                          firebaseNotifications: info?.firebaseNotifications ?? true,
+                        ),
+                      );
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Notifications Card
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Colors.grey.withValues(alpha: 0.12)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.notifications_rounded, size: 18, color: AppTheme.primary),
+                    const SizedBox(width: 8),
+                    const Text('الإشعارات', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  ],
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('تنبيهات فايرباس (إشعار طلب جديد)', style: TextStyle(fontSize: 13)),
+                  value: info?.firebaseNotifications ?? true,
+                  onChanged: (val) {
                     auth.updateProfile(
                       restaurantInfo: model.RestaurantInfo(
                         logo: info?.logo ?? '',
-                        status: val,
+                        status: info?.status ?? 'open',
                         minOrderAmount: info?.minOrderAmount ?? 0,
                         deliveryFee: info?.deliveryFee ?? 0,
                         menu: info?.menu ?? [],
                         cuisineType: info?.cuisineType ?? 'مشاوي',
-                        firebaseNotifications:
-                            info?.firebaseNotifications ?? true,
+                        firebaseNotifications: val,
                       ),
                     );
-                  }
-                },
-              ),
-              const SizedBox(height: 16),
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
-              // Firebase notifications toggle
-              SwitchListTile(
-                title: const Text('تنبيهات فايرباس (إشعار طلب جديد)'),
-                value: info?.firebaseNotifications ?? true,
-                onChanged: (val) {
-                  auth.updateProfile(
-                    restaurantInfo: model.RestaurantInfo(
-                      logo: info?.logo ?? '',
-                      status: info?.status ?? 'open',
-                      minOrderAmount: info?.minOrderAmount ?? 0,
-                      deliveryFee: info?.deliveryFee ?? 0,
-                      menu: info?.menu ?? [],
-                      cuisineType: info?.cuisineType ?? 'مشاوي',
-                      firebaseNotifications: val,
-                    ),
-                  );
-                },
+class _DashboardBadge extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  const _DashboardBadge({required this.icon, required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: 4),
+          Text(label, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  final String title;
+  final String value;
+  final IconData icon;
+  final Color color;
+  final Color bgColor;
+  final VoidCallback? onTap;
+
+  const _StatCard({
+    required this.title,
+    required this.value,
+    required this.icon,
+    required this.color,
+    required this.bgColor,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final card = Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: color.withValues(alpha: 0.15)),
+        boxShadow: [
+          BoxShadow(color: color.withValues(alpha: 0.06), blurRadius: 8, offset: const Offset(0, 2)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(12)),
+                child: Icon(icon, size: 18, color: color),
+              ),
+              const Spacer(),
+              Text(
+                value,
+                style: TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.bold, fontSize: 22, color: color),
               ),
             ],
           ),
-        ),
+          const SizedBox(height: 8),
+          Text(title, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+        ],
       ),
     );
+
+    if (onTap != null) {
+      return InkWell(borderRadius: BorderRadius.circular(18), onTap: onTap, child: card);
+    }
+    return card;
   }
 }
 
@@ -1572,16 +1611,16 @@ class _ManageMenuScreenState extends State<ManageMenuScreen> {
     switch (cat) {
       case 'mainCourse':
       case 'وجبة رئيسية':
-        return '🍔 وجبة رئيسية';
+        return 'وجبة رئيسية';
       case 'dessert':
       case 'حلويات':
-        return '🍰 حلويات';
+        return 'حلويات';
       case 'drink':
       case 'مشروبات':
-        return '🥤 مشروبات';
+        return 'مشروبات';
       case 'appetizer':
       case 'مقبلات':
-        return '🍟 مقبلات';
+        return 'مقبلات';
       default:
         return cat ?? 'وجبة';
     }
@@ -1745,22 +1784,24 @@ class _ManageMenuScreenState extends State<ManageMenuScreen> {
     );
   }
 
-  Widget _buildMenuItemCard(
-    BuildContext context,
-    RestaurantProvider restProv,
-    dynamic prod,
-  ) {
+  Widget _buildMenuItemCard(BuildContext context, RestaurantProvider restProv, dynamic prod) {
     final isAvailable = prod.isAvailable as bool;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 20),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 2)),
+        ],
+      ),
       clipBehavior: Clip.antiAlias,
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. Food Image Banner
+          // Image Banner
           Stack(
             children: [
               SizedBox(
@@ -1768,23 +1809,16 @@ class _ManageMenuScreenState extends State<ManageMenuScreen> {
                 width: double.infinity,
                 child: Image.network(
                   prod.image,
-                  width: double.infinity,
-                  height: 160,
                   fit: BoxFit.cover,
-                  errorBuilder: (c, e, s) => Container(
-                    color: Colors.grey[200],
-                    child: const Center(
-                      child: Icon(
-                        Icons.fastfood_rounded,
-                        size: 54,
-                        color: Colors.grey,
-                      ),
+                  errorBuilder: (_, __, ___) => Container(
+                    color: isDark ? Colors.grey[850] : Colors.grey[200],
+                    child: Center(
+                      child: Icon(Icons.fastfood_rounded, size: 54, color: Colors.grey[400]),
                     ),
                   ),
                 ),
               ),
-
-              // Gradient Overlay
+              // Gradient overlay
               Positioned.fill(
                 child: Container(
                   decoration: BoxDecoration(
@@ -1792,7 +1826,7 @@ class _ManageMenuScreenState extends State<ManageMenuScreen> {
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [
-                        Colors.black.withValues(alpha: 0.2),
+                        Colors.black.withValues(alpha: 0.15),
                         Colors.transparent,
                         Colors.black.withValues(alpha: 0.5),
                       ],
@@ -1800,182 +1834,107 @@ class _ManageMenuScreenState extends State<ManageMenuScreen> {
                   ),
                 ),
               ),
-
-              // Availability Badge (Top-Right)
+              // Availability badge
               Positioned(
                 top: 12,
                 right: 12,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                    color: isAvailable
-                        ? Colors.green.withValues(alpha: 0.9)
-                        : Colors.red.withValues(alpha: 0.9),
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Colors.black26,
-                        blurRadius: 4,
-                        offset: Offset(0, 2),
-                      ),
-                    ],
+                    color: (isAvailable ? Colors.green : Colors.red).withValues(alpha: 0.9),
+                    borderRadius: BorderRadius.circular(14),
                   ),
                   child: Text(
-                    isAvailable ? '🟢 متوفر بالمنيو' : '🔴 مخفي من العرض',
-                    style: const TextStyle(
-                      fontFamily: 'Outfit',
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    isAvailable ? 'متوفر' : 'مخفي',
+                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
-
-              // Category Chip (Top-Left)
+              // Category chip
               Positioned(
                 top: 12,
                 left: 12,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.6),
+                    color: Colors.black.withValues(alpha: 0.55),
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Text(
                     _getCategoryLabel(prod.category),
-                    style: const TextStyle(
-                      fontFamily: 'Outfit',
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
             ],
           ),
-
-          // 2. Meal Info Body
+          // Info body
           Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
-                      child: Text(
-                        prod.name,
-                        style: const TextStyle(
-                          fontFamily: 'Outfit',
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      child: Text(prod.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                     ),
                     const SizedBox(width: 8),
-                    Text(
-                      '${prod.price.toStringAsFixed(0)} ل.س',
-                      style: const TextStyle(
-                        fontFamily: 'Outfit',
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.primary,
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '${prod.price.toStringAsFixed(0)} ل.س',
+                        style: const TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.bold, color: AppTheme.primary, fontSize: 13),
                       ),
                     ),
                   ],
                 ),
-                if (prod.description != null &&
-                    prod.description!.isNotEmpty) ...[
+                if (prod.description != null && prod.description!.isNotEmpty) ...[
                   const SizedBox(height: 6),
-                  Text(
-                    prod.description!,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodyMedium?.copyWith(fontSize: 13),
+                  Text(prod.description!, maxLines: 2, overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 12, color: isDark ? Colors.grey[400] : Colors.grey[600], height: 1.3),
                   ),
                 ],
-                const SizedBox(height: 12),
-                const Divider(height: 1),
-                const SizedBox(height: 10),
-
-                // 3. Action Controls Row
+                const Divider(height: 20),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // Toggle Availability Button
                     InkWell(
-                      onTap: () => restProv.updateProductAvailability(
-                        prod.id,
-                        !isAvailable,
-                      ),
+                      onTap: () => restProv.updateProductAvailability(prod.id, !isAvailable),
                       borderRadius: BorderRadius.circular(12),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         decoration: BoxDecoration(
-                          color: isAvailable
-                              ? Colors.orange.withValues(alpha: 0.12)
-                              : Colors.green.withValues(alpha: 0.12),
+                          color: (isAvailable ? Colors.orange : Colors.green).withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: isAvailable
-                                ? Colors.orange.withValues(alpha: 0.3)
-                                : Colors.green.withValues(alpha: 0.3),
-                          ),
+                          border: Border.all(color: (isAvailable ? Colors.orange : Colors.green).withValues(alpha: 0.3)),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
-                              isAvailable
-                                  ? Icons.visibility_off_outlined
-                                  : Icons.visibility_outlined,
-                              size: 18,
+                              isAvailable ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                              size: 16,
                               color: isAvailable ? Colors.orange : Colors.green,
                             ),
                             const SizedBox(width: 6),
                             Text(
-                              isAvailable
-                                  ? 'إخفاء الوجبة من العرض'
-                                  : 'إظهار الوجبة بالمنيو',
-                              style: TextStyle(
-                                fontFamily: 'Outfit',
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: isAvailable
-                                    ? Colors.orange
-                                    : Colors.green,
-                              ),
+                              isAvailable ? 'إخفاء' : 'إظهار',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: isAvailable ? Colors.orange : Colors.green),
                             ),
                           ],
                         ),
                       ),
                     ),
-
-                    // Delete Button with Dialog Confirmation
                     IconButton(
-                      icon: const Icon(
-                        Icons.delete_outline_rounded,
-                        color: Colors.redAccent,
-                        size: 22,
-                      ),
+                      icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 20),
                       tooltip: 'حذف الوجبة',
-                      onPressed: () =>
-                          _confirmDeleteProduct(restProv, prod.id, prod.name),
+                      onPressed: () => _confirmDeleteProduct(restProv, prod.id, prod.name),
                     ),
                   ],
                 ),
@@ -2298,62 +2257,50 @@ class _CompletedOrdersScreenState extends State<CompletedOrdersScreen> {
     final displayedOrders = filteredOrders.take(20).toList();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('سجل الطلبات المكتملة 🟢')),
+      appBar: AppBar(title: const Text('سجل الطلبات المكتملة')),
       body: RefreshIndicator(
         onRefresh: () => orderProv.loadOrders(),
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // Summary Header Card
+            // Summary Header
             Container(
-              padding: const EdgeInsets.all(22),
-              decoration: AppTheme.primaryGradient().copyWith(
-                borderRadius: BorderRadius.circular(22),
-              ),
-              child: Column(
+              padding: const EdgeInsets.all(20),
+              decoration: AppTheme.primaryGradient().copyWith(borderRadius: BorderRadius.circular(22)),
+              child: Row(
                 children: [
-                  const Icon(
-                    Icons.assignment_turned_in_rounded,
-                    size: 44,
-                    color: Colors.white,
-                  ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    'إجمالي المبيعات المكتملة',
-                    style: TextStyle(
-                      fontFamily: 'Outfit',
-                      color: Colors.white70,
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${salesVolume.toStringAsFixed(0)} ل.س',
-                    style: const TextStyle(
-                      fontFamily: 'Outfit',
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 6,
-                    ),
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                    child: Text(
-                      'إجمالي المكتملة: ${allCompletedOrders.length} طلب (عرض أحدث 20 طلب)',
-                      style: const TextStyle(
-                        fontFamily: 'Outfit',
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    child: const Icon(Icons.assignment_turned_in_rounded, size: 32, color: Colors.white),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('إجمالي المبيعات المكتملة', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${salesVolume.toStringAsFixed(0)} ل.س',
+                          style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.white),
+                        ),
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            '${allCompletedOrders.length} طلب (آخر 20)',
+                            style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -2361,43 +2308,24 @@ class _CompletedOrdersScreenState extends State<CompletedOrdersScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Search Bar for Order ID (البحث برقم الطلب)
+            // Search
             TextField(
               controller: _searchController,
               onChanged: (val) => setState(() => _searchQuery = val),
               decoration: InputDecoration(
-                hintText: 'البحث برقم الطلب (أدخل رقم الطلب)...',
-                prefixIcon: const Icon(
-                  Icons.search_rounded,
-                  color: AppTheme.primary,
-                ),
+                hintText: 'البحث برقم الطلب...',
+                prefixIcon: const Icon(Icons.search_rounded, color: AppTheme.primary),
                 suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(
                         icon: const Icon(Icons.clear_rounded),
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() => _searchQuery = '');
-                        },
+                        onPressed: () { _searchController.clear(); setState(() => _searchQuery = ''); },
                       )
                     : null,
                 filled: true,
                 fillColor: Theme.of(context).cardColor,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(
-                    color: Colors.grey.withValues(alpha: 0.2),
-                  ),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(
-                    color: Colors.grey.withValues(alpha: 0.2),
-                  ),
-                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.2))),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.2))),
               ),
             ),
             const SizedBox(height: 16),
@@ -2405,13 +2333,11 @@ class _CompletedOrdersScreenState extends State<CompletedOrdersScreen> {
             if (displayedOrders.isEmpty)
               Center(
                 child: Padding(
-                  padding: const EdgeInsets.all(32.0),
+                  padding: const EdgeInsets.all(32),
                   child: Column(
                     children: [
                       Icon(
-                        _searchQuery.isNotEmpty
-                            ? Icons.search_off_rounded
-                            : Icons.check_circle_outline_rounded,
+                        _searchQuery.isNotEmpty ? Icons.search_off_rounded : Icons.check_circle_outline_rounded,
                         size: 72,
                         color: Colors.grey[300],
                       ),
@@ -2420,11 +2346,7 @@ class _CompletedOrdersScreenState extends State<CompletedOrdersScreen> {
                         _searchQuery.isNotEmpty
                             ? 'لا توجد طلبات مكتملة تطابق رقم الطلب "$_searchQuery"'
                             : 'لا توجد طلبات مكتملة حالياً',
-                        style: TextStyle(
-                          fontFamily: 'Outfit',
-                          fontSize: 15,
-                          color: Colors.grey[500],
-                        ),
+                        style: TextStyle(fontSize: 15, color: Colors.grey[500]),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -2432,9 +2354,7 @@ class _CompletedOrdersScreenState extends State<CompletedOrdersScreen> {
                 ),
               )
             else
-              ...displayedOrders.map((order) {
-                return _CompletedOrderCard(order: order);
-              }),
+              ...displayedOrders.map((order) => _CompletedOrderCard(order: order)),
           ],
         ),
       ),
@@ -2449,6 +2369,7 @@ class _CompletedOrderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isWallet = order.paymentMethod == 'wallet';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     String customerName = 'زبون المطعم';
     if (order.customerId is model.User) {
@@ -2463,239 +2384,114 @@ class _CompletedOrderCard extends StatelessWidget {
       order.deliveryAddress.governorate,
     ].where((s) => s != null && s.isNotEmpty).join(' - ');
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.green.withValues(alpha: 0.15)),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2)),
+        ],
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(18.0),
+        padding: const EdgeInsets.all(14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Top Row: Order ID, Payment Badge, Status Chip
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primary.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '#${order.id.length > 6 ? order.id.substring(order.id.length - 6) : order.id}',
-                        style: const TextStyle(
-                          fontFamily: 'Outfit',
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.primary,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isWallet
-                            ? Colors.purple.withValues(alpha: 0.12)
-                            : Colors.green.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        isWallet ? '💳 محفظة' : '💵 كاش',
-                        style: TextStyle(
-                          fontFamily: 'Outfit',
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: isWallet ? Colors.purple : Colors.green,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
                   ),
+                  child: Text(
+                    '#${order.id.length > 6 ? order.id.substring(order.id.length - 6) : order.id}',
+                    style: const TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.bold, color: AppTheme.primary, fontSize: 12),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: isWallet ? Colors.purple.withValues(alpha: 0.12) : Colors.green.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    isWallet ? 'محفظة' : 'كاش',
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isWallet ? Colors.purple : Colors.green),
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: Colors.green.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: Colors.green.withValues(alpha: 0.3),
-                    ),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        Icons.check_circle_rounded,
-                        size: 14,
-                        color: Colors.green,
-                      ),
+                      Icon(Icons.check_circle_rounded, size: 12, color: Colors.green),
                       SizedBox(width: 4),
-                      Text(
-                        'مكتمل ومسلّم 🟢',
-                        style: TextStyle(
-                          fontFamily: 'Outfit',
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.green,
-                        ),
-                      ),
+                      Text('مكتمل', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.green)),
                     ],
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 14),
-
-            // Customer Info Box
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Theme.of(context).cardColor.withValues(alpha: 0.6),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.person_pin_circle_rounded,
-                    color: AppTheme.primary,
-                    size: 22,
+            const SizedBox(height: 10),
+            // Customer
+            Row(
+              children: [
+                Icon(Icons.person_pin_circle_rounded, size: 16, color: AppTheme.primary),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    customerName,
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: isDark ? Colors.grey[300] : Colors.grey[700]),
                   ),
-                  const SizedBox(width: 8),
+                ),
+              ],
+            ),
+            if (addressStr.isNotEmpty) ...[
+              const SizedBox(height: 2),
+              Row(
+                children: [
+                  const SizedBox(width: 22),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'العميل: $customerName',
-                          style: const TextStyle(
-                            fontFamily: 'Outfit',
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                        if (addressStr.isNotEmpty)
-                          Text(
-                            'عنوان التوصيل: $addressStr',
-                            style: const TextStyle(
-                              fontFamily: 'Outfit',
-                              fontSize: 12,
-                              color: Colors.grey,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                      ],
-                    ),
+                    child: Text(addressStr, style: TextStyle(fontSize: 11, color: Colors.grey[500]), maxLines: 1, overflow: TextOverflow.ellipsis),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: 14),
-
-            // Items List
-            const Text(
-              'الوجبات المطلوبة:',
-              style: TextStyle(
-                fontFamily: 'Outfit',
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-              ),
-            ),
+            ],
             const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: Theme.of(context).cardColor,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
+            // Items
+            ...order.items.map((it) => Padding(
+              padding: const EdgeInsets.only(bottom: 3),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(color: AppTheme.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
+                    child: Text('×${it.quantity}', style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primary, fontSize: 11)),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(it.name, style: TextStyle(fontSize: 12, color: isDark ? Colors.grey[300] : Colors.grey[700]))),
+                  Text('${(it.price * it.quantity).toStringAsFixed(0)} ل.س', style: TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.bold, fontSize: 12, color: isDark ? Colors.grey[300] : Colors.grey[700])),
+                ],
               ),
-              child: Column(
-                children: order.items
-                    .map(
-                      (it) => Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 3,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppTheme.primary.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                '×${it.quantity}',
-                                style: const TextStyle(
-                                  fontFamily: 'Outfit',
-                                  fontWeight: FontWeight.bold,
-                                  color: AppTheme.primary,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                it.name,
-                                style: const TextStyle(
-                                  fontFamily: 'Outfit',
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                            Text(
-                              '${(it.price * it.quantity).toStringAsFixed(0)} ل.س',
-                              style: const TextStyle(
-                                fontFamily: 'Outfit',
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    )
-                    .toList(),
-              ),
-            ),
-            const SizedBox(height: 14),
-
-            // Total Amount
+            )),
+            const Divider(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'إجمالي المبلغ المستلم:',
-                  style: TextStyle(
-                    fontFamily: 'Outfit',
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                  ),
-                ),
+                const Text('الإجمالي', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                 Text(
                   '${order.totalAmount.toStringAsFixed(0)} ل.س',
-                  style: const TextStyle(
-                    fontFamily: 'Outfit',
-                    color: Colors.green,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 20,
-                  ),
+                  style: const TextStyle(fontFamily: 'Outfit', color: Colors.green, fontWeight: FontWeight.bold, fontSize: 18),
                 ),
               ],
             ),

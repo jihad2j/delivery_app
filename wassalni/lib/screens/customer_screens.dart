@@ -580,14 +580,13 @@ class RestaurantDetailScreen extends StatefulWidget {
 }
 
 class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
+  String? _selectedCategory;
+
   @override
   void initState() {
     super.initState();
     Future.microtask(() {
-      Provider.of<RestaurantProvider>(
-        context,
-        listen: false,
-      ).loadMenu(widget.restaurant.id);
+      Provider.of<RestaurantProvider>(context, listen: false).loadMenu(widget.restaurant.id);
     });
   }
 
@@ -596,311 +595,477 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
     final restProv = Provider.of<RestaurantProvider>(context);
     final cart = Provider.of<CartProvider>(context, listen: false);
     final info = widget.restaurant.restaurantInfo!;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    // Hide products that are not available (isAvailable == false)
-    final availableMenu = restProv.currentMenu
-        .where((p) => p.isAvailable)
-        .toList();
+    final availableMenu = restProv.currentMenu.where((p) => p.isAvailable).toList();
+    final categories = availableMenu.map((p) => p.category).toSet().toList()..sort();
+    final filteredMenu = _selectedCategory == null
+        ? availableMenu
+        : availableMenu.where((p) => p.category == _selectedCategory).toList();
 
     return Scaffold(
       body: CustomScrollView(
         slivers: [
+          // ── App Bar ──
           SliverAppBar(
-            expandedHeight: 200.0,
-            floating: false,
+            expandedHeight: 220,
             pinned: true,
+            stretch: true,
             flexibleSpace: FlexibleSpaceBar(
-              title: Text(widget.restaurant.name),
-              background: Image.network(
-                info.logo,
-                fit: BoxFit.cover,
-                errorBuilder: (c, e, s) => Container(color: Colors.grey[300]),
-              ),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              stretchModes: const [StretchMode.zoomBackground],
+              background: Stack(
+                fit: StackFit.expand,
                 children: [
-                  Text(
-                    'تصنيف المطعم: ${info.cuisineType}',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: AppTheme.primary,
+                  Image.network(
+                    info.logo,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(color: isDark ? Colors.grey[850] : Colors.grey[200]),
+                  ),
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.black.withValues(alpha: 0.3),
+                          Colors.transparent,
+                          Colors.black.withValues(alpha: 0.7),
+                        ],
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    info.description ?? 'لا يوجد وصف للمطعم',
-                    style: Theme.of(context).textTheme.bodyLarge,
-                  ),
-                  const Divider(height: 22),
-                  const Text(
-                    'قائمة المأكولات',
-                    style: TextStyle(
-                      fontFamily: 'Outfit',
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+                  Positioned(
+                    bottom: 16,
+                    left: 20,
+                    right: 20,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          widget.restaurant.name,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            shadows: [Shadow(color: Colors.black54, blurRadius: 6)],
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            _InfoChip(
+                              icon: Icons.restaurant_menu_rounded,
+                              label: info.cuisineType,
+                            ),
+                            const SizedBox(width: 8),
+                            _InfoChip(
+                              icon: Icons.motorcycle_rounded,
+                              label: '${info.deliveryFee.toStringAsFixed(0)} ل.س',
+                            ),
+                            const Spacer(),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: info.status == 'open'
+                                    ? Colors.green.withValues(alpha: 0.9)
+                                    : Colors.red.withValues(alpha: 0.9),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                info.status == 'open' ? 'مفتوح' : 'مغلق',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 2),
                 ],
               ),
             ),
           ),
+
+          // ── Description ──
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.info_outline_rounded, size: 15, color: Colors.grey[500]),
+                      const SizedBox(width: 6),
+                      Text(
+                        'عن المطعم',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    info.description ?? 'لا يوجد وصف للمطعم',
+                    style: TextStyle(fontSize: 14, color: isDark ? Colors.grey[300] : Colors.grey[700], height: 1.5),
+                  ),
+                  if (info.openingTime != null || info.closingTime != null) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(Icons.access_time_rounded, size: 15, color: Colors.grey[500]),
+                        const SizedBox(width: 6),
+                        Text(
+                          '${info.openingTime ?? '--'} - ${info.closingTime ?? '--'}',
+                          style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+
+          // ── Category Filters ──
+          if (categories.isNotEmpty)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.menu_book_rounded, size: 15, color: Colors.grey[500]),
+                        const SizedBox(width: 6),
+                        Text(
+                          'قائمة المأكولات',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      height: 34,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        children: [
+                          _CategoryChip(
+                            label: 'الكل',
+                            selected: _selectedCategory == null,
+                            onTap: () => setState(() => _selectedCategory = null),
+                          ),
+                          ...categories.map((cat) => _CategoryChip(
+                            label: cat,
+                            selected: _selectedCategory == cat,
+                            onTap: () => setState(() => _selectedCategory = cat),
+                          )),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+          // ── Menu Items ──
           restProv.isLoading
-              ? const SliverToBoxAdapter(
+              ? const SliverFillRemaining(
                   child: Center(child: CircularProgressIndicator()),
                 )
-              : availableMenu.isEmpty
-              ? const SliverToBoxAdapter(
+              : filteredMenu.isEmpty
+              ? SliverFillRemaining(
                   child: Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(32.0),
-                      child: Text('لا توجد وجبات متوفرة حالياً'),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.restaurant_rounded, size: 64, color: Colors.grey[300]),
+                        const SizedBox(height: 12),
+                        Text('لا توجد وجبات متوفرة حالياً', style: TextStyle(color: Colors.grey[500])),
+                      ],
                     ),
                   ),
                 )
               : SliverPadding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
                   sliver: SliverList(
                     delegate: SliverChildBuilderDelegate((context, index) {
-                      final prod = availableMenu[index];
+                      final prod = filteredMenu[index];
                       final isRestaurantOpen = info.status == 'open';
 
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 14),
-                        clipBehavior: Clip.antiAlias,
-                        elevation: 3,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                        child: SizedBox(
-                          height: 180,
-                          width: double.infinity,
-                          child: Stack(
-                            children: [
-                              // 1. Food Image covering the ENTIRE card
-                              Positioned.fill(
-                                child: Image.network(
-                                  prod.image,
-                                  width: double.infinity,
-                                  height: 180,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (c, e, s) => Container(
-                                    color: Colors.grey[800],
-                                    child: const Center(
-                                      child: Icon(
-                                        Icons.fastfood_rounded,
-                                        size: 60,
-                                        color: Colors.white38,
-                                      ),
-                                    ),
-                                  ),
+                      return _MenuItemCard(
+                        product: prod,
+                        isRestaurantOpen: isRestaurantOpen,
+                        deliveryFee: info.deliveryFee,
+                        onAddToCart: () {
+                          if (!isRestaurantOpen) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('المطعم مغلق حالياً ولا يقبل الطلبات')),
+                            );
+                            return;
+                          }
+                          final success = cart.addItem(prod, restaurantDeliveryFee: info.deliveryFee);
+                          if (!mounted) return;
+                          if (success) {
+                            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('تمت إضافة "${prod.name}" إلى السلة'),
+                                duration: const Duration(seconds: 2),
+                                action: SnackBarAction(
+                                  label: 'السلة',
+                                  textColor: Colors.amber,
+                                  onPressed: () => Navigator.pushNamed(context, '/cart'),
                                 ),
                               ),
-
-                              // 2. Dark Gradient Overlay over image for text contrast
-                              Positioned.fill(
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      begin: Alignment.topCenter,
-                                      end: Alignment.bottomCenter,
-                                      colors: [
-                                        Colors.black.withValues(alpha: 0.4),
-                                        Colors.black.withValues(alpha: 0.1),
-                                        Colors.black.withValues(alpha: 0.88),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-
-                              // 3. Top-Right Corner Badge: Price (السعر)
-                              Positioned(
-                                top: 14,
-                                right: 14,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 5,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: AppTheme.primary,
-                                    borderRadius: BorderRadius.circular(20),
-                                    boxShadow: const [
-                                      BoxShadow(
-                                        color: Colors.black38,
-                                        blurRadius: 6,
-                                        offset: Offset(0, 2),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Text(
-                                    '${prod.price.toStringAsFixed(0)} ل.س',
-                                    style: const TextStyle(
-                                      fontFamily: 'Outfit',
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ),
-                              ),
-
-                              // 4. Top-Left Corner: Add to Cart Icon Button (زر أيقونة إضافة للسلة)
-                              Positioned(
-                                top: 14,
-                                left: 14,
-                                child: Material(
-                                  color: Colors.transparent,
-                                  child: InkWell(
-                                    borderRadius: BorderRadius.circular(30),
-                                    onTap: () {
-                                      if (!isRestaurantOpen) {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                              'المطعم مغلق حالياً ولا يقبل الطلبات',
-                                            ),
-                                          ),
-                                        );
-                                        return;
-                                      }
-                                      final success = cart.addItem(prod, restaurantDeliveryFee: info.deliveryFee);
-                                      if (success) {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).hideCurrentSnackBar();
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                              'تمت إضافة "${prod.name}" إلى السلة 🛒',
-                                            ),
-                                            duration: const Duration(
-                                              seconds: 2,
-                                            ),
-                                            action: SnackBarAction(
-                                              label: 'السلة',
-                                              textColor: Colors.amber,
-                                              onPressed: () {
-                                                Navigator.pushNamed(
-                                                  context,
-                                                  '/cart',
-                                                );
-                                              },
-                                            ),
-                                          ),
-                                        );
-                                      } else {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                              'لا يمكنك إضافة منتجات من مطاعم مختلفة إلى نفس السلة. يرجى إفراغ السلة أولاً.',
-                                            ),
-                                          ),
-                                        );
-                                      }
-                                    },
-                                    child: Container(
-                                      padding: const EdgeInsets.all(10),
-                                      decoration: BoxDecoration(
-                                        color: isRestaurantOpen
-                                            ? AppTheme.primary
-                                            : Colors.grey,
-                                        shape: BoxShape.circle,
-                                        boxShadow: const [
-                                          BoxShadow(
-                                            color: Colors.black38,
-                                            blurRadius: 6,
-                                            offset: Offset(0, 2),
-                                          ),
-                                        ],
-                                      ),
-                                      child: const Icon(
-                                        Icons.add_shopping_cart_rounded,
-                                        color: Colors.white,
-                                        size: 20,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-
-                              // 5. Bottom Overlay: Name (اسم الوجبة) & Description (الوصف)
-                              Positioned(
-                                bottom: 14,
-                                left: 16,
-                                right: 16,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      prod.name,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        fontFamily: 'Outfit',
-                                        fontSize: 17,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
-                                        shadows: [
-                                          Shadow(
-                                            color: Colors.black54,
-                                            blurRadius: 4,
-                                            offset: Offset(0, 1),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    if (prod.description != null &&
-                                        prod.description!.isNotEmpty) ...[
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        prod.description!,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          fontFamily: 'Outfit',
-                                          fontSize: 13,
-                                          color: Colors.white.withValues(
-                                            alpha: 0.85,
-                                          ),
-                                          shadows: const [
-                                            Shadow(
-                                              color: Colors.black54,
-                                              blurRadius: 4,
-                                              offset: Offset(0, 1),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                            );
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('لا يمكنك إضافة منتجات من مطاعم مختلفة إلى نفس السلة. يرجى إفراغ السلة أولاً.')),
+                            );
+                          }
+                        },
                       );
-                    }, childCount: availableMenu.length),
+                    }, childCount: filteredMenu.length),
                   ),
                 ),
         ],
+      ),
+    );
+  }
+}
+
+class _InfoChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  const _InfoChip({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: Colors.white.withValues(alpha: 0.9)),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CategoryChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  const _CategoryChip({required this.label, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 8),
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          decoration: BoxDecoration(
+            color: selected ? AppTheme.primary : Colors.transparent,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: selected ? AppTheme.primary : Colors.grey[400]!,
+            ),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: selected ? Colors.white : Colors.grey[600],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MenuItemCard extends StatelessWidget {
+  final model.Product product;
+  final bool isRestaurantOpen;
+  final double deliveryFee;
+  final VoidCallback onAddToCart;
+
+  const _MenuItemCard({
+    required this.product,
+    required this.isRestaurantOpen,
+    required this.deliveryFee,
+    required this.onAddToCart,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final prod = product;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        color: Theme.of(context).cardColor,
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 10, offset: const Offset(0, 4)),
+        ],
+      ),
+      child: IntrinsicHeight(
+        child: Row(
+          children: [
+            // Image
+            ClipRRect(
+              borderRadius: const BorderRadius.horizontal(left: Radius.circular(18)),
+              child: SizedBox(
+                width: 130,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Image.network(
+                      prod.image,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        color: Colors.grey[850],
+                        child: const Icon(Icons.fastfood_rounded, size: 40, color: Colors.white24),
+                      ),
+                    ),
+                    Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.centerRight,
+                          end: Alignment.centerLeft,
+                          colors: [
+                            Colors.black.withValues(alpha: 0.4),
+                            Colors.transparent,
+                          ],
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      bottom: 8,
+                      left: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primary,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '${prod.price.toStringAsFixed(0)} ل.س',
+                          style: const TextStyle(
+                            fontFamily: 'Outfit',
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            // Details
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      prod.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                    ),
+                    if (prod.description != null && prod.description!.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        prod.description!,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 12, color: Colors.grey[500], height: 1.3),
+                      ),
+                    ],
+                    const Spacer(),
+                    Row(
+                      children: [
+                        Text(
+                          prod.category,
+                          style: TextStyle(fontSize: 10, color: Colors.grey[400]),
+                        ),
+                        const Spacer(),
+                        Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(20),
+                            onTap: isRestaurantOpen ? onAddToCart : null,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: isRestaurantOpen
+                                    ? AppTheme.primary.withValues(alpha: 0.12)
+                                    : Colors.grey[300],
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.add_shopping_cart_rounded,
+                                    size: 14,
+                                    color: isRestaurantOpen ? AppTheme.primary : Colors.grey[500],
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'أضف',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: isRestaurantOpen ? AppTheme.primary : Colors.grey[500],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -2431,7 +2596,7 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
               color: Colors.orange,
               size: 64,
             ),
-            title: const Text('وصل الكابتن! 🚗'),
+            title: const Text('وصل الكابتن'),
             content: const Text('وصل عامل التوصيل بموقعك. هل استلمت الطلب؟'),
             actions: [
               TextButton(
@@ -2571,8 +2736,8 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
         _mapController.move(destination, 17.5);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('🎯 عامل التوصيل أصبح قريباً جداً منك'),
+              const SnackBar(
+              content: Text('عامل التوصيل أصبح قريباً جداً منك'),
               duration: Duration(seconds: 3),
               backgroundColor: AppTheme.primary,
             ),
@@ -2667,6 +2832,7 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
   @override
   Widget build(BuildContext context) {
     final orderProv = Provider.of<OrderProvider>(context);
+    final textTheme = Theme.of(context).textTheme;
 
     final mapCenter =
         _driverLatLng ??
@@ -2796,342 +2962,449 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
       );
     }
 
+    final isCancelled = _currentOrder.status == 'cancelled';
+    final isDelivered = _currentOrder.status == 'delivered';
+
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'تتبع طلب #${_currentOrder.id.length > 6 ? _currentOrder.id.substring(_currentOrder.id.length - 6) : _currentOrder.id}',
+      body: CustomScrollView(
+        slivers: [
+          // App Bar
+          SliverAppBar(
+            expandedHeight: hasDriver || isDelivered || isCancelled ? 0 : 112,
+            pinned: true,
+            stretch: true,
+            flexibleSpace: FlexibleSpaceBar(
+              background: _buildMapSection(mapCenter, mapMarkers, orderProv),
+            ),
+            title: Row(
+              children: [
+                Text('طلب #${_currentOrder.id.length > 6 ? _currentOrder.id.substring(_currentOrder.id.length - 6) : _currentOrder.id}',
+                    style: const TextStyle(fontSize: 15)),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.refresh_rounded, size: 20),
+                  onPressed: () { orderProv.loadOrders(); _fetchRoute(); },
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_ios_rounded, size: 20),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+
+          // Status info chip
+          if (!hasDriver && !isDelivered && !isCancelled)
+            SliverToBoxAdapter(child: _buildMapInfoCard(hasDriver)),
+
+          // Driver info card
+          if (hasDriver) SliverToBoxAdapter(child: _buildDriverInfoCard()),
+
+          // If delivered or cancelled show final state
+          if (isDelivered || isCancelled)
+            SliverToBoxAdapter(child: _buildFinalStateCard(orderProv)),
+
+          // Timeline
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('حالة الطلب', style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 16),
+                  _buildStepTimeline(context),
+                ],
+              ),
+            ),
+          ),
+
+          // Order summary
+          SliverToBoxAdapter(child: _buildOrderSummaryCard()),
+
+          // Receipt section
+          if (_currentOrder.status == 'delivered_pending')
+            SliverToBoxAdapter(child: _buildReceiptSection(orderProv)),
+
+          if (isDelivered)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text('تم توصيل الطلب بنجاح', style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold, fontSize: 15)),
+                  ),
+                ),
+              ),
+            ),
+
+          if (isCancelled)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: const Text('تم إلغاء الطلب', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 15)),
+                  ),
+                ),
+              ),
+            ),
+
+          const SliverToBoxAdapter(child: SizedBox(height: 24)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMapSection(LatLng mapCenter, List<Marker> mapMarkers, OrderProvider orderProv) {
+    return Stack(
+      children: [
+        FlutterMap(
+          mapController: _mapController,
+          options: MapOptions(initialCenter: mapCenter, initialZoom: 14.0),
+          children: [
+            TileLayer(
+              urlTemplate: Theme.of(context).brightness == Brightness.dark
+                  ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+                  : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+              subdomains: const ['a', 'b', 'c', 'd'],
+              userAgentPackageName: 'com.wassalni.app',
+            ),
+            if (_routePoints.isNotEmpty)
+              PolylineLayer(
+                polylines: [
+                  Polyline(points: _routePoints, color: AppTheme.primary.withValues(alpha: 0.3), strokeWidth: 9),
+                  Polyline(points: _routePoints, color: AppTheme.primary, strokeWidth: 5),
+                ],
+              ),
+            MarkerLayer(markers: mapMarkers),
+          ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () {
-              orderProv.loadOrders();
-              _fetchRoute();
-            },
+        // Loading indicator
+        if (_isLoadingRoute)
+          Positioned(
+            top: 12, left: 0, right: 0,
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor.withValues(alpha: 0.9),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8)],
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
+                    SizedBox(width: 6),
+                    Text('جاري تحديث المسار...', style: TextStyle(fontSize: 11)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        // Zoom controls
+        Positioned(
+          bottom: 16, left: 16,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              FloatingActionButton.small(
+                heroTag: 'cust_recenter_btn',
+                backgroundColor: Theme.of(context).cardColor,
+                foregroundColor: AppTheme.primary,
+                onPressed: () => _mapController.move(mapCenter, 15.0),
+                child: const Icon(Icons.my_location_rounded, size: 20),
+              ),
+              if (_routePoints.length >= 2) ...[
+                const SizedBox(height: 6),
+                FloatingActionButton.small(
+                  heroTag: 'cust_fit_bounds_btn',
+                  backgroundColor: Theme.of(context).cardColor,
+                  foregroundColor: AppTheme.secondary,
+                  onPressed: () {
+                    try {
+                      final bounds = LatLngBounds.fromPoints(_routePoints);
+                      _mapController.fitCamera(CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(60)));
+                    } catch (_) {}
+                  },
+                  child: const Icon(Icons.fit_screen_rounded, size: 18),
+                ),
+              ],
+              const SizedBox(height: 6),
+              FloatingActionButton.small(
+                heroTag: 'cust_zoom_in_btn',
+                backgroundColor: Theme.of(context).cardColor,
+                foregroundColor: Theme.of(context).textTheme.bodyLarge?.color,
+                onPressed: () => _mapController.move(_mapController.camera.center, _mapController.camera.zoom + 1),
+                child: const Icon(Icons.add, size: 20),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMapInfoCard(bool hasDriver) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 10, offset: const Offset(0, 4))],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: hasDriver ? Colors.blue.withValues(alpha: 0.1) : Colors.orange.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(hasDriver ? Icons.delivery_dining_rounded : Icons.restaurant_rounded,
+                color: hasDriver ? Colors.blue : Colors.orange, size: 24),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(_getStatusText(_currentOrder.status),
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                const SizedBox(height: 4),
+                _isLoadingRoute
+                    ? const Text('جاري حساب الوقت والمسافة...', style: TextStyle(fontSize: 12, color: Colors.grey))
+                    : Text(
+                        hasDriver
+                            ? 'الوقت المتوقع للوصول: ${_durationMin.toStringAsFixed(0)} دقيقة (${_distanceKm.toStringAsFixed(1)} كم)'
+                            : 'المسافة للمطعم: ${_distanceKm.toStringAsFixed(1)} كم',
+                        style: TextStyle(fontSize: 12, color: hasDriver ? Colors.blue : Colors.grey[700], fontWeight: FontWeight.w600),
+                      ),
+              ],
+            ),
           ),
         ],
       ),
-      body: Column(
+    );
+  }
+
+  Widget _buildDriverInfoCard() {
+    String driverName = '';
+    String driverPhone = '';
+    if (_currentOrder.driverId is Map) {
+      final dMap = _currentOrder.driverId as Map;
+      driverName = dMap['name'] ?? '';
+      driverPhone = dMap['phone'] ?? dMap['email'] ?? '';
+    }
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [AppTheme.primary, AppTheme.primaryDark],
+          begin: Alignment.topLeft, end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [BoxShadow(color: AppTheme.primary.withValues(alpha: 0.3), blurRadius: 12, offset: const Offset(0, 4))],
+      ),
+      child: Row(
         children: [
-          // 1. Map Section
+          CircleAvatar(
+            radius: 24,
+            backgroundColor: Colors.white.withValues(alpha: 0.2),
+            child: const Icon(Icons.person_rounded, color: Colors.white, size: 28),
+          ),
+          const SizedBox(width: 12),
           Expanded(
-            flex: 5,
-            child: Stack(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                FlutterMap(
-                  mapController: _mapController,
-                  options: MapOptions(
-                    initialCenter: mapCenter,
-                    initialZoom: 14.0,
-                  ),
+                Text(driverName.isNotEmpty ? driverName : 'عامل التوصيل',
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                const SizedBox(height: 4),
+                Row(
                   children: [
-                    TileLayer(
-                      urlTemplate:
-                          Theme.of(context).brightness == Brightness.dark
-                          ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-                          : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-                      subdomains: const ['a', 'b', 'c', 'd'],
-                      userAgentPackageName: 'com.wassalni.app',
-                    ),
-                    if (_routePoints.isNotEmpty)
-                      PolylineLayer(
-                        polylines: [
-                          Polyline(
-                            points: _routePoints,
-                            color: AppTheme.primary.withValues(alpha: 0.3),
-                            strokeWidth: 9.0,
-                          ),
-                          Polyline(
-                            points: _routePoints,
-                            color: AppTheme.primary,
-                            strokeWidth: 5.0,
-                          ),
-                        ],
-                      ),
-                    MarkerLayer(markers: mapMarkers),
+                    const Icon(Icons.delivery_dining_rounded, color: Colors.white70, size: 14),
+                    const SizedBox(width: 4),
+                    Text(_getStatusText(_currentOrder.status),
+                        style: const TextStyle(color: Colors.white70, fontSize: 12)),
                   ],
-                ),
-
-                // Route Loading Indicator
-                if (_isLoadingRoute)
-                  Positioned(
-                    top: 80,
-                    left: 0,
-                    right: 0,
-                    child: Center(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).cardColor.withValues(alpha: 0.9),
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8)],
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
-                            SizedBox(width: 6),
-                            Text('جاري تحديث المسار...', style: TextStyle(fontSize: 11)),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-
-                // Floating Map Zoom & Recenter Controls
-                Positioned(
-                  bottom: 16,
-                  left: 16,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      FloatingActionButton.small(
-                        heroTag: 'cust_recenter_btn',
-                        backgroundColor: Theme.of(context).cardColor,
-                        foregroundColor: AppTheme.primary,
-                        onPressed: () {
-                          _mapController.move(mapCenter, 15.0);
-                        },
-                        child: const Icon(Icons.my_location_rounded),
-                      ),
-                      if (_routePoints.length >= 2) ...[
-                        const SizedBox(height: 6),
-                        FloatingActionButton.small(
-                          heroTag: 'cust_fit_bounds_btn',
-                          backgroundColor: Theme.of(context).cardColor,
-                          foregroundColor: AppTheme.secondary,
-                          onPressed: () {
-                            try {
-                              final bounds = LatLngBounds.fromPoints(
-                                _routePoints,
-                              );
-                              _mapController.fitCamera(
-                                CameraFit.bounds(
-                                  bounds: bounds,
-                                  padding: const EdgeInsets.all(60.0),
-                                ),
-                              );
-                            } catch (_) {}
-                          },
-                          child: const Icon(Icons.fit_screen_rounded),
-                        ),
-                      ],
-                      const SizedBox(height: 6),
-                      FloatingActionButton.small(
-                        heroTag: 'cust_zoom_in_btn',
-                        backgroundColor: Theme.of(context).cardColor,
-                        foregroundColor: Theme.of(
-                          context,
-                        ).textTheme.bodyLarge?.color,
-                        onPressed: () {
-                          final currentZoom = _mapController.camera.zoom;
-                          _mapController.move(
-                            _mapController.camera.center,
-                            currentZoom + 1,
-                          );
-                        },
-                        child: const Icon(Icons.add),
-                      ),
-                    ],
-                  ),
-                ),
-
-                Positioned(
-                  top: 16,
-                  left: 16,
-                  right: 16,
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).cardColor.withValues(alpha: 0.95),
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 8, offset: const Offset(0, 4)),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        GestureDetector(
-                          onTap: () {
-                            if (_routePoints.length >= 2) {
-                              try {
-                                final bounds = LatLngBounds.fromPoints(_routePoints);
-                                _mapController.fitCamera(CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(80)));
-                              } catch (_) {}
-                            }
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: hasDriver ? Colors.blue.withValues(alpha: 0.15) : Colors.orange.withValues(alpha: 0.15),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              hasDriver ? Icons.delivery_dining : Icons.restaurant,
-                              color: hasDriver ? Colors.blue : Colors.orange,
-                              size: 26,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _getStatusText(_currentOrder.status),
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                              ),
-                              const SizedBox(height: 4),
-                              _isLoadingRoute
-                                  ? const Text('جاري حساب الوقت والمسافة...', style: TextStyle(fontSize: 12, color: Colors.grey))
-                                  : Text(
-                                      hasDriver
-                                          ? 'الوقت المتوقع للوصول: ${_durationMin.toStringAsFixed(0)} دقيقة (${_distanceKm.toStringAsFixed(1)} كم)'
-                                          : 'المسافة للمطعم: ${_distanceKm.toStringAsFixed(1)} كم',
-                                      style: TextStyle(fontSize: 12, color: hasDriver ? Colors.blue : Colors.grey[700], fontWeight: FontWeight.w600),
-                                    ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
                 ),
               ],
             ),
           ),
-
-          // 2. Timeline Progress & Details Section
-          Expanded(
-            flex: 5,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Theme.of(context).scaffoldBackgroundColor,
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(24),
+          if (driverPhone.isNotEmpty)
+            IconButton(
+              icon: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  shape: BoxShape.circle,
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
-                    blurRadius: 10,
-                    offset: const Offset(0, -3),
-                  ),
-                ],
+                child: const Icon(Icons.phone_rounded, color: Colors.white, size: 18),
               ),
-              child: ListView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 16,
-                ),
-                children: [
-                  _buildStep(
-                    context,
-                    'تم إرسال الطلب بنجاح',
-                    [
-                      'pending',
-                      'accepted',
-                      'restaurant_accepted',
-                      'preparing',
-                      'ready',
-                      'delivery_accepted',
-                      'onTheWay',
-                      'delivered_pending',
-                      'delivered',
-                    ].contains(_currentOrder.status),
-                  ),
-                  _buildStep(
-                    context,
-                    'تم قبول الطلب وجاري التحضير بالمطعم',
-                    [
-                      'accepted',
-                      'restaurant_accepted',
-                      'preparing',
-                      'ready',
-                      'delivery_accepted',
-                      'onTheWay',
-                      'delivered_pending',
-                      'delivered',
-                    ].contains(_currentOrder.status),
-                  ),
-                  _buildStep(
-                    context,
-                    'الطلب جاهز وقبله عامل التوصيل',
-                    [
-                      'ready',
-                      'delivery_accepted',
-                      'onTheWay',
-                      'delivered_pending',
-                      'delivered',
-                    ].contains(_currentOrder.status),
-                  ),
-                  _buildStep(
-                    context,
-                    'عامل التوصيل في الطريق إليك 🛵',
-                    [
-                      'onTheWay',
-                      'delivered_pending',
-                      'delivered',
-                    ].contains(_currentOrder.status),
-                  ),
-                  _buildStep(
-                    context,
-                    'تم التوصيل والاستلام بنجاح ✓',
-                    _currentOrder.status == 'delivered',
-                  ),
+              onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('رقم السائق: $driverPhone')),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 
-                  if (_currentOrder.status == 'delivered_pending') ...[
-                    const Divider(height: 32),
-                    const Text(
-                      'وصل السائق! الرجاء تصوير الطلب لتأكيد الاستلام:',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
+  Widget _buildFinalStateCard(OrderProvider orderProv) {
+    final isDelivered = _currentOrder.status == 'delivered';
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDelivered ? AppTheme.primary.withValues(alpha: 0.08) : Colors.red.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: (isDelivered ? AppTheme.primary : Colors.red).withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: (isDelivered ? AppTheme.primary : Colors.red).withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              isDelivered ? Icons.check_circle_rounded : Icons.cancel_rounded,
+              color: isDelivered ? AppTheme.primary : Colors.red,
+              size: 28,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(isDelivered ? 'تم التوصيل بنجاح' : 'تم إلغاء الطلب',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: isDelivered ? AppTheme.primary : Colors.red)),
+                const SizedBox(height: 4),
+                Text(isDelivered ? 'شكراً لطلبك مع وصلني' : 'هذا الطلب ملغى',
+                    style: const TextStyle(fontSize: 13, color: Colors.grey)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStepTimeline(BuildContext context) {
+    final steps = <List<String>>[
+      ['pending', 'accepted', 'restaurant_accepted', 'preparing', 'ready', 'delivery_accepted', 'onTheWay', 'delivered_pending', 'delivered'],
+      ['accepted', 'restaurant_accepted', 'preparing', 'ready', 'delivery_accepted', 'onTheWay', 'delivered_pending', 'delivered'],
+      ['ready', 'delivery_accepted', 'onTheWay', 'delivered_pending', 'delivered'],
+      ['onTheWay', 'delivered_pending', 'delivered'],
+      ['delivered'],
+    ];
+    final labels = [
+      'تم إرسال الطلب',
+      'قبول الطلب والتحضير',
+      'الطلب جاهز',
+      'السائق في الطريق',
+      'تم التوصيل',
+    ];
+    final icons = [
+      Icons.send_rounded,
+      Icons.restaurant_rounded,
+      Icons.check_circle_rounded,
+      Icons.delivery_dining_rounded,
+      Icons.task_alt_rounded,
+    ];
+
+    return Column(
+      children: List.generate(steps.length, (i) {
+        final isDone = steps[i].any((s) => _currentOrder.status == s);
+        final isActive = _currentOrder.status == steps[i].first;
+        return _buildTimelineStep(labels[i], icons[i], isDone, isActive, i == steps.length - 1);
+      }),
+    );
+  }
+
+  Widget _buildTimelineStep(String title, IconData icon, bool isDone, bool isActive, bool isLast) {
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Timeline connector
+          SizedBox(
+            width: 48,
+            child: Column(
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isDone ? AppTheme.primary : Theme.of(context).cardColor,
+                    border: Border.all(
+                      color: isDone ? AppTheme.primary : (isActive ? AppTheme.primary : Colors.grey.withValues(alpha: 0.3)),
+                      width: 2,
+                    ),
+                    boxShadow: isActive
+                        ? [BoxShadow(color: AppTheme.primary.withValues(alpha: 0.3), blurRadius: 8)]
+                        : null,
+                  ),
+                  child: Icon(icon,
+                    size: 16,
+                    color: isDone ? Colors.white : (isActive ? AppTheme.primary : Colors.grey.withValues(alpha: 0.5)),
+                  ),
+                ),
+                if (!isLast)
+                  Expanded(
+                    child: Container(
+                      width: 2,
+                      color: isDone ? AppTheme.primary.withValues(alpha: 0.4) : Colors.grey.withValues(alpha: 0.15),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          // Content
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(bottom: isLast ? 0 : 24, top: 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                    style: TextStyle(
+                      fontFamily: 'Outfit',
+                      fontWeight: isDone ? FontWeight.bold : FontWeight.normal,
+                      color: isDone ? Theme.of(context).textTheme.bodyLarge?.color : Colors.grey,
+                      fontSize: 14,
+                    ),
+                  ),
+                  if (isActive && !isDone)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Row(
+                        children: [
+                          const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
+                          const SizedBox(width: 6),
+                          Text('قيد التنفيذ', style: TextStyle(fontSize: 11, color: AppTheme.primary)),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    ElevatedButton.icon(
-                      onPressed: _pickReceiptImage,
-                      icon: const Icon(Icons.camera_alt),
-                      label: Text(
-                        _imageFile != null
-                            ? 'تغيير الصورة'
-                            : 'تصوير الطلب المستلم',
-                      ),
-                    ),
-                    if (_imageFile != null) ...[
-                      const SizedBox(height: 12),
-                      Image.file(_imageFile!, height: 120, fit: BoxFit.cover),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                        ),
-                        onPressed: () => _confirmReceipt(orderProv),
-                        child: const Text(
-                          'نعم، استلمت الطلب (تأكيد التسليم)',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ] else if (_currentOrder.status == 'delivered') ...[
-                    const Divider(height: 32),
-                    const Center(
-                      child: Text(
-                        'تم تأكيد استلام الطلب وتوصيله بنجاح 🎉',
-                        style: TextStyle(
-                          color: Colors.green,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ),
@@ -3141,33 +3414,164 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
     );
   }
 
-  Widget _buildStep(BuildContext context, String title, bool isDone) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6.0),
-      child: Row(
+  Widget _buildOrderSummaryCard() {
+    double total = _currentOrder.totalAmount;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.12)),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            isDone ? Icons.check_circle : Icons.radio_button_off,
-            color: isDone
-                ? Colors.green
-                : (isDark ? Colors.grey[600] : Colors.grey[400]),
-            size: 22,
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(color: AppTheme.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+                child: const Icon(Icons.receipt_long_rounded, size: 18, color: AppTheme.primary),
+              ),
+              const SizedBox(width: 10),
+              Text('تفاصيل الطلب', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+            ],
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              title,
-              style: TextStyle(
-                fontFamily: 'Outfit',
-                fontWeight: isDone ? FontWeight.bold : FontWeight.normal,
-                color: isDone
-                    ? (isDark ? Colors.white : Colors.black87)
-                    : (isDark ? Colors.grey[400] : Colors.grey[600]),
-                fontSize: 14,
+          const Divider(height: 24),
+          // Items
+          ...List.generate(_currentOrder.items.length, (i) {
+            final item = _currentOrder.items[i];
+            return Padding(
+              padding: EdgeInsets.only(bottom: i < _currentOrder.items.length - 1 ? 10 : 0),
+              child: Row(
+                children: [
+                  Container(
+                    width: 26, height: 26,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text('${item.quantity}x', style: TextStyle(fontFamily: 'Outfit', fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey[600])),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text(item.name, style: const TextStyle(fontSize: 13))),
+                  if (item.price > 0)
+                    Text('${(item.price * item.quantity).toStringAsFixed(0)} ل.س',
+                        style: const TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.bold, fontSize: 13)),
+                ],
+              ),
+            );
+          }),
+          const Divider(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('رسوم التوصيل', style: TextStyle(fontSize: 13)),
+              Text('${_currentOrder.deliveryFee.toStringAsFixed(0)} ل.س',
+                  style: const TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.bold, fontSize: 13)),
+            ],
+          ),
+          const Divider(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('الإجمالي', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+              Text('${total.toStringAsFixed(0)} ل.س',
+                  style: TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.bold, fontSize: 17, color: AppTheme.primary)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Address
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.location_on_rounded, size: 18, color: Colors.grey[400]),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  _currentOrder.deliveryAddress.details?.isNotEmpty == true
+                      ? _currentOrder.deliveryAddress.details!
+                      : '${_currentOrder.deliveryAddress.region ?? ''} - ${_currentOrder.deliveryAddress.governorate ?? ''}',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReceiptSection(OrderProvider orderProv) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.12)),
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.blue.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.delivery_dining_rounded, color: Colors.blue, size: 20),
+                SizedBox(width: 8),
+                Text('وصل السائق! الرجاء تصوير الطلب لتأكيد الاستلام',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton.icon(
+              onPressed: _pickReceiptImage,
+              icon: Icon(_imageFile != null ? Icons.camera_alt_rounded : Icons.camera_alt_rounded),
+              label: Text(_imageFile != null ? 'تغيير الصورة' : 'تصوير الطلب المستلم'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _imageFile != null ? Colors.orange : AppTheme.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               ),
             ),
           ),
+          if (_imageFile != null) ...[
+            const SizedBox(height: 14),
+            Container(
+              height: 140,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                image: DecorationImage(image: FileImage(_imageFile!), fit: BoxFit.cover),
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton.icon(
+                onPressed: () => _confirmReceipt(orderProv),
+                icon: const Icon(Icons.check_circle_rounded),
+                label: const Text('تأكيد استلام الطلب', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
