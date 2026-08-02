@@ -251,7 +251,7 @@ exports.updateOrderStatus = async (req, res) => {
       if (order.driverId?.toString() !== userId.toString()) {
         return res.status(403).json({ message: 'غير مصرح لك بتعديل هذا الطلب' });
       }
-      const allowed = ['onTheWay', 'delivered_pending'];
+      const allowed = ['delivery_accepted', 'onTheWay', 'delivered_pending', 'delivered'];
       if (!allowed.includes(status)) {
         return res.status(403).json({ message: 'لا يمكن للسائق تغيير حالة الطلب إلى ' + status });
       }
@@ -270,11 +270,11 @@ exports.updateOrderStatus = async (req, res) => {
 
     const validTransitions = {
       pending: ['restaurant_accepted', 'cancelled'],
-      restaurant_accepted: ['preparing', 'cancelled'],
-      preparing: ['ready'],
-      ready: ['delivery_accepted'],
-      delivery_accepted: ['onTheWay'],
-      onTheWay: ['delivered_pending'],
+      restaurant_accepted: ['preparing', 'ready', 'delivery_accepted', 'cancelled'],
+      preparing: ['ready', 'delivery_accepted', 'onTheWay', 'cancelled'],
+      ready: ['delivery_accepted', 'onTheWay', 'cancelled'],
+      delivery_accepted: ['preparing', 'ready', 'onTheWay', 'cancelled'],
+      onTheWay: ['delivered_pending', 'delivered', 'cancelled'],
       delivered_pending: ['delivered', 'cancelled'],
       delivered: [],
       cancelled: []

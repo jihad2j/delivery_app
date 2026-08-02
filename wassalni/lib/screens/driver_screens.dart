@@ -33,6 +33,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
   Timer? _driverAnimationTimer;
   bool _followDriver = true;
   bool _isTogglingAvailability = false;
+  bool _isUpdatingStatus = false;
   late AnimationController _pulseController;
 
   List<LatLng> _routePoints = [];
@@ -223,7 +224,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     _orderSearchTimer = null;
   }
 
-  Future<void> _fetchCurrentLocation() async {
+  Future<void> _fetchCurrentLocation({bool fetchRoute = true}) async {
     try {
       final err = await LocationHelper.checkAndRequestPermissions();
       if (err != null) return;
@@ -249,34 +250,35 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
           } catch (_) {}
         }
 
-        // Recalculate route if active order is present
-        final auth = Provider.of<AuthProvider>(context, listen: false);
-        final orderProv = Provider.of<OrderProvider>(context, listen: false);
-        final activeOrders = orderProv.orders
-            .where(
-              (o) =>
-                  o.driverIdStr == auth.currentUser?.id &&
-                  [
-                    'delivery_accepted',
-                    'preparing',
-                    'ready',
-                    'onTheWay',
-                    'delivered_pending',
-                  ].contains(o.status),
-            )
-            .toList();
+        if (fetchRoute) {
+          final auth = Provider.of<AuthProvider>(context, listen: false);
+          final orderProv = Provider.of<OrderProvider>(context, listen: false);
+          final activeOrders = orderProv.orders
+              .where(
+                (o) =>
+                    o.driverIdStr == auth.currentUser?.id &&
+                    [
+                      'delivery_accepted',
+                      'preparing',
+                      'ready',
+                      'onTheWay',
+                      'delivered_pending',
+                    ].contains(o.status),
+              )
+              .toList();
 
-        if (activeOrders.isNotEmpty) {
-          final activeOrder = activeOrders.first;
-          SocketService.joinOrderRoom(activeOrder.id);
-          SocketService.socket?.emit('driverLocationUpdate', {
-            'orderId': activeOrder.id,
-            'location': {
-              'lat': pos.latitude,
-              'lng': pos.longitude,
-            },
-          });
-          _fetchRouteForOrder(activeOrder);
+          if (activeOrders.isNotEmpty) {
+            final activeOrder = activeOrders.first;
+            SocketService.joinOrderRoom(activeOrder.id);
+            SocketService.socket?.emit('driverLocationUpdate', {
+              'orderId': activeOrder.id,
+              'location': {
+                'lat': pos.latitude,
+                'lng': pos.longitude,
+              },
+            });
+            _fetchRouteForOrder(activeOrder);
+          }
         }
       }
     } catch (e) {
@@ -807,42 +809,78 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     String id,
     String status,
   ) async {
-    final err = await orderProv.updateStatus(id, status);
-    if (!mounted) return;
-    if (err == null) {
-      _showTopNotification('تم تحديث حالة الطلب',
-          color: Colors.blue, icon: Icons.sync_rounded);
-      orderProv.loadOrders();
-      Provider.of<AuthProvider>(
-        context,
-        listen: false,
-      ).tryAutoLogin();
-    } else {
-      _showTopNotification(err,
-          color: Colors.red, icon: Icons.error_outline_rounded);
+    if (_isUpdatingStatus) return;
+    setState(() => _isUpdatingStatus = true);
+
+    try {
+      final err = await orderProv.updateStatus(id, status);
+      if (!mounted) return;
+      if (err == null) {
+        _showTopNotification(
+          status == 'onTheWay'
+              ? 'تم استلام الطلب وبدء التوصيل (في الطريق) بنجاح'
+              : 'تم تحديث حالة الطلب',
+          color: Colors.green,
+          icon: Icons.check_circle_rounded,
+        );
+        await orderProv.loadOrders();
+        if (mounted) {
+          Provider.of<AuthProvider>(
+            context,
+            listen: false,
+          ).tryAutoLogin();
+        }
+      } else {
+        _showTopNotification(err,
+            color: Colors.red, icon: Icons.error_outline_rounded);
+      }
+    } catch (e) {
+      if (mounted) {
+        _showTopNotification('خطأ أثناء تحديث حالة الطلب: $e',
+            color: Colors.red, icon: Icons.error_outline_rounded);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isUpdatingStatus = false);
+      }
     }
   }
 
   Future<void> _confirmDelivery(String orderId) async {
-    final orderProv = Provider.of<OrderProvider>(context, listen: false);
-    final err = await orderProv.confirmDelivery(orderId);
-    if (!mounted) return;
-    if (err == null) {
-      _showTopNotification(
-        'تم إرسال طلب تأكيد الاستلام للعميل. يرجى الانتظار لتأكيد المعاملة.',
-        color: Colors.orange,
-        icon: Icons.send_rounded,
-      );
-    } else {
-      _showTopNotification(err,
-          color: Colors.red, icon: Icons.error_outline_rounded);
+    if (_isUpdatingStatus) return;
+    setState(() => _isUpdatingStatus = true);
+
+    try {
+      final orderProv = Provider.of<OrderProvider>(context, listen: false);
+      final err = await orderProv.confirmDelivery(orderId);
+      if (!mounted) return;
+      if (err == null) {
+        _showTopNotification(
+          'تم إرسال طلب تأكيد الاستلام للعميل. يرجى الانتظار لتأكيد المعاملة.',
+          color: Colors.orange,
+          icon: Icons.send_rounded,
+        );
+        await orderProv.loadOrders();
+      } else {
+        _showTopNotification(err,
+            color: Colors.red, icon: Icons.error_outline_rounded);
+      }
+    } catch (e) {
+      if (mounted) {
+        _showTopNotification('خطأ أثناء تأكيد التوصيل: $e',
+            color: Colors.red, icon: Icons.error_outline_rounded);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isUpdatingStatus = false);
+      }
     }
   }
 
   // OSRM Realtime Routing integration (drawn directly on the main map)
   Future<void> _fetchRouteForOrder(model.Order order) async {
     if (_driverLatLng == null) {
-      await _fetchCurrentLocation();
+      await _fetchCurrentLocation(fetchRoute: false);
     }
     if (_driverLatLng == null) return;
 
@@ -1819,7 +1857,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
         : (pending['settlementType'] == 'earnings'
             ? 'صرف وتصفير أرباح التوصيل'
             : 'تصفير شامل للحسابين');
-    final amount = (pending['amount'] ?? 0).toDouble();
+    final amount = (pending['amount'] is num)
+        ? (pending['amount'] as num).toDouble()
+        : (double.tryParse(pending['amount']?.toString() ?? '') ?? 0.0);
     final adminName = pending['requestedByName'] ?? 'الأدمن المحاسب';
 
     return Container(
@@ -1857,51 +1897,54 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
             style: const TextStyle(color: Colors.white70, fontSize: 12),
           ),
           const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              OutlinedButton(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.white,
-                  side: const BorderSide(color: Colors.white70),
-                  visualDensity: VisualDensity.compact,
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: Colors.white70),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  onPressed: () async {
+                    await auth.respondDriverSettlement(false);
+                  },
+                  child: const Text('رفض الطلب', style: TextStyle(fontSize: 11)),
                 ),
-                onPressed: () async {
-                  await auth.respondDriverSettlement(false);
-                },
-                child: const Text('رفض الطلب', style: TextStyle(fontSize: 11)),
-              ),
-              const SizedBox(width: 8),
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: Colors.amber.shade900,
-                  visualDensity: VisualDensity.compact,
-                ),
-                onPressed: () async {
-                  final err = await auth.respondDriverSettlement(true);
-                  if (mounted) {
-                    if (err == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content:
-                                Text('تم تأكيد الترصيد وتصفير الحساب بنجاح'),
-                            backgroundColor: Colors.green),
-                      );
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                            content: Text(err), backgroundColor: Colors.red),
-                      );
+                const SizedBox(width: 8),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.amber.shade900,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  onPressed: () async {
+                    final err = await auth.respondDriverSettlement(true);
+                    if (mounted) {
+                      if (err == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content:
+                                  Text('تم تأكيد الترصيد وتصفير الحساب بنجاح'),
+                              backgroundColor: Colors.green),
+                        );
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                              content: Text(err), backgroundColor: Colors.red),
+                        );
+                      }
                     }
-                  }
-                },
-                icon: const Icon(Icons.check_circle_rounded, size: 16),
-                label: const Text('تأكيد وموافقة',
-                    style:
-                        TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
-              ),
-            ],
+                  },
+                  icon: const Icon(Icons.check_circle_rounded, size: 16),
+                  label: const Text('تأكيد وموافقة',
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -2060,89 +2103,119 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
   }
 
   Widget _buildOrderActionButtons(OrderProvider orderProv, model.Order order) {
-    if (order.status == 'restaurant_accepted' || order.status == 'preparing') {
+    final isReadyOrAccepted = ['ready', 'delivery_accepted', 'preparing', 'restaurant_accepted'].contains(order.status);
+    
+    if (isReadyOrAccepted) {
+      String statusHint = 'يرجى التوجه للمطعم واستلام الطلب.';
+      if (order.status == 'ready') {
+        statusHint = 'الطلب جاهز للتوصيل الآن من المطعم!';
+      } else if (order.status == 'preparing') {
+        statusHint = 'المطعم يقوم بتحضير الطلب حالياً.';
+      }
+
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
-            'المطعم يقوم بتحضير الطلب حالياً. يرجى التوجه للمطعم.',
-            style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
-            textAlign: TextAlign.center,
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: (order.status == 'ready' ? Colors.green : Colors.orange).withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              statusHint,
+              style: TextStyle(
+                color: order.status == 'ready' ? Colors.green.shade800 : Colors.orange.shade900,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+              textAlign: TextAlign.center,
+            ),
           ),
-          const SizedBox(height: 8),
-          ElevatedButton(
-            onPressed: () => orderProv.loadOrders(),
-            child: const Text('تحديث حالة التحضير'),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 2,
+              ),
+              onPressed: _isUpdatingStatus
+                  ? null
+                  : () => _updateOrderStatus(orderProv, order.id, 'onTheWay'),
+              icon: _isUpdatingStatus
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.directions_bike_rounded, size: 22),
+              label: Text(
+                _isUpdatingStatus
+                    ? 'جاري التحديث...'
+                    : 'استلمت الطلب وبدأت التوصيل (في الطريق)',
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+              ),
+            ),
           ),
         ],
       );
     }
-    if (order.status == 'ready' || order.status == 'delivery_accepted') {
-      return SizedBox(
-        width: double.infinity,
-        child: ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.blue,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-          onPressed: () => _updateOrderStatus(orderProv, order.id, 'onTheWay'),
-          child: const Text(
-            'استلمت الطلب وبدأت التوصيل (في الطريق)',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-          ),
-        ),
-      );
-    }
+
     if (order.status == 'onTheWay') {
       final bool isCloseEnough = _distanceKm <= 1.0;
-      if (!isCloseEnough) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (!isCloseEnough) ...[
             Text(
               'المسافة المتبقية للعميل: ${_distanceKm.toStringAsFixed(1)} كم. يرجى الاقتراب لتسليم الطلب.',
               style: const TextStyle(
                 color: Colors.orange,
                 fontWeight: FontWeight.bold,
+                fontSize: 12,
               ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
-            ElevatedButton(
-              onPressed: () {
-                _lastRoutedOrderId = null; // force recalc
-                _fetchRouteForOrder(order);
-              },
-              child: const Text('تحديث المسار والموقع'),
-            ),
           ],
-        );
-      } else {
-        return SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green.shade700,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 2,
+              ),
+              onPressed: _isUpdatingStatus ? null : () => _confirmDelivery(order.id),
+              icon: _isUpdatingStatus
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.check_circle_outline_rounded, size: 22),
+              label: Text(
+                _isUpdatingStatus
+                    ? 'جاري الإرسال...'
+                    : 'تم الوصول وتوصيل الطلب للعميل',
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
               ),
             ),
-            onPressed: () => _confirmDelivery(order.id),
-            icon: const Icon(Icons.check_circle_outline, size: 24),
-            label: const Text(
-              'تم الوصول وتوصيل الطلب للعميل',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-            ),
           ),
-        );
-      }
+        ],
+      );
     }
+
     if (order.status == 'delivered_pending') {
       return Column(
         children: [
@@ -2180,22 +2253,36 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10)),
               ),
-              onPressed: () async {
-                _isDialogShowing = false;
-                await orderProv.loadOrders();
-                final updated =
-                    orderProv.orders.where((o) => o.id == order.id).toList();
-                if (updated.isEmpty || updated.first.status == 'delivered') {
-                  _triggerDeliveryConfirmedSuccess();
-                } else {
-                  _showTopNotification(
-                    'العميل لم يقم بالتأكيد بعد، يرجى تذكيره بالنقر على تأكيد الاستلام.',
-                    color: Colors.orange,
-                    icon: Icons.timer_outlined,
-                  );
-                }
-              },
-              icon: const Icon(Icons.refresh_rounded, size: 18),
+              onPressed: _isUpdatingStatus
+                  ? null
+                  : () async {
+                      if (_isUpdatingStatus) return;
+                      setState(() => _isUpdatingStatus = true);
+                      try {
+                        _isDialogShowing = false;
+                        await orderProv.loadOrders();
+                        final updated =
+                            orderProv.orders.where((o) => o.id == order.id).toList();
+                        if (updated.isEmpty || updated.first.status == 'delivered') {
+                          _triggerDeliveryConfirmedSuccess();
+                        } else {
+                          _showTopNotification(
+                            'العميل لم يقم بالتأكيد بعد، يرجى تذكيره بالنقر على تأكيد الاستلام.',
+                            color: Colors.orange,
+                            icon: Icons.timer_outlined,
+                          );
+                        }
+                      } finally {
+                        if (mounted) setState(() => _isUpdatingStatus = false);
+                      }
+                    },
+              icon: _isUpdatingStatus
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.orange),
+                    )
+                  : const Icon(Icons.refresh_rounded, size: 18),
               label: const Text('تحديث حالة التأكيد',
                   style: TextStyle(
                       fontFamily: 'Outfit',

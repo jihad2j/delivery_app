@@ -1424,8 +1424,12 @@ class _AdminBalancesScreenState extends State<AdminBalancesScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       itemBuilder: (context, idx) {
                         final d = _drivers[idx];
-                        final cash = (d['customerPaymentsWallet'] ?? 0).toDouble();
-                        final earnings = (d['driverEarningsWallet'] ?? 0).toDouble();
+                        final cash = (d['customerPaymentsWallet'] is num)
+                            ? (d['customerPaymentsWallet'] as num).toDouble()
+                            : (double.tryParse(d['customerPaymentsWallet']?.toString() ?? '') ?? 0.0);
+                        final earnings = (d['driverEarningsWallet'] is num)
+                            ? (d['driverEarningsWallet'] as num).toDouble()
+                            : (double.tryParse(d['driverEarningsWallet']?.toString() ?? '') ?? 0.0);
                         final pending = d['pendingSettlement'];
 
                         return Card(
