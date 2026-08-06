@@ -117,16 +117,16 @@ class ApiService {
     Future<http.Response> Function(String currentBaseUrl) requestFn,
   ) async {
     int attempts = 0;
-    const maxAttempts = 3;
+    final maxAttempts = _serverUrls.length;
 
-    while (attempts < maxAttempts && attempts < _serverUrls.length) {
+    while (attempts < maxAttempts) {
       try {
         final response = await requestFn(baseUrl);
         return response;
       } catch (e) {
         attempts++;
         debugPrint('[ApiService Failover] Connection failed on $baseUrl: $e');
-        if (attempts < _serverUrls.length) {
+        if (attempts < maxAttempts) {
           rotateToNextServer();
         } else {
           rethrow;
@@ -141,7 +141,7 @@ class ApiService {
       final url = Uri.parse('$currentBase$path');
       return http
           .get(url, headers: _headers)
-          .timeout(const Duration(seconds: 4));
+          .timeout(const Duration(seconds: 3));
     });
   }
 
@@ -153,7 +153,7 @@ class ApiService {
       final url = Uri.parse('$currentBase$path');
       return http
           .post(url, headers: _headers, body: jsonEncode(body))
-          .timeout(const Duration(seconds: 4));
+          .timeout(const Duration(seconds: 3));
     });
   }
 
@@ -165,7 +165,7 @@ class ApiService {
       final url = Uri.parse('$currentBase$path');
       return http
           .put(url, headers: _headers, body: jsonEncode(body))
-          .timeout(const Duration(seconds: 4));
+          .timeout(const Duration(seconds: 3));
     });
   }
 
@@ -174,7 +174,7 @@ class ApiService {
       final url = Uri.parse('$currentBase$path');
       return http
           .delete(url, headers: _headers)
-          .timeout(const Duration(seconds: 4));
+          .timeout(const Duration(seconds: 3));
     });
   }
 }

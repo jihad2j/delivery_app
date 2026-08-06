@@ -181,11 +181,10 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<String?> toggleDriverAvailability(bool active) async {
-    _isLoading = true;
-    notifyListeners();
     try {
       if (active) {
-        final err = await LocationHelper.checkAndRequestPermissions();
+        final err = await LocationHelper.checkAndRequestPermissions()
+            .timeout(const Duration(seconds: 5), onTimeout: () => 'GPS_TIMEOUT');
         if (err != null) {
           return err;
         }
@@ -193,20 +192,18 @@ class AuthProvider extends ChangeNotifier {
 
       final res = await ApiService.put('/api/auth/profile', {
         'driverInfo': {'availability': active},
-      });
+      }).timeout(const Duration(seconds: 10));
 
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         _currentUser = User.fromJson(data);
+        notifyListeners();
         return null;
       } else {
         return 'فشل تغيير حالة الاتصال';
       }
     } catch (e) {
       return e.toString();
-    } finally {
-      _isLoading = false;
-      notifyListeners();
     }
   }
 

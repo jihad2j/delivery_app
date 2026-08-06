@@ -171,7 +171,18 @@ class OrderProvider extends ChangeNotifier {
         return err;
       }
 
-      Position pos = await Geolocator.getCurrentPosition();
+      Position pos;
+      try {
+        pos = await Geolocator.getCurrentPosition()
+            .timeout(const Duration(seconds: 5));
+      } catch (_) {
+        pos = Position(
+          longitude: deliveryAddress.location?.coordinates[0] ?? 36.2765,
+          latitude: deliveryAddress.location?.coordinates[1] ?? 33.5138,
+          timestamp: DateTime.now(),
+          accuracy: 0, altitude: 0, heading: 0, speed: 0, speedAccuracy: 0, altitudeAccuracy: 0, headingAccuracy: 0,
+        );
+      }
       final finalAddress = Address(
         street: deliveryAddress.street,
         city: deliveryAddress.city,
