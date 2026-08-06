@@ -140,8 +140,10 @@ exports.updateProfile = async (req, res) => {
       }
     }
 
-    if (user.role === 'driver' && updates.driverInfo) {
-      $set.driverInfo = updates.driverInfo;
+    if (user.role === 'driver' && updates.driverInfo && typeof updates.driverInfo === 'object') {
+      for (const key of Object.keys(updates.driverInfo)) {
+        $set[`driverInfo.${key}`] = updates.driverInfo[key];
+      }
     }
 
     const updatedUser = await User.findByIdAndUpdate(
