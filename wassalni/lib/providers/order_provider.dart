@@ -207,8 +207,6 @@ class OrderProvider extends ChangeNotifier {
   }
 
   Future<String?> acceptOrder(String orderId) async {
-    _isLoading = true;
-    notifyListeners();
     try {
       final res = await ApiService.put('/api/orders/$orderId/accept', {});
       _isLoading = false;
@@ -255,8 +253,6 @@ class OrderProvider extends ChangeNotifier {
     String? packagedPicture,
     String? receivedPicture,
   }) async {
-    _isLoading = true;
-    notifyListeners();
     try {
       final Map<String, dynamic> body = {'status': newStatus};
       if (packagedPicture != null) body['packagedPicture'] = packagedPicture;
@@ -284,8 +280,6 @@ class OrderProvider extends ChangeNotifier {
   }
 
   Future<String?> confirmDelivery(String orderId) async {
-    _isLoading = true;
-    notifyListeners();
     try {
       final res = await ApiService.put('/api/orders/$orderId/deliver', {});
       _isLoading = false;
@@ -312,8 +306,6 @@ class OrderProvider extends ChangeNotifier {
     String orderId, {
     String? receivedPicture,
   }) async {
-    _isLoading = true;
-    notifyListeners();
     try {
       final Map<String, dynamic> body = {};
       if (receivedPicture != null) body['receivedPicture'] = receivedPicture;
