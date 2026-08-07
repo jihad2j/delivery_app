@@ -9,6 +9,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
+import 'package:graphify/graphify.dart';
 
 import '../providers/providers.dart';
 import '../models/models.dart' as model;
@@ -365,10 +366,6 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       _addDiag('تحديث محلي أوفلاين (تعذر السيرفر: $e)');
     } finally {
       _safetyUnlockTimer?.cancel();
-      if (mounted) {
-        _addDiag('5️⃣ 🔓 التفاعل مفعل 100%.');
-        setState(() => _isToggling = false);
-      }
     }
   }
 
@@ -1698,6 +1695,13 @@ class DriverWalletScreen extends StatefulWidget {
 
 class _DriverWalletScreenState extends State<DriverWalletScreen> {
   bool _isProcessing = false;
+  final GraphifyController _earningsChartCtrl = GraphifyController();
+
+  @override
+  void dispose() {
+    _earningsChartCtrl.dispose();
+    super.dispose();
+  }
 
   Future<void> _requestSettlement(String type, String title) async {
     final auth = context.read<AuthProvider>();
@@ -1809,7 +1813,49 @@ class _DriverWalletScreenState extends State<DriverWalletScreen> {
             ),
             const SizedBox(height: 24),
             const Text(
-              'تفاصيل الأرباح',
+              'أرباح آخر 7 أيام',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              height: 180,
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  )
+                ],
+              ),
+              child: GraphifyView(
+                controller: _earningsChartCtrl,
+                initialOptions: const {
+                  "tooltip": {"trigger": "axis"},
+                  "xAxis": {
+                    "type": "category",
+                    "boundaryGap": false,
+                    "data": ["السبت", "الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة"]
+                  },
+                  "yAxis": {"type": "value"},
+                  "series": [
+                    {
+                      "data": [35000, 42000, 31000, 50000, 48000, 60000, 85000],
+                      "type": "line",
+                      "smooth": true,
+                      "areaStyle": {},
+                      "itemStyle": {"color": "#4CAF50"}
+                    }
+                  ]
+                },
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'سجل الرحلات المنجزة',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),

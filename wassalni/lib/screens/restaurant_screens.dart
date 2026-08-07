@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:graphify/graphify.dart';
 import '../providers/providers.dart';
 import '../models/models.dart' as model;
 import '../core/theme.dart';
@@ -20,6 +21,9 @@ class RestaurantHomeScreen extends StatefulWidget {
 class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
   int _tabIndex = 0; // 0: Dashboard, 1: Orders, 2: Menu, 3: Settings
   Timer? _ordersAutoRefreshTimer;
+
+  final GraphifyController _revenueChartCtrl = GraphifyController();
+  final GraphifyController _statusChartCtrl = GraphifyController();
 
   @override
   void initState() {
@@ -40,6 +44,8 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
   @override
   void dispose() {
     _ordersAutoRefreshTimer?.cancel();
+    _revenueChartCtrl.dispose();
+    _statusChartCtrl.dispose();
     super.dispose();
   }
 
@@ -608,6 +614,91 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'تحليل الأرباح وحالات الطلب',
+            style: TextStyle(
+              fontFamily: 'Outfit',
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Chart 1: Revenue Bar Chart
+          Container(
+            height: 220,
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                )
+              ],
+            ),
+            child: GraphifyView(
+              controller: _revenueChartCtrl,
+              initialOptions: const {
+                "tooltip": {"trigger": "axis"},
+                "xAxis": {
+                  "type": "category",
+                  "data": ["السبت", "الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة"]
+                },
+                "yAxis": {"type": "value"},
+                "series": [
+                  {
+                    "data": [120000, 200000, 150000, 80000, 70000, 110000, 250000],
+                    "type": "bar",
+                    "itemStyle": {"color": "#4CAF50"}
+                  }
+                ]
+              },
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Chart 2: Order Statuses Donut Chart
+          Container(
+            height: 250,
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                )
+              ],
+            ),
+            child: GraphifyView(
+              controller: _statusChartCtrl,
+              initialOptions: {
+                "tooltip": {"trigger": "item"},
+                "legend": {"top": "bottom"},
+                "series": [
+                  {
+                    "name": "الطلبات",
+                    "type": "pie",
+                    "radius": ["40%", "70%"],
+                    "itemStyle": {
+                      "borderRadius": 10,
+                      "borderColor": "#fff",
+                      "borderWidth": 2
+                    },
+                    "data": [
+                      {"value": completedOrders.length, "name": "مكتملة"},
+                      {"value": preparingCount, "name": "قيد التحضير"},
+                      {"value": newCount, "name": "جديدة"}
+                    ]
+                  }
+                ]
+              },
+            ),
           ),
           const SizedBox(height: 24),
 

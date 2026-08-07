@@ -3,6 +3,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:graphify/graphify.dart';
 import '../providers/providers.dart';
 import '../models/models.dart' as model;
 import '../core/theme.dart';
@@ -1659,7 +1660,7 @@ class _AdminModuleAppBar extends StatelessWidget implements PreferredSizeWidget 
 }
 
 /// لوحة إحصائيات نظرة عامة أعلى مركز التحكم
-class _DashboardStats extends StatelessWidget {
+class _DashboardStats extends StatefulWidget {
   final int currentOrders;
   final int completedOrders;
   final int ongoingOrders;
@@ -1671,6 +1672,21 @@ class _DashboardStats extends StatelessWidget {
     required this.ongoingOrders,
     required this.activeDrivers,
   });
+
+  @override
+  State<_DashboardStats> createState() => _DashboardStatsState();
+}
+
+class _DashboardStatsState extends State<_DashboardStats> {
+  final GraphifyController _growthChartCtrl = GraphifyController();
+  final GraphifyController _ordersChartCtrl = GraphifyController();
+
+  @override
+  void dispose() {
+    _growthChartCtrl.dispose();
+    _ordersChartCtrl.dispose();
+    super.dispose();
+  }
 
   Widget _tile(BuildContext context, IconData icon, String label, String value, Color color) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -1731,15 +1747,16 @@ class _DashboardStats extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
             Expanded(
-              child: _tile(context, Icons.receipt_long_rounded, 'الطلبات الحالية', '$currentOrders', Colors.green),
+              child: _tile(context, Icons.receipt_long_rounded, 'الطلبات الحالية', '${widget.currentOrders}', Colors.green),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: _tile(context, Icons.check_circle_rounded, 'الطلبات المكتملة', '$completedOrders', Colors.blue),
+              child: _tile(context, Icons.check_circle_rounded, 'الطلبات المكتملة', '${widget.completedOrders}', Colors.blue),
             ),
           ],
         ),
@@ -1747,13 +1764,110 @@ class _DashboardStats extends StatelessWidget {
         Row(
           children: [
             Expanded(
-              child: _tile(context, Icons.delivery_dining_rounded, 'طلبات جارية الآن', '$ongoingOrders', Colors.purple),
+              child: _tile(context, Icons.delivery_dining_rounded, 'طلبات جارية الآن', '${widget.ongoingOrders}', Colors.purple),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: _tile(context, Icons.directions_bike_rounded, 'كباتن نشطون', '$activeDrivers', Colors.teal),
+              child: _tile(context, Icons.directions_bike_rounded, 'كباتن نشطون', '${widget.activeDrivers}', Colors.teal),
             ),
           ],
+        ),
+        const SizedBox(height: 24),
+        const Text(
+          'النمو وإحصائيات الطلبات',
+          style: TextStyle(
+            fontFamily: 'Outfit',
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 12),
+        // Line Chart (Growth)
+        Container(
+          height: 220,
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              )
+            ],
+          ),
+          child: GraphifyView(
+            controller: _growthChartCtrl,
+            initialOptions: const {
+              "tooltip": {"trigger": "axis"},
+              "legend": {"data": ["مستخدمين", "مطاعم", "كباتن"], "top": "bottom"},
+              "xAxis": {
+                "type": "category",
+                "boundaryGap": false,
+                "data": ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو"]
+              },
+              "yAxis": {"type": "value"},
+              "series": [
+                {
+                  "name": "مستخدمين",
+                  "type": "line",
+                  "data": [120, 200, 350, 500, 800, 1200],
+                  "smooth": true,
+                  "itemStyle": {"color": "#2196F3"}
+                },
+                {
+                  "name": "مطاعم",
+                  "type": "line",
+                  "data": [10, 15, 20, 25, 40, 55],
+                  "smooth": true,
+                  "itemStyle": {"color": "#FF9800"}
+                },
+                {
+                  "name": "كباتن",
+                  "type": "line",
+                  "data": [5, 12, 18, 30, 45, 60],
+                  "smooth": true,
+                  "itemStyle": {"color": "#4CAF50"}
+                }
+              ]
+            },
+          ),
+        ),
+        const SizedBox(height: 16),
+        // Bar Chart (Orders volume)
+        Container(
+          height: 220,
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              )
+            ],
+          ),
+          child: GraphifyView(
+            controller: _ordersChartCtrl,
+            initialOptions: const {
+              "tooltip": {"trigger": "axis"},
+              "xAxis": {
+                "type": "category",
+                "data": ["السبت", "الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة"]
+              },
+              "yAxis": {"type": "value"},
+              "series": [
+                {
+                  "data": [120, 200, 150, 80, 70, 110, 130],
+                  "type": "bar",
+                  "itemStyle": {"color": "#9C27B0"}
+                }
+              ]
+            },
+          ),
         ),
       ],
     );
