@@ -297,6 +297,9 @@ class SocketService {
         for (var room in _joinedRooms) {
           _socket?.emit('joinOrderRoom', room);
         }
+        // عند إعادة الاتصال بعد انقطاع النت، اطلب تحديث البيانات فترات متقطعة
+        onOrderStatus({'reason': 'reconnected'});
+        onNewOrder({'reason': 'reconnected'});
       });
 
       _socket!.onConnectError((err) {
@@ -311,12 +314,24 @@ class SocketService {
         debugPrint('Disconnected from Socket Server');
       });
 
-      // Listen to new order for drivers
+      // Listen to refresh signals for orders & available orders
+      _socket!.on('refreshOrders', (data) {
+        onOrderStatus(data);
+      });
+
+      _socket!.on('refreshAvailableOrders', (data) {
+        onNewOrder(data);
+      });
+
+      _socket!.on('refreshOrderStatus', (data) {
+        onOrderStatus(data);
+      });
+
+      // Backwards compatibility listeners
       _socket!.on('newOrderAvailable', (data) {
         onNewOrder(data);
       });
 
-      // Listen to status updates
       _socket!.on('orderStatus', (data) {
         onOrderStatus(data);
       });

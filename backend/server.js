@@ -139,6 +139,15 @@ io.use((socket, next) => {
 io.on('connection', (socket) => {
   console.log(`Client connected: ${socket.id} (${socket.user.role})`);
 
+  if (socket.user) {
+    socket.join(`user_${socket.user.userId}`);
+    if (socket.user.role === 'restaurant') {
+      socket.join(`restaurant_${socket.user.userId}`);
+    } else if (socket.user.role === 'driver') {
+      socket.join('drivers');
+    }
+  }
+
   socket.on('joinOrderRoom', (orderId) => {
     socket.join(orderId);
     console.log(`${socket.user.role} ${socket.id} joined room: ${orderId}`);

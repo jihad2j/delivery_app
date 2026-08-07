@@ -120,8 +120,12 @@ exports.createOrder = async (req, res) => {
       .populate('restaurantId', 'name restaurantInfo.logo address')
       .populate('customerId', 'name phone');
 
-    // إشعار المطعم والسائقين بالطلب الجديد مباشرة عبر الـ Socket
+    // إشعار المطعم والسائقين بالطلب الجديد كإشعار تحديث (Refresh Signal)
     if (io) {
+      io.to('restaurant_' + restaurantId.toString()).emit('refreshOrders', { orderId: order._id, reason: 'new_order' });
+      io.emit('refreshOrders', { orderId: order._id, reason: 'new_order' });
+      io.emit('refreshAvailableOrders', { orderId: order._id, reason: 'new_order' });
+      // المتوافقة مع الكود القديم
       io.emit('newOrderAvailable', populatedOrder);
       io.emit('newOrderCreated', populatedOrder);
       io.emit('newOrderForRestaurant', populatedOrder);
@@ -306,18 +310,18 @@ exports.updateOrderStatus = async (req, res) => {
       .populate('restaurantId', 'name restaurantInfo.logo address phone')
       .populate('driverId', 'name phone driverInfo');
 
-    // إرسال إشعار عبر الـ Socket
+    // إرسال إشعار عبر الـ Socket كـ Refresh Signal
     if (io) {
-      io.to(order._id.toString()).emit('orderStatus', {
-        orderId: order._id,
-        status,
-        updatedBy: req.user.role,
-        timestamp: new Date()
-      });
+      const signalPayload = { orderId: order._id, status, updatedBy: req.user.role, timestamp: new Date() };
+      io.to(order._id.toString()).emit('refreshOrderStatus', signalPayload);
+      io.to(order._id.toString()).emit('orderStatus', signalPayload);
+      io.to('restaurant_' + order.restaurantId.toString()).emit('refreshOrders', signalPayload);
+      io.emit('refreshOrders', signalPayload);
       io.emit('orderStatusChanged', populated);
 
-      // إعلام السائقين بوجود طلب جاهز للتوصيل
-      if (status === 'ready') {
+      // إعلام السائقين بتحديث الطلبات المتاحة عند جاهزية الطلب أو تحويله
+      if (status === 'ready' || status === 'restaurant_accepted') {
+        io.emit('refreshAvailableOrders', signalPayload);
         io.emit('newOrderAvailable', populated);
       }
     }
@@ -361,14 +365,18 @@ exports.acceptOrderByDriver = async (req, res) => {
       .populate('restaurantId', 'name restaurantInfo.logo address')
       .populate('customerId', 'name phone address');
 
-    // Notify all parties
+    // Notify all parties via refresh signals
     if (io) {
-      io.to(order._id.toString()).emit('orderStatus', {
+      const payload = {
         orderId: order._id,
         status: 'delivery_accepted',
         driverId: req.user.userId,
         timestamp: new Date()
-      });
+      };
+      io.to(order._id.toString()).emit('refreshOrderStatus', payload);
+      io.to(order._id.toString()).emit('orderStatus', payload);
+      io.emit('refreshAvailableOrders', payload);
+      io.emit('refreshOrders', payload);
     }
 
     res.json(populated);
@@ -418,12 +426,15 @@ exports.confirmDelivery = async (req, res) => {
       .populate('driverId', 'name phone driverInfo');
 
     if (io) {
-      io.to(order._id.toString()).emit('orderStatus', {
+      const payload = {
         orderId: order._id,
         status: 'delivered_pending',
         updatedBy: 'driver',
         timestamp: new Date()
-      });
+      };
+      io.to(order._id.toString()).emit('refreshOrderStatus', payload);
+      io.to(order._id.toString()).emit('orderStatus', payload);
+      io.emit('refreshOrders', payload);
     }
 
     res.json({ message: 'تم تحديث حالة الطلب وبانتظار تأكيد العميل', order: updatedOrder });
@@ -468,8 +479,10 @@ exports.customerConfirmDelivery = async (req, res) => {
         deliveryFee: updatedOrder.deliveryFee,
         timestamp: new Date()
       };
+      io.to(order._id.toString()).emit('refreshOrderStatus', payload);
       io.to(order._id.toString()).emit('orderStatus', payload);
       io.to(order._id.toString()).emit('deliveryConfirmed', payload);
+      io.emit('refreshOrders', payload);
       io.emit('orderStatus', payload);
       io.emit('deliveryConfirmed', payload);
     }

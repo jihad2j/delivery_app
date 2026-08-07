@@ -385,6 +385,9 @@ class OrderProvider extends ChangeNotifier {
   }
 
   void setupSocketListeners() {
+    SocketService.socket?.off('refreshOrders');
+    SocketService.socket?.off('refreshAvailableOrders');
+    SocketService.socket?.off('refreshOrderStatus');
     SocketService.socket?.off('newOrderAvailable');
     SocketService.socket?.off('newOrderCreated');
     SocketService.socket?.off('newOrderForRestaurant');
@@ -392,44 +395,24 @@ class OrderProvider extends ChangeNotifier {
     SocketService.socket?.off('orderStatusChanged');
     SocketService.socket?.off('deliveryConfirmed');
 
-    void handleNewOrder(dynamic data) {
-      try {
-        if (data == null) return;
-        final Map<String, dynamic> jsonMap = data is Map<String, dynamic> ? data : Map<String, dynamic>.from(data);
-        final newOrder = Order.fromJson(jsonMap);
-
-        final idx = _orders.indexWhere((o) => o.id == newOrder.id);
-        if (idx != -1) {
-          _orders[idx] = newOrder;
-        } else {
-          _orders.insert(0, newOrder);
-          SocketService.joinOrderRoom(newOrder.id);
-        }
-
-        if (!_availableOrders.any((o) => o.id == newOrder.id)) {
-          _availableOrders.insert(0, newOrder);
-        }
-        notifyListeners();
-      } catch (e) {
-        debugPrint('Socket new order parse error: $e');
-        loadOrders();
-      }
+    void handleRefreshSignal(dynamic data) {
+      debugPrint('[Socket Refresh Signal Received] Reloading via REST API...');
+      loadOrders();
+      loadAvailableOrders();
     }
 
-    SocketService.socket?.on('newOrderAvailable', handleNewOrder);
-    SocketService.socket?.on('newOrderCreated', handleNewOrder);
-    SocketService.socket?.on('newOrderForRestaurant', handleNewOrder);
+    SocketService.socket?.on('refreshOrders', handleRefreshSignal);
+    SocketService.socket?.on('refreshAvailableOrders', handleRefreshSignal);
+    SocketService.socket?.on('refreshOrderStatus', handleRefreshSignal);
 
-    SocketService.socket?.on('orderStatus', (data) {
+    SocketService.socket?.on('newOrderAvailable', (data) {
       loadOrders();
+      loadAvailableOrders();
     });
-
-    SocketService.socket?.on('orderStatusChanged', (data) {
-      loadOrders();
-    });
-
-    SocketService.socket?.on('deliveryConfirmed', (data) {
-      loadOrders();
-    });
+    SocketService.socket?.on('newOrderCreated', handleRefreshSignal);
+    SocketService.socket?.on('newOrderForRestaurant', handleRefreshSignal);
+    SocketService.socket?.on('orderStatus', handleRefreshSignal);
+    SocketService.socket?.on('orderStatusChanged', handleRefreshSignal);
+    SocketService.socket?.on('deliveryConfirmed', handleRefreshSignal);
   }
 }
