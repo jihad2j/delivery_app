@@ -30,4 +30,7 @@ router.put('/:id/customer-confirm', authenticate, authorize('customer', 'admin')
 // PUT /api/orders/:id/assign (Admin assigns driver)
 router.put('/:id/assign', authenticate, authorize('admin'), orderController.assignDriver);
 
+// POST /api/orders/:id/rate (Customer rates order)
+router.post('/:id/rate', authenticate, authorize('customer'), orderController.rateOrder);
+
 module.exports = router;

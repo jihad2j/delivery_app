@@ -27,6 +27,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   String _selectedCategory = 'الكل';
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  String _sortBy = 'default';
   String? _detectedGovernorate;
   String? _detectedRegion;
   bool _isDetectingLocation = true;
@@ -116,7 +117,8 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
 
         // إذا لم تطابق عنواناً مخزناً، نقوم بعكس الترميز من OSM Nominatim
         if (gov == null) {
-          final geo = await LocationHelper.reverseGeocode(pos.latitude, pos.longitude);
+          final geo =
+              await LocationHelper.reverseGeocode(pos.latitude, pos.longitude);
           if (geo != null &&
               ((geo['governorate']?.isNotEmpty ?? false) ||
                   (geo['region']?.isNotEmpty ?? false))) {
@@ -130,15 +132,21 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     }
 
     // 2. الأولوية الثانية: الموقع الأساسي للمستخدم (currentUser.address)
-    if ((gov == null || gov.isEmpty) && (reg == null || reg.isEmpty) && user?.address != null) {
-      if (user!.address?.governorate != null && user.address!.governorate!.isNotEmpty) {
+    if ((gov == null || gov.isEmpty) &&
+        (reg == null || reg.isEmpty) &&
+        user?.address != null) {
+      if (user!.address?.governorate != null &&
+          user.address!.governorate!.isNotEmpty) {
         gov = user.address!.governorate;
         reg = user.address!.region ?? '';
       }
     }
 
     // 3. الأولوية الثالثة: أحد المواقع المخزنة سابقاً (currentUser.addresses)
-    if ((gov == null || gov.isEmpty) && (reg == null || reg.isEmpty) && user != null && user.addresses.isNotEmpty) {
+    if ((gov == null || gov.isEmpty) &&
+        (reg == null || reg.isEmpty) &&
+        user != null &&
+        user.addresses.isNotEmpty) {
       for (final addr in user.addresses) {
         if (addr.governorate != null && addr.governorate!.isNotEmpty) {
           gov = addr.governorate;
@@ -202,8 +210,13 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         final restGov = (r.address?.governorate ?? '').trim().toLowerCase();
 
         final regionMatch = restReg.isNotEmpty &&
-            (restReg == currentReg || restReg.contains(currentReg) || currentReg.contains(restReg));
-        final govMatch = currentGov != null && currentGov.isNotEmpty && restGov.isNotEmpty && restGov == currentGov;
+            (restReg == currentReg ||
+                restReg.contains(currentReg) ||
+                currentReg.contains(restReg));
+        final govMatch = currentGov != null &&
+            currentGov.isNotEmpty &&
+            restGov.isNotEmpty &&
+            restGov == currentGov;
 
         matchesLocation = regionMatch || govMatch;
       } else if (currentGov != null && currentGov.isNotEmpty) {
@@ -214,7 +227,16 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
       return matchesCategory && matchesSearch && matchesLocation;
     }).toList();
 
-    final activeOrders = Provider.of<OrderProvider>(context).orders
+    if (_sortBy == 'delivery_fee') {
+      filteredRestaurants.sort((a, b) => (a.restaurantInfo?.deliveryFee ?? 0)
+          .compareTo(b.restaurantInfo?.deliveryFee ?? 0));
+    } else if (_sortBy == 'min_order') {
+      filteredRestaurants.sort((a, b) => (a.restaurantInfo?.minOrderAmount ?? 0)
+          .compareTo(b.restaurantInfo?.minOrderAmount ?? 0));
+    }
+
+    final activeOrders = Provider.of<OrderProvider>(context)
+        .orders
         .where((o) => !['delivered', 'cancelled'].contains(o.status))
         .toList();
 
@@ -270,7 +292,8 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                                                 ? 'جاري تحديد موقعك...'
                                                 : _locationSubtitle,
                                             style: TextStyle(
-                                              color: Colors.white.withValues(alpha: 0.8),
+                                              color: Colors.white
+                                                  .withValues(alpha: 0.8),
                                               fontSize: 12,
                                               fontWeight: FontWeight.w400,
                                             ),
@@ -285,18 +308,21 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                               ),
                               _HeaderBtn(
                                 icon: Icons.receipt_long_rounded,
-                                onTap: () => Navigator.pushNamed(context, '/customer-orders'),
+                                onTap: () => Navigator.pushNamed(
+                                    context, '/customer-orders'),
                               ),
                               const SizedBox(width: 8),
                               _HeaderBtn(
                                 icon: Icons.person_outline_rounded,
-                                onTap: () => Navigator.pushNamed(context, '/profile'),
+                                onTap: () =>
+                                    Navigator.pushNamed(context, '/profile'),
                               ),
                             ],
                           ),
                           const Spacer(),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 8),
                             decoration: BoxDecoration(
                               color: Colors.white.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(16),
@@ -304,11 +330,15 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.account_balance_wallet_rounded, color: Colors.white, size: 20),
+                                const Icon(Icons.account_balance_wallet_rounded,
+                                    color: Colors.white, size: 20),
                                 const SizedBox(width: 8),
                                 Text(
                                   'الرصيد: ${auth.currentUser?.balance.toStringAsFixed(0)} ل.س',
-                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14),
                                 ),
                               ],
                             ),
@@ -323,31 +353,57 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                 preferredSize: const Size.fromHeight(56),
                 child: Container(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                  child: TextField(
-                    controller: _searchController,
-                    onChanged: (v) => setState(() => _searchQuery = v),
-                    decoration: InputDecoration(
-                      hintText: 'ابحث عن مطعم...',
-                      hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
-                      prefixIcon: Icon(Icons.search_rounded, color: Colors.grey[400], size: 20),
-                      suffixIcon: _searchQuery.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear_rounded, size: 18),
-                              onPressed: () {
-                                _searchController.clear();
-                                setState(() => _searchQuery = '');
-                              },
-                            )
-                          : null,
-                      filled: true,
-                      fillColor: Theme.of(context).cardColor,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide.none,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _searchController,
+                          onChanged: (v) => setState(() => _searchQuery = v),
+                          decoration: InputDecoration(
+                            hintText: 'ابحث عن مطعم...',
+                            hintStyle: TextStyle(
+                                color: Colors.grey[400], fontSize: 13),
+                            prefixIcon: Icon(Icons.search_rounded,
+                                color: Colors.grey[400], size: 20),
+                            suffixIcon: _searchQuery.isNotEmpty
+                                ? IconButton(
+                                    icon: const Icon(Icons.clear_rounded,
+                                        size: 18),
+                                    onPressed: () {
+                                      _searchController.clear();
+                                      setState(() => _searchQuery = '');
+                                    },
+                                  )
+                                : null,
+                            filled: true,
+                            fillColor: Theme.of(context).cardColor,
+                            contentPadding: const EdgeInsets.symmetric(
+                                vertical: 0, horizontal: 16),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide.none,
+                            ),
+                          ),
+                          style: const TextStyle(fontSize: 13),
+                        ),
                       ),
-                    ),
-                    style: const TextStyle(fontSize: 13),
+                      const SizedBox(width: 8),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).cardColor,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: IconButton(
+                          icon: Icon(Icons.tune_rounded,
+                              color: _sortBy != 'default'
+                                  ? AppTheme.primary
+                                  : Colors.grey[600]),
+                          onPressed: () {
+                            _showFilterSheet(context);
+                          },
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -361,19 +417,26 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => OrderTrackScreen(order: activeOrders.first),
+                        builder: (_) =>
+                            OrderTrackScreen(order: activeOrders.first),
                       ),
                     );
                   },
                   child: Container(
                     margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [Colors.green.shade600, Colors.green.shade400],
                       ),
                       borderRadius: BorderRadius.circular(16),
-                      boxShadow: [BoxShadow(color: Colors.green.withValues(alpha: 0.3), blurRadius: 10, offset: const Offset(0, 4))],
+                      boxShadow: [
+                        BoxShadow(
+                            color: Colors.green.withValues(alpha: 0.3),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4))
+                      ],
                     ),
                     child: Row(
                       children: [
@@ -383,22 +446,31 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                             color: Colors.white.withValues(alpha: 0.2),
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(Icons.delivery_dining_rounded, color: Colors.white, size: 24),
+                          child: const Icon(Icons.delivery_dining_rounded,
+                              color: Colors.white, size: 24),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text('لديك طلب نشط', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                              const Text('لديك طلب نشط',
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14)),
                               Text(
                                 _getStatusText(activeOrders.first.status),
-                                style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 12),
+                                style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.8),
+                                    fontSize: 12),
                               ),
                             ],
                           ),
                         ),
-                        Icon(Icons.arrow_forward_ios_rounded, color: Colors.white.withValues(alpha: 0.7), size: 16),
+                        Icon(Icons.arrow_forward_ios_rounded,
+                            color: Colors.white.withValues(alpha: 0.7),
+                            size: 16),
                       ],
                     ),
                   ),
@@ -411,7 +483,8 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                 height: 50,
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   itemCount: _categories.length,
                   itemBuilder: (ctx, idx) {
                     final cat = _categories[idx];
@@ -422,26 +495,46 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 250),
                         margin: const EdgeInsets.only(left: 8),
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 6),
                         decoration: BoxDecoration(
-                          color: isSelected ? AppTheme.primary : Theme.of(context).cardColor,
+                          color: isSelected
+                              ? AppTheme.primary
+                              : Theme.of(context).cardColor,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: isSelected ? AppTheme.primary : Colors.grey.withValues(alpha: 0.2),
+                            color: isSelected
+                                ? AppTheme.primary
+                                : Colors.grey.withValues(alpha: 0.2),
                           ),
                           boxShadow: isSelected
-                              ? [BoxShadow(color: AppTheme.primary.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 2))]
+                              ? [
+                                  BoxShadow(
+                                      color: AppTheme.primary
+                                          .withValues(alpha: 0.3),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2))
+                                ]
                               : null,
                         ),
                         child: Row(
                           children: [
-                            Icon(cat['icon'] as IconData, size: 16, color: isSelected ? Colors.white : Colors.grey[600]),
+                            Icon(cat['icon'] as IconData,
+                                size: 16,
+                                color: isSelected
+                                    ? Colors.white
+                                    : Colors.grey[600]),
                             const SizedBox(width: 6),
                             Text(
                               name,
                               style: TextStyle(
                                 fontSize: 12,
-                                color: isSelected ? Colors.white : Theme.of(context).textTheme.bodyLarge?.color,
+                                color: isSelected
+                                    ? Colors.white
+                                    : Theme.of(context)
+                                        .textTheme
+                                        .bodyLarge
+                                        ?.color,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -466,12 +559,14 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                         color: AppTheme.primary.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Icon(Icons.store_rounded, color: AppTheme.primary, size: 18),
+                      child: const Icon(Icons.store_rounded,
+                          color: AppTheme.primary, size: 18),
                     ),
                     const SizedBox(width: 10),
                     const Text(
                       'المطاعم المتاحة',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     const Spacer(),
                     if (filteredRestaurants.isNotEmpty)
@@ -499,7 +594,8 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.search_off_rounded, size: 64, color: Colors.grey[300]),
+                      Icon(Icons.search_off_rounded,
+                          size: 64, color: Colors.grey[300]),
                       const SizedBox(height: 16),
                       Text(
                         _searchQuery.isNotEmpty
@@ -528,7 +624,9 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                         info: info,
                         isOpen: isOpen,
                         isDark: isDark,
-                        onTap: () => Navigator.pushNamed(context, '/restaurant-detail', arguments: rest),
+                        onTap: () => Navigator.pushNamed(
+                            context, '/restaurant-detail',
+                            arguments: rest),
                       ),
                     );
                   }, childCount: filteredRestaurants.length),
@@ -543,14 +641,75 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
           return FloatingActionButton.extended(
             onPressed: () => Navigator.pushNamed(context, '/cart'),
             backgroundColor: AppTheme.primary,
-            icon: const Icon(Icons.shopping_cart_rounded, color: Colors.white, size: 20),
+            icon: const Icon(Icons.shopping_cart_rounded,
+                color: Colors.white, size: 20),
             label: Text(
               '${cart.itemCount} • ${cart.grandTotal.toStringAsFixed(0)} ل.س',
-              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 13),
+              style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  fontSize: 13),
             ),
           );
         },
       ),
+    );
+  }
+
+  void _showFilterSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(builder: (context, setModalState) {
+          return Container(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('ترتيب المطاعم (بحث متقدم)',
+                    style:
+                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 20),
+                RadioListTile<String>(
+                  title: const Text('الترتيب الافتراضي'),
+                  value: 'default',
+                  groupValue: _sortBy,
+                  onChanged: (val) {
+                    setModalState(() => _sortBy = val!);
+                    setState(() => _sortBy = val!);
+                    Navigator.pop(context);
+                  },
+                ),
+                RadioListTile<String>(
+                  title: const Text('الأقل أجرة توصيل'),
+                  value: 'delivery_fee',
+                  groupValue: _sortBy,
+                  onChanged: (val) {
+                    setModalState(() => _sortBy = val!);
+                    setState(() => _sortBy = val!);
+                    Navigator.pop(context);
+                  },
+                ),
+                RadioListTile<String>(
+                  title: const Text('الأقل للحد الأدنى للطلب'),
+                  value: 'min_order',
+                  groupValue: _sortBy,
+                  onChanged: (val) {
+                    setModalState(() => _sortBy = val!);
+                    setState(() => _sortBy = val!);
+                    Navigator.pop(context);
+                  },
+                ),
+                const SizedBox(height: 20),
+              ],
+            ),
+          );
+        });
+      },
     );
   }
 }
@@ -569,7 +728,8 @@ class _HeaderBtn extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         onTap: onTap,
         child: Container(
-          width: 40, height: 40,
+          width: 40,
+          height: 40,
           alignment: Alignment.center,
           child: Icon(icon, color: Colors.white, size: 22),
         ),
@@ -614,7 +774,8 @@ class _RestaurantCard extends StatelessWidget {
                     errorBuilder: (c, e, s) => Container(
                       color: isDark ? Colors.grey[800] : Colors.grey[200],
                       child: Center(
-                        child: Icon(Icons.restaurant_rounded, size: 48, color: Colors.grey[400]),
+                        child: Icon(Icons.restaurant_rounded,
+                            size: 48, color: Colors.grey[400]),
                       ),
                     ),
                   ),
@@ -626,7 +787,7 @@ class _RestaurantCard extends StatelessWidget {
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
-                          Colors.black.withValues(alpha: 0.1),
+                          Colors.black.withValues(alpha: 0.2),
                           Colors.transparent,
                           Colors.black.withValues(alpha: 0.5),
                         ],
@@ -634,8 +795,41 @@ class _RestaurantCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                Positioned(top: 10, right: 10, child: _StatusBadge(isOpen: isOpen)),
-                Positioned(bottom: 10, right: 10, child: _CuisineChip(cuisine: info.cuisineType)),
+                Positioned(
+                    top: 10, right: 10, child: _StatusBadge(isOpen: isOpen)),
+                Positioned(
+                    bottom: 10,
+                    right: 10,
+                    child: _CuisineChip(cuisine: info.cuisineType)),
+                Positioned(
+                  top: 8,
+                  left: 8,
+                  child: Consumer<RestaurantProvider>(
+                    builder: (context, restProv, _) {
+                      final isFav = restProv.isFavorite(rest.id);
+                      return Material(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        shape: const CircleBorder(),
+                        clipBehavior: Clip.antiAlias,
+                        child: InkWell(
+                          onTap: () {
+                            restProv.toggleFavorite(rest.id);
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Icon(
+                              isFav
+                                  ? Icons.favorite_rounded
+                                  : Icons.favorite_border_rounded,
+                              color: isFav ? Colors.red : Colors.grey[600],
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
               ],
             ),
             Padding(
@@ -646,7 +840,9 @@ class _RestaurantCard extends StatelessWidget {
                   Row(
                     children: [
                       Expanded(
-                        child: Text(rest.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        child: Text(rest.name,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 16)),
                       ),
                       Text(
                         '${info.deliveryFee.toStringAsFixed(0)} ل.س',
@@ -661,26 +857,33 @@ class _RestaurantCard extends StatelessWidget {
                   const SizedBox(height: 6),
                   Row(
                     children: [
-                      Icon(Icons.location_on_rounded, size: 14, color: Colors.redAccent),
+                      Icon(Icons.location_on_rounded,
+                          size: 14, color: Colors.redAccent),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
                           '${rest.address?.city ?? "دمشق"} - ${rest.address?.street ?? ""}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                          style:
+                              TextStyle(fontSize: 12, color: Colors.grey[600]),
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Icon(Icons.delivery_dining_rounded, size: 14, color: AppTheme.primary),
+                      Icon(Icons.delivery_dining_rounded,
+                          size: 14, color: AppTheme.primary),
                       const SizedBox(width: 4),
                       Text(
                         'توصيل',
-                        style: TextStyle(fontSize: 11, color: AppTheme.primary, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: AppTheme.primary,
+                            fontWeight: FontWeight.bold),
                       ),
                     ],
                   ),
-                  if (info.description != null && info.description!.isNotEmpty) ...[
+                  if (info.description != null &&
+                      info.description!.isNotEmpty) ...[
                     const SizedBox(height: 6),
                     Text(
                       info.description!,
@@ -710,16 +913,20 @@ class _StatusBadge extends StatelessWidget {
       decoration: BoxDecoration(
         color: (isOpen ? Colors.green : Colors.red).withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(20),
-        boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))],
+        boxShadow: const [
+          BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))
+        ],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(isOpen ? Icons.check_circle_rounded : Icons.cancel_rounded, color: Colors.white, size: 12),
+          Icon(isOpen ? Icons.check_circle_rounded : Icons.cancel_rounded,
+              color: Colors.white, size: 12),
           const SizedBox(width: 4),
           Text(
             isOpen ? 'مفتوح' : 'مغلق',
-            style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+            style: const TextStyle(
+                color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
           ),
         ],
       ),
@@ -742,9 +949,14 @@ class _CuisineChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.restaurant_menu_rounded, color: Colors.orangeAccent, size: 13),
+          const Icon(Icons.restaurant_menu_rounded,
+              color: Colors.orangeAccent, size: 13),
           const SizedBox(width: 4),
-          Text(cuisine, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+          Text(cuisine,
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold)),
         ],
       ),
     );
@@ -767,7 +979,8 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
   void initState() {
     super.initState();
     Future.microtask(() {
-      Provider.of<RestaurantProvider>(context, listen: false).loadMenu(widget.restaurant.id);
+      Provider.of<RestaurantProvider>(context, listen: false)
+          .loadMenu(widget.restaurant.id);
     });
   }
 
@@ -778,8 +991,10 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
     final info = widget.restaurant.restaurantInfo!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final availableMenu = restProv.currentMenu.where((p) => p.isAvailable).toList();
-    final categories = availableMenu.map((p) => p.category).toSet().toList()..sort();
+    final availableMenu =
+        restProv.currentMenu.where((p) => p.isAvailable).toList();
+    final categories = availableMenu.map((p) => p.category).toSet().toList()
+      ..sort();
     final filteredMenu = _selectedCategory == null
         ? availableMenu
         : availableMenu.where((p) => p.category == _selectedCategory).toList();
@@ -792,6 +1007,24 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
             expandedHeight: 220,
             pinned: true,
             stretch: true,
+            actions: [
+              Consumer<RestaurantProvider>(
+                builder: (context, restProv, _) {
+                  final isFav = restProv.isFavorite(widget.restaurant.id);
+                  return IconButton(
+                    icon: Icon(
+                      isFav
+                          ? Icons.favorite_rounded
+                          : Icons.favorite_border_rounded,
+                      color: isFav ? Colors.red : Colors.white,
+                    ),
+                    onPressed: () {
+                      restProv.toggleFavorite(widget.restaurant.id);
+                    },
+                  );
+                },
+              ),
+            ],
             flexibleSpace: FlexibleSpaceBar(
               stretchModes: const [StretchMode.zoomBackground],
               background: Stack(
@@ -800,7 +1033,8 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                   Image.network(
                     info.logo,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(color: isDark ? Colors.grey[850] : Colors.grey[200]),
+                    errorBuilder: (_, __, ___) => Container(
+                        color: isDark ? Colors.grey[850] : Colors.grey[200]),
                   ),
                   Container(
                     decoration: BoxDecoration(
@@ -829,7 +1063,9 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                             color: Colors.white,
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
-                            shadows: [Shadow(color: Colors.black54, blurRadius: 6)],
+                            shadows: [
+                              Shadow(color: Colors.black54, blurRadius: 6)
+                            ],
                           ),
                         ),
                         const SizedBox(height: 6),
@@ -842,11 +1078,13 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                             const SizedBox(width: 8),
                             _InfoChip(
                               icon: Icons.motorcycle_rounded,
-                              label: '${info.deliveryFee.toStringAsFixed(0)} ل.س',
+                              label:
+                                  '${info.deliveryFee.toStringAsFixed(0)} ل.س',
                             ),
                             const Spacer(),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 4),
                               decoration: BoxDecoration(
                                 color: info.status == 'open'
                                     ? Colors.green.withValues(alpha: 0.9)
@@ -881,7 +1119,8 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.info_outline_rounded, size: 15, color: Colors.grey[500]),
+                      Icon(Icons.info_outline_rounded,
+                          size: 15, color: Colors.grey[500]),
                       const SizedBox(width: 6),
                       Text(
                         'عن المطعم',
@@ -896,17 +1135,22 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                   const SizedBox(height: 6),
                   Text(
                     info.description ?? 'لا يوجد وصف للمطعم',
-                    style: TextStyle(fontSize: 14, color: isDark ? Colors.grey[300] : Colors.grey[700], height: 1.5),
+                    style: TextStyle(
+                        fontSize: 14,
+                        color: isDark ? Colors.grey[300] : Colors.grey[700],
+                        height: 1.5),
                   ),
                   if (info.openingTime != null || info.closingTime != null) ...[
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        Icon(Icons.access_time_rounded, size: 15, color: Colors.grey[500]),
+                        Icon(Icons.access_time_rounded,
+                            size: 15, color: Colors.grey[500]),
                         const SizedBox(width: 6),
                         Text(
                           '${info.openingTime ?? '--'} - ${info.closingTime ?? '--'}',
-                          style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                          style:
+                              TextStyle(fontSize: 12, color: Colors.grey[500]),
                         ),
                       ],
                     ),
@@ -926,7 +1170,8 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.menu_book_rounded, size: 15, color: Colors.grey[500]),
+                        Icon(Icons.menu_book_rounded,
+                            size: 15, color: Colors.grey[500]),
                         const SizedBox(width: 6),
                         Text(
                           'قائمة المأكولات',
@@ -947,13 +1192,15 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                           _CategoryChip(
                             label: 'الكل',
                             selected: _selectedCategory == null,
-                            onTap: () => setState(() => _selectedCategory = null),
+                            onTap: () =>
+                                setState(() => _selectedCategory = null),
                           ),
                           ...categories.map((cat) => _CategoryChip(
-                            label: cat,
-                            selected: _selectedCategory == cat,
-                            onTap: () => setState(() => _selectedCategory = cat),
-                          )),
+                                label: cat,
+                                selected: _selectedCategory == cat,
+                                onTap: () =>
+                                    setState(() => _selectedCategory = cat),
+                              )),
                         ],
                       ),
                     ),
@@ -968,61 +1215,71 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                   child: Center(child: CircularProgressIndicator()),
                 )
               : filteredMenu.isEmpty
-              ? SliverFillRemaining(
-                  child: Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.restaurant_rounded, size: 64, color: Colors.grey[300]),
-                        const SizedBox(height: 12),
-                        Text('لا توجد وجبات متوفرة حالياً', style: TextStyle(color: Colors.grey[500])),
-                      ],
-                    ),
-                  ),
-                )
-              : SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
-                  sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate((context, index) {
-                      final prod = filteredMenu[index];
-                      final isRestaurantOpen = info.status == 'open';
+                  ? SliverFillRemaining(
+                      child: Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.restaurant_rounded,
+                                size: 64, color: Colors.grey[300]),
+                            const SizedBox(height: 12),
+                            Text('لا توجد وجبات متوفرة حالياً',
+                                style: TextStyle(color: Colors.grey[500])),
+                          ],
+                        ),
+                      ),
+                    )
+                  : SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
+                      sliver: SliverList(
+                        delegate: SliverChildBuilderDelegate((context, index) {
+                          final prod = filteredMenu[index];
+                          final isRestaurantOpen = info.status == 'open';
 
-                      return _MenuItemCard(
-                        product: prod,
-                        isRestaurantOpen: isRestaurantOpen,
-                        deliveryFee: info.deliveryFee,
-                        onAddToCart: () {
-                          if (!isRestaurantOpen) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('المطعم مغلق حالياً ولا يقبل الطلبات')),
-                            );
-                            return;
-                          }
-                          final success = cart.addItem(prod, restaurantDeliveryFee: info.deliveryFee);
-                          if (!mounted) return;
-                          if (success) {
-                            ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('تمت إضافة "${prod.name}" إلى السلة'),
-                                duration: const Duration(seconds: 2),
-                                action: SnackBarAction(
-                                  label: 'السلة',
-                                  textColor: Colors.amber,
-                                  onPressed: () => Navigator.pushNamed(context, '/cart'),
-                                ),
-                              ),
-                            );
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('لا يمكنك إضافة منتجات من مطاعم مختلفة إلى نفس السلة. يرجى إفراغ السلة أولاً.')),
-                            );
-                          }
-                        },
-                      );
-                    }, childCount: filteredMenu.length),
-                  ),
-                ),
+                          return _MenuItemCard(
+                            product: prod,
+                            isRestaurantOpen: isRestaurantOpen,
+                            deliveryFee: info.deliveryFee,
+                            onAddToCart: () {
+                              if (!isRestaurantOpen) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                      content: Text(
+                                          'المطعم مغلق حالياً ولا يقبل الطلبات')),
+                                );
+                                return;
+                              }
+                              final success = cart.addItem(prod,
+                                  restaurantDeliveryFee: info.deliveryFee);
+                              if (!mounted) return;
+                              if (success) {
+                                ScaffoldMessenger.of(context)
+                                    .hideCurrentSnackBar();
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                        'تمت إضافة "${prod.name}" إلى السلة'),
+                                    duration: const Duration(seconds: 2),
+                                    action: SnackBarAction(
+                                      label: 'السلة',
+                                      textColor: Colors.amber,
+                                      onPressed: () =>
+                                          Navigator.pushNamed(context, '/cart'),
+                                    ),
+                                  ),
+                                );
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                      content: Text(
+                                          'لا يمكنك إضافة منتجات من مطاعم مختلفة إلى نفس السلة. يرجى إفراغ السلة أولاً.')),
+                                );
+                              }
+                            },
+                          );
+                        }, childCount: filteredMenu.length),
+                      ),
+                    ),
         ],
       ),
     );
@@ -1049,7 +1306,8 @@ class _InfoChip extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             label,
-            style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+            style: const TextStyle(
+                color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
           ),
         ],
       ),
@@ -1061,7 +1319,8 @@ class _CategoryChip extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
-  const _CategoryChip({required this.label, required this.selected, required this.onTap});
+  const _CategoryChip(
+      {required this.label, required this.selected, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -1116,7 +1375,10 @@ class _MenuItemCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         color: Theme.of(context).cardColor,
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 10,
+              offset: const Offset(0, 4)),
         ],
       ),
       child: IntrinsicHeight(
@@ -1124,7 +1386,8 @@ class _MenuItemCard extends StatelessWidget {
           children: [
             // Image
             ClipRRect(
-              borderRadius: const BorderRadius.horizontal(left: Radius.circular(18)),
+              borderRadius:
+                  const BorderRadius.horizontal(left: Radius.circular(18)),
               child: SizedBox(
                 width: 130,
                 child: Stack(
@@ -1135,7 +1398,8 @@ class _MenuItemCard extends StatelessWidget {
                       fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) => Container(
                         color: Colors.grey[850],
-                        child: const Icon(Icons.fastfood_rounded, size: 40, color: Colors.white24),
+                        child: const Icon(Icons.fastfood_rounded,
+                            size: 40, color: Colors.white24),
                       ),
                     ),
                     Container(
@@ -1154,7 +1418,8 @@ class _MenuItemCard extends StatelessWidget {
                       bottom: 8,
                       left: 8,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
                           color: AppTheme.primary,
                           borderRadius: BorderRadius.circular(12),
@@ -1185,15 +1450,18 @@ class _MenuItemCard extends StatelessWidget {
                       prod.name,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                          fontSize: 14, fontWeight: FontWeight.bold),
                     ),
-                    if (prod.description != null && prod.description!.isNotEmpty) ...[
+                    if (prod.description != null &&
+                        prod.description!.isNotEmpty) ...[
                       const SizedBox(height: 4),
                       Text(
                         prod.description!,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 12, color: Colors.grey[500], height: 1.3),
+                        style: TextStyle(
+                            fontSize: 12, color: Colors.grey[500], height: 1.3),
                       ),
                     ],
                     const Spacer(),
@@ -1201,7 +1469,8 @@ class _MenuItemCard extends StatelessWidget {
                       children: [
                         Text(
                           prod.category,
-                          style: TextStyle(fontSize: 10, color: Colors.grey[400]),
+                          style:
+                              TextStyle(fontSize: 10, color: Colors.grey[400]),
                         ),
                         const Spacer(),
                         Material(
@@ -1210,7 +1479,8 @@ class _MenuItemCard extends StatelessWidget {
                             borderRadius: BorderRadius.circular(20),
                             onTap: isRestaurantOpen ? onAddToCart : null,
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 6),
                               decoration: BoxDecoration(
                                 color: isRestaurantOpen
                                     ? AppTheme.primary.withValues(alpha: 0.12)
@@ -1223,7 +1493,9 @@ class _MenuItemCard extends StatelessWidget {
                                   Icon(
                                     Icons.add_shopping_cart_rounded,
                                     size: 14,
-                                    color: isRestaurantOpen ? AppTheme.primary : Colors.grey[500],
+                                    color: isRestaurantOpen
+                                        ? AppTheme.primary
+                                        : Colors.grey[500],
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
@@ -1231,7 +1503,9 @@ class _MenuItemCard extends StatelessWidget {
                                     style: TextStyle(
                                       fontSize: 11,
                                       fontWeight: FontWeight.bold,
-                                      color: isRestaurantOpen ? AppTheme.primary : Colors.grey[500],
+                                      color: isRestaurantOpen
+                                          ? AppTheme.primary
+                                          : Colors.grey[500],
                                     ),
                                   ),
                                 ],
@@ -1272,6 +1546,11 @@ class _CartScreenState extends State<CartScreen> {
 
   final ImagePicker _picker = ImagePicker();
   String _paymentMethod = 'cash';
+
+  final _promoController = TextEditingController();
+  String? _appliedPromoCode;
+  double _discountAmount = 0.0;
+  bool _isValidatingPromo = false;
 
   @override
   void initState() {
@@ -1418,7 +1697,8 @@ class _CartScreenState extends State<CartScreen> {
                           padding: EdgeInsets.fromLTRB(4, 12, 4, 8),
                           child: Row(
                             children: [
-                              Icon(Icons.shopping_bag_rounded, size: 16, color: AppTheme.primary),
+                              Icon(Icons.shopping_bag_rounded,
+                                  size: 16, color: AppTheme.primary),
                               SizedBox(width: 6),
                               Text(
                                 'المنتجات المطلوبة',
@@ -1446,14 +1726,16 @@ class _CartScreenState extends State<CartScreen> {
                               ],
                             ),
                             child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 10),
                               child: Row(
                                 children: [
                                   Container(
                                     width: 42,
                                     height: 42,
                                     decoration: BoxDecoration(
-                                      color: AppTheme.primary.withValues(alpha: 0.1),
+                                      color: AppTheme.primary
+                                          .withValues(alpha: 0.1),
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     alignment: Alignment.center,
@@ -1470,11 +1752,14 @@ class _CartScreenState extends State<CartScreen> {
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           item.product.name,
-                                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13),
                                         ),
                                         const SizedBox(height: 2),
                                         Text(
@@ -1491,7 +1776,8 @@ class _CartScreenState extends State<CartScreen> {
                                   ),
                                   Container(
                                     decoration: BoxDecoration(
-                                      color: Theme.of(context).brightness == Brightness.dark
+                                      color: Theme.of(context).brightness ==
+                                              Brightness.dark
                                           ? Colors.grey[800]
                                           : Colors.grey[100],
                                       borderRadius: BorderRadius.circular(10),
@@ -1500,15 +1786,19 @@ class _CartScreenState extends State<CartScreen> {
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         InkWell(
-                                          onTap: () => cart.removeItem(item.product.id),
-                                          borderRadius: BorderRadius.circular(10),
+                                          onTap: () =>
+                                              cart.removeItem(item.product.id),
+                                          borderRadius:
+                                              BorderRadius.circular(10),
                                           child: const Padding(
                                             padding: EdgeInsets.all(8),
-                                            child: Icon(Icons.remove, size: 16, color: Colors.grey),
+                                            child: Icon(Icons.remove,
+                                                size: 16, color: Colors.grey),
                                           ),
                                         ),
                                         Padding(
-                                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 6),
                                           child: Text(
                                             '${item.quantity}',
                                             style: const TextStyle(
@@ -1520,17 +1810,24 @@ class _CartScreenState extends State<CartScreen> {
                                         ),
                                         InkWell(
                                           onTap: () {
-                                            final success = cart.addItem(item.product);
+                                            final success =
+                                                cart.addItem(item.product);
                                             if (!success) {
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                const SnackBar(content: Text('لا يمكنك إضافة منتجات من مطاعم مختلفة إلى نفس السلة.')),
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(
+                                                const SnackBar(
+                                                    content: Text(
+                                                        'لا يمكنك إضافة منتجات من مطاعم مختلفة إلى نفس السلة.')),
                                               );
                                             }
                                           },
-                                          borderRadius: BorderRadius.circular(10),
+                                          borderRadius:
+                                              BorderRadius.circular(10),
                                           child: const Padding(
                                             padding: EdgeInsets.all(8),
-                                            child: Icon(Icons.add, size: 16, color: AppTheme.primary),
+                                            child: Icon(Icons.add,
+                                                size: 16,
+                                                color: AppTheme.primary),
                                           ),
                                         ),
                                       ],
@@ -1578,8 +1875,7 @@ class _CartScreenState extends State<CartScreen> {
                                 Container(
                                   padding: const EdgeInsets.all(3),
                                   decoration: BoxDecoration(
-                                    color:
-                                        Theme.of(context).brightness ==
+                                    color: Theme.of(context).brightness ==
                                             Brightness.dark
                                         ? Colors.grey.shade800
                                         : Colors.grey.shade200,
@@ -1613,8 +1909,8 @@ class _CartScreenState extends State<CartScreen> {
                                                       BoxShadow(
                                                         color: Colors.black
                                                             .withValues(
-                                                              alpha: 0.08,
-                                                            ),
+                                                          alpha: 0.08,
+                                                        ),
                                                         blurRadius: 4,
                                                       ),
                                                     ]
@@ -1674,8 +1970,8 @@ class _CartScreenState extends State<CartScreen> {
                                                       BoxShadow(
                                                         color: Colors.black
                                                             .withValues(
-                                                              alpha: 0.08,
-                                                            ),
+                                                          alpha: 0.08,
+                                                        ),
                                                         blurRadius: 4,
                                                       ),
                                                     ]
@@ -1724,9 +2020,9 @@ class _CartScreenState extends State<CartScreen> {
                                       decoration: InputDecoration(
                                         contentPadding:
                                             const EdgeInsets.symmetric(
-                                              horizontal: 12,
-                                              vertical: 10,
-                                            ),
+                                          horizontal: 12,
+                                          vertical: 10,
+                                        ),
                                         labelText: 'اختر موقعك التوصيل',
                                         labelStyle: const TextStyle(
                                           fontSize: 12,
@@ -1846,9 +2142,9 @@ class _CartScreenState extends State<CartScreen> {
                                           decoration: InputDecoration(
                                             contentPadding:
                                                 const EdgeInsets.symmetric(
-                                                  horizontal: 12,
-                                                  vertical: 8,
-                                                ),
+                                              horizontal: 12,
+                                              vertical: 8,
+                                            ),
                                             labelText:
                                                 'اسم الموقع (مثال: بيتي)',
                                             labelStyle: const TextStyle(
@@ -2034,7 +2330,8 @@ class _CartScreenState extends State<CartScreen> {
                   padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
                   decoration: BoxDecoration(
                     color: Theme.of(context).cardColor,
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                    borderRadius:
+                        const BorderRadius.vertical(top: Radius.circular(20)),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.08),
@@ -2048,33 +2345,65 @@ class _CartScreenState extends State<CartScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        _buildPromoCodeField(orderProv, cart),
+                        const SizedBox(height: 12),
                         Row(
                           children: [
-                            Text('المجموع الفرعي', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                            Text('المجموع الفرعي',
+                                style: TextStyle(
+                                    fontSize: 12, color: Colors.grey[600])),
                             const Spacer(),
                             Text(
                               '${cart.totalAmount.toStringAsFixed(0)} ل.س',
-                              style: const TextStyle(fontFamily: 'Outfit', fontSize: 12, fontWeight: FontWeight.w600),
+                              style: const TextStyle(
+                                  fontFamily: 'Outfit',
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600),
                             ),
                           ],
                         ),
                         const SizedBox(height: 4),
                         Row(
                           children: [
-                            Text('رسوم التوصيل', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                            Text('رسوم التوصيل',
+                                style: TextStyle(
+                                    fontSize: 12, color: Colors.grey[600])),
                             const Spacer(),
                             Row(
                               children: [
-                                Icon(Icons.motorcycle_rounded, size: 13, color: Colors.grey[400]),
+                                Icon(Icons.motorcycle_rounded,
+                                    size: 13, color: Colors.grey[400]),
                                 const SizedBox(width: 4),
                                 Text(
                                   '+${cart.deliveryFee.toStringAsFixed(0)} ل.س',
-                                  style: const TextStyle(fontFamily: 'Outfit', fontSize: 12, fontWeight: FontWeight.w600),
+                                  style: const TextStyle(
+                                      fontFamily: 'Outfit',
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600),
                                 ),
                               ],
                             ),
                           ],
                         ),
+                        if (_discountAmount > 0) ...[
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Text('الخصم ($_appliedPromoCode)',
+                                  style: TextStyle(
+                                      fontSize: 12, color: Colors.grey[600])),
+                              const Spacer(),
+                              Text(
+                                '-${_discountAmount.toStringAsFixed(0)} ل.س',
+                                style: const TextStyle(
+                                    fontFamily: 'Outfit',
+                                    fontSize: 12,
+                                    color: Colors.green,
+                                    fontWeight: FontWeight.w600),
+                              ),
+                            ],
+                          ),
+                        ],
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           child: Divider(color: Colors.grey[300], height: 1),
@@ -2083,11 +2412,12 @@ class _CartScreenState extends State<CartScreen> {
                           children: [
                             const Text(
                               'المجموع الكلي',
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 14),
                             ),
                             const Spacer(),
                             Text(
-                              '${cart.grandTotal.toStringAsFixed(0)} ل.س',
+                              '${(cart.grandTotal - _discountAmount > 0 ? cart.grandTotal - _discountAmount : 0).toStringAsFixed(0)} ل.س',
                               style: const TextStyle(
                                 fontFamily: 'Outfit',
                                 fontSize: 17,
@@ -2113,10 +2443,13 @@ class _CartScreenState extends State<CartScreen> {
                                     ),
                                   ),
                                   onPressed: () => _checkout(cart, orderProv),
-                                  icon: const Icon(Icons.shopping_bag_rounded, size: 20),
+                                  icon: const Icon(Icons.shopping_bag_rounded,
+                                      size: 20),
                                   label: const Text(
                                     'تأكيد الطلب',
-                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 15),
                                   ),
                                 ),
                         ),
@@ -2150,9 +2483,8 @@ class _CartScreenState extends State<CartScreen> {
         );
         return;
       }
-      final label = _saveToProfile
-          ? _addressLabelController.text.trim()
-          : 'موقع GPS';
+      final label =
+          _saveToProfile ? _addressLabelController.text.trim() : 'موقع GPS';
       if (_saveToProfile && label.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('يرجى كتابة اسم للموقع (مثال: بيتي)')),
@@ -2243,6 +2575,76 @@ class _CartScreenState extends State<CartScreen> {
       ),
     );
   }
+
+  Widget _buildPromoCodeField(OrderProvider orderProv, CartProvider cart) {
+    return Row(
+      children: [
+        Expanded(
+          child: SizedBox(
+            height: 40,
+            child: TextField(
+              controller: _promoController,
+              decoration: InputDecoration(
+                hintText: 'أدخل كود الخصم',
+                hintStyle: const TextStyle(fontSize: 12),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        SizedBox(
+          height: 40,
+          child: ElevatedButton(
+            onPressed: _isValidatingPromo
+                ? null
+                : () async {
+                    if (_promoController.text.trim().isEmpty) return;
+                    setState(() => _isValidatingPromo = true);
+                    final promo = await orderProv.validatePromoCode(_promoController.text.trim());
+                    setState(() => _isValidatingPromo = false);
+
+                    if (promo != null) {
+                      setState(() {
+                        _appliedPromoCode = promo['code'];
+                        if (promo['discountType'] == 'percentage') {
+                          _discountAmount = (cart.totalAmount * (promo['discountValue'] / 100));
+                        } else {
+                          _discountAmount = promo['discountValue'].toDouble();
+                        }
+                      });
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('تم تطبيق كود الخصم بنجاح!')),
+                      );
+                    } else {
+                      setState(() {
+                        _appliedPromoCode = null;
+                        _discountAmount = 0.0;
+                      });
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('كود الخصم غير صحيح أو منتهي الصلاحية')),
+                      );
+                    }
+                  },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: _isValidatingPromo
+                ? const SizedBox(
+                    width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                : const Text('تطبيق', style: TextStyle(fontSize: 12)),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class CustomerOrdersScreen extends StatefulWidget {
@@ -2252,7 +2654,8 @@ class CustomerOrdersScreen extends StatefulWidget {
   _CustomerOrdersScreenState createState() => _CustomerOrdersScreenState();
 }
 
-class _CustomerOrdersScreenState extends State<CustomerOrdersScreen> with SingleTickerProviderStateMixin {
+class _CustomerOrdersScreenState extends State<CustomerOrdersScreen>
+    with SingleTickerProviderStateMixin {
   Timer? _pollingTimer;
   late TabController _tabController;
 
@@ -2271,9 +2674,13 @@ class _CustomerOrdersScreenState extends State<CustomerOrdersScreen> with Single
     });
 
     _pollingTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
-      if (!mounted) { timer.cancel(); return; }
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
       final orderProv = Provider.of<OrderProvider>(context, listen: false);
-      final hasActive = orderProv.orders.any((o) => !['delivered', 'cancelled'].contains(o.status));
+      final hasActive = orderProv.orders
+          .any((o) => !['delivered', 'cancelled'].contains(o.status));
       if (hasActive) orderProv.loadOrders();
     });
   }
@@ -2288,7 +2695,9 @@ class _CustomerOrdersScreenState extends State<CustomerOrdersScreen> with Single
   List<model.Order> _filteredOrders(List<model.Order> orders, String? filter) {
     if (filter == null) return orders;
     if (filter == 'active') {
-      return orders.where((o) => !['delivered', 'cancelled'].contains(o.status)).toList();
+      return orders
+          .where((o) => !['delivered', 'cancelled'].contains(o.status))
+          .toList();
     }
     if (filter == 'delivered') {
       return orders.where((o) => o.status == 'delivered').toList();
@@ -2302,7 +2711,8 @@ class _CustomerOrdersScreenState extends State<CustomerOrdersScreen> with Single
   @override
   Widget build(BuildContext context) {
     final orderProv = Provider.of<OrderProvider>(context);
-    final filtered = _filteredOrders(orderProv.orders, _tabFilters[_tabController.index]);
+    final filtered =
+        _filteredOrders(orderProv.orders, _tabFilters[_tabController.index]);
 
     return Scaffold(
       appBar: AppBar(
@@ -2314,73 +2724,169 @@ class _CustomerOrdersScreenState extends State<CustomerOrdersScreen> with Single
           indicatorColor: AppTheme.primary,
           labelColor: AppTheme.primary,
           unselectedLabelColor: Colors.grey,
-          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+          labelStyle:
+              const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
           tabs: _tabLabels.map((l) => Tab(text: l)).toList(),
         ),
       ),
       body: orderProv.isLoading && orderProv.orders.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : filtered.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.receipt_long_rounded, size: 64, color: Colors.grey[300]),
-                  const SizedBox(height: 16),
-                  Text(
-                    _tabController.index == 0
-                        ? 'لا توجد طلبات بعد'
-                        : _tabController.index == 1
-                            ? 'لا توجد طلبات نشطة'
-                            : _tabController.index == 2
-                                ? 'لا توجد طلبات مكتملة'
-                                : 'لا توجد طلبات ملغية',
-                    style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.receipt_long_rounded,
+                          size: 64, color: Colors.grey[300]),
+                      const SizedBox(height: 16),
+                      Text(
+                        _tabController.index == 0
+                            ? 'لا توجد طلبات بعد'
+                            : _tabController.index == 1
+                                ? 'لا توجد طلبات نشطة'
+                                : _tabController.index == 2
+                                    ? 'لا توجد طلبات مكتملة'
+                                    : 'لا توجد طلبات ملغية',
+                        style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            )
-          : RefreshIndicator(
-              onRefresh: () => orderProv.loadOrders(),
-              child: ListView.builder(
-                itemCount: filtered.length,
-                padding: const EdgeInsets.all(16),
-                itemBuilder: (ctx, idx) {
-                  final order = filtered[idx];
-                  final statusColor = _getStatusColor(order.status);
-                  final statusIcon = _getStatusIcon(order.status);
-                  final progress = _orderProgress(order.status);
+                )
+              : RefreshIndicator(
+                  onRefresh: () => orderProv.loadOrders(),
+                  child: ListView.builder(
+                    itemCount: filtered.length,
+                    padding: const EdgeInsets.all(16),
+                    itemBuilder: (ctx, idx) {
+                      final order = filtered[idx];
+                      final statusColor = _getStatusColor(order.status);
+                      final statusIcon = _getStatusIcon(order.status);
+                      final progress = _orderProgress(order.status);
 
-                  return _OrderCard(
-                    order: order,
-                    statusColor: statusColor,
-                    statusIcon: statusIcon,
-                    progress: progress,
-                    onTap: () {
-                      Navigator.push(context, MaterialPageRoute(
-                        builder: (_) => OrderTrackScreen(order: order),
-                      ));
+                      return _OrderCard(
+                        order: order,
+                        statusColor: statusColor,
+                        statusIcon: statusIcon,
+                        progress: progress,
+                        onTap: () {
+                          Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => OrderTrackScreen(order: order),
+                              ));
+                        },
+                        onRate: () => _showRatingDialog(context, order, orderProv),
+                      );
                     },
-                  );
-                },
-              ),
-            ),
+                  ),
+                ),
     );
   }
 
   double _orderProgress(String status) {
     switch (status) {
-      case 'pending': return 0.1;
-      case 'restaurant_accepted': return 0.25;
-      case 'preparing': return 0.4;
-      case 'ready': return 0.55;
-      case 'delivery_accepted': return 0.7;
-      case 'onTheWay': return 0.85;
-      case 'delivered_pending': return 0.95;
-      case 'delivered': return 1.0;
-      case 'cancelled': return 0.0;
-      default: return 0.0;
+      case 'pending':
+        return 0.1;
+      case 'restaurant_accepted':
+        return 0.25;
+      case 'preparing':
+        return 0.4;
+      case 'ready':
+        return 0.55;
+      case 'delivery_accepted':
+        return 0.7;
+      case 'onTheWay':
+        return 0.85;
+      case 'delivered_pending':
+        return 0.95;
+      case 'delivered':
+        return 1.0;
+      case 'cancelled':
+        return 0.0;
+      default:
+        return 0.0;
     }
+  }
+
+  void _showRatingDialog(BuildContext context, model.Order order, OrderProvider orderProv) {
+    int _rating = 5;
+    final _reviewController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: const Text('تقييم الطلب', textAlign: TextAlign.center),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('ما هو تقييمك لجودة الطلب والتوصيل؟'),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(5, (index) {
+                      return IconButton(
+                        icon: Icon(
+                          index < _rating ? Icons.star_rounded : Icons.star_border_rounded,
+                          color: Colors.amber,
+                          size: 36,
+                        ),
+                        onPressed: () {
+                          setDialogState(() {
+                            _rating = index + 1;
+                          });
+                        },
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _reviewController,
+                    maxLines: 3,
+                    decoration: InputDecoration(
+                      hintText: 'اكتب رأيك (اختياري)',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  )
+                ],
+              ),
+              actionsAlignment: MainAxisAlignment.center,
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('إلغاء'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    final err = await orderProv.rateOrder(order.id, _rating, _reviewController.text.trim());
+                    if (!mounted) return;
+                    if (err == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('شكراً لتقييمك!')),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(err)),
+                      );
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: const Text('إرسال التقييم'),
+                )
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 }
 
@@ -2390,6 +2896,7 @@ class _OrderCard extends StatelessWidget {
   final IconData statusIcon;
   final double progress;
   final VoidCallback onTap;
+  final VoidCallback? onRate;
 
   const _OrderCard({
     required this.order,
@@ -2397,6 +2904,7 @@ class _OrderCard extends StatelessWidget {
     required this.statusIcon,
     required this.progress,
     required this.onTap,
+    this.onRate,
   });
 
   @override
@@ -2409,9 +2917,13 @@ class _OrderCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         color: Theme.of(context).cardColor,
         boxShadow: [
-          BoxShadow(color: statusColor.withValues(alpha: 0.08), blurRadius: 12, offset: const Offset(0, 4)),
+          BoxShadow(
+              color: statusColor.withValues(alpha: 0.08),
+              blurRadius: 12,
+              offset: const Offset(0, 4)),
         ],
-        border: Border.all(color: statusColor.withValues(alpha: 0.15), width: 1.2),
+        border:
+            Border.all(color: statusColor.withValues(alpha: 0.15), width: 1.2),
       ),
       child: Material(
         color: Colors.transparent,
@@ -2427,20 +2939,27 @@ class _OrderCard extends StatelessWidget {
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
                         color: AppTheme.primary.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
                         '#${order.id.substring(order.id.length - 6)}',
-                        style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primary, fontSize: 12),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.primary,
+                            fontSize: 12),
                       ),
                     ),
                     const Spacer(),
                     Text(
                       '${order.totalAmount.toStringAsFixed(0)} ل.س',
-                      style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primary, fontSize: 15),
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.primary,
+                          fontSize: 15),
                     ),
                   ],
                 ),
@@ -2452,22 +2971,28 @@ class _OrderCard extends StatelessWidget {
                     child: LinearProgressIndicator(
                       value: progress,
                       minHeight: 5,
-                      backgroundColor: isDark ? Colors.grey[800] : Colors.grey[200],
+                      backgroundColor:
+                          isDark ? Colors.grey[800] : Colors.grey[200],
                       valueColor: AlwaysStoppedAnimation<Color>(statusColor),
                     ),
                   ),
                 const SizedBox(height: 10),
                 Text(
-                  order.items.map((it) => '${it.name} ×${it.quantity}').join(' • '),
+                  order.items
+                      .map((it) => '${it.name} ×${it.quantity}')
+                      .join(' • '),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 13, color: isDark ? Colors.grey[400] : Colors.grey[600]),
+                  style: TextStyle(
+                      fontSize: 13,
+                      color: isDark ? Colors.grey[400] : Colors.grey[600]),
                 ),
                 const SizedBox(height: 10),
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
                         color: statusColor.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(20),
@@ -2481,15 +3006,49 @@ class _OrderCard extends StatelessWidget {
                             order.status == 'delivered'
                                 ? 'تم التوصيل'
                                 : _getStatusText(order.status),
-                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: statusColor),
+                            style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: statusColor),
                           ),
                         ],
                       ),
                     ),
                     const Spacer(),
-                    Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey[400]),
+                    Icon(Icons.arrow_forward_ios_rounded,
+                        size: 14, color: Colors.grey[400]),
                   ],
                 ),
+                if (order.status == 'delivered' && order.rating == null && onRate != null) ...[
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: onRate,
+                      icon: const Icon(Icons.star_border_rounded, size: 18),
+                      label: const Text('قيم الطلب'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppTheme.accent,
+                        side: const BorderSide(color: AppTheme.accent),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                  )
+                ] else if (order.status == 'delivered' && order.rating != null) ...[
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      const Text('تقييمك: ', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                      ...List.generate(5, (index) {
+                        return Icon(
+                          index < order.rating! ? Icons.star_rounded : Icons.star_border_rounded,
+                          color: Colors.amber,
+                          size: 16,
+                        );
+                      }),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
@@ -2497,54 +3056,83 @@ class _OrderCard extends StatelessWidget {
       ),
     );
   }
-
 }
 
 String _getStatusText(String status) {
   switch (status) {
-    case 'pending': return 'قيد الانتظار';
+    case 'pending':
+      return 'قيد الانتظار';
     case 'accepted':
-    case 'restaurant_accepted': return 'تم قبول الطلب من المطعم';
-    case 'delivery_accepted': return 'تم قبول التوصيل من السائق';
-    case 'preparing': return 'يتم التحضير بالمطعم';
-    case 'ready': return 'جاهز للتوصيل وانتظار السائق';
-    case 'onTheWay': return 'السائق في الطريق إليك';
-    case 'delivered_pending': return 'وصل السائق وبانتظار تأكيدك';
-    case 'delivered': return 'تم التوصيل بنجاح';
-    case 'cancelled': return 'تم الإلغاء';
-    default: return status;
+    case 'restaurant_accepted':
+      return 'تم قبول الطلب من المطعم';
+    case 'delivery_accepted':
+      return 'تم قبول التوصيل من السائق';
+    case 'preparing':
+      return 'يتم التحضير بالمطعم';
+    case 'ready':
+      return 'جاهز للتوصيل وانتظار السائق';
+    case 'onTheWay':
+      return 'السائق في الطريق إليك';
+    case 'delivered_pending':
+      return 'وصل السائق وبانتظار تأكيدك';
+    case 'delivered':
+      return 'تم التوصيل بنجاح';
+    case 'cancelled':
+      return 'تم الإلغاء';
+    default:
+      return status;
   }
 }
 
 Color _getStatusColor(String status) {
   switch (status) {
-    case 'pending': return Colors.orange;
+    case 'pending':
+      return Colors.orange;
     case 'accepted':
-    case 'restaurant_accepted': return AppTheme.primary;
-    case 'delivery_accepted': return Colors.blue;
-    case 'preparing': return AppTheme.warning;
-    case 'ready': return AppTheme.accent;
-    case 'onTheWay': return Colors.blue;
-    case 'delivered_pending': return AppTheme.warning;
-    case 'delivered': return Colors.green;
-    case 'cancelled': return Colors.red;
-    default: return Colors.grey;
+    case 'restaurant_accepted':
+      return AppTheme.primary;
+    case 'delivery_accepted':
+      return Colors.blue;
+    case 'preparing':
+      return AppTheme.warning;
+    case 'ready':
+      return AppTheme.accent;
+    case 'onTheWay':
+      return Colors.blue;
+    case 'delivered_pending':
+      return AppTheme.warning;
+    case 'delivered':
+      return Colors.green;
+    case 'cancelled':
+      return Colors.red;
+    default:
+      return Colors.grey;
   }
 }
 
 IconData _getStatusIcon(String status) {
   switch (status) {
-    case 'pending': return Icons.schedule_rounded;
+    case 'pending':
+      return Icons.schedule_rounded;
     case 'accepted':
-    case 'restaurant_accepted': return Icons.restaurant_rounded;
-    case 'delivery_accepted': return Icons.delivery_dining_rounded;
-    case 'preparing': return Icons.soup_kitchen_rounded;
-    case 'ready': return Icons.takeout_dining_rounded;
-    case 'onTheWay': return Icons.directions_car_rounded;
-    case 'delivered_pending': return Icons.handshake_rounded;
-    case 'delivered': return Icons.check_circle_rounded;
-    case 'cancelled': return Icons.cancel_rounded;
-    default: return Icons.info_outline_rounded;
+    case 'restaurant_accepted':
+      return Icons.restaurant_rounded;
+    case 'delivery_accepted':
+      return Icons.delivery_dining_rounded;
+    case 'preparing':
+      return Icons.soup_kitchen_rounded;
+    case 'ready':
+      return Icons.takeout_dining_rounded;
+    case 'onTheWay':
+      return Icons.directions_car_rounded;
+    case 'delivered_pending':
+      return Icons.handshake_rounded;
+    case 'delivered':
+      return Icons.check_circle_rounded;
+    case 'cancelled':
+      return Icons.cancel_rounded;
+    default:
+      return Icons.info_outline_rounded;
   }
 }
 
@@ -2605,9 +3193,8 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
       final orderProv = Provider.of<OrderProvider>(context, listen: false);
       await orderProv.loadOrders();
       if (!mounted) return;
-      final match = orderProv.orders
-          .where((o) => o.id == _currentOrder.id)
-          .toList();
+      final match =
+          orderProv.orders.where((o) => o.id == _currentOrder.id).toList();
       if (match.isNotEmpty && match.first.status != _currentOrder.status) {
         setState(() {
           _currentOrder = match.first;
@@ -2620,9 +3207,8 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
   void _onOrderProviderChange() {
     if (!mounted) return;
     final orderProv = Provider.of<OrderProvider>(context, listen: false);
-    final match = orderProv.orders
-        .where((o) => o.id == _currentOrder.id)
-        .toList();
+    final match =
+        orderProv.orders.where((o) => o.id == _currentOrder.id).toList();
     if (match.isNotEmpty && match.first.status != _currentOrder.status) {
       setState(() {
         _currentOrder = match.first;
@@ -2697,7 +3283,8 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
           _hasAutoFitted = true;
           try {
             final bounds = LatLngBounds.fromPoints(_routePoints);
-            _mapController.fitCamera(CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(80)));
+            _mapController.fitCamera(CameraFit.bounds(
+                bounds: bounds, padding: const EdgeInsets.all(80)));
           } catch (_) {}
         }
       });
@@ -2728,14 +3315,12 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
       double? lat;
       double? lng;
       if (loc is Map) {
-        lat =
-            (loc['lat'] ??
-                    (loc['coordinates'] is List ? loc['coordinates'][1] : null))
-                ?.toDouble();
-        lng =
-            (loc['lng'] ??
-                    (loc['coordinates'] is List ? loc['coordinates'][0] : null))
-                ?.toDouble();
+        lat = (loc['lat'] ??
+                (loc['coordinates'] is List ? loc['coordinates'][1] : null))
+            ?.toDouble();
+        lng = (loc['lng'] ??
+                (loc['coordinates'] is List ? loc['coordinates'][0] : null))
+            ?.toDouble();
       }
       if (lat != null && lng != null) {
         if (lat == 0.0 && lng == 0.0) return;
@@ -2747,18 +3332,16 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
 
   void _handleOrderStatusChange(dynamic data) {
     if (!mounted) return;
-    final orderId = data != null
-        ? (data['orderId'] ?? data['_id'] ?? data['id'])
-        : null;
+    final orderId =
+        data != null ? (data['orderId'] ?? data['_id'] ?? data['id']) : null;
     final status = data != null ? data['status'] : null;
 
     if (orderId == null || orderId.toString() == _currentOrder.id.toString()) {
       final orderProv = Provider.of<OrderProvider>(context, listen: false);
       orderProv.loadOrders().then((_) {
         if (!mounted) return;
-        final updatedList = orderProv.orders
-            .where((o) => o.id == _currentOrder.id)
-            .toList();
+        final updatedList =
+            orderProv.orders.where((o) => o.id == _currentOrder.id).toList();
         if (updatedList.isNotEmpty) {
           setState(() {
             _currentOrder = updatedList.first;
@@ -2806,8 +3389,7 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
   }
 
   Future<void> _fetchRoute() async {
-    final hasDriver =
-        [
+    final hasDriver = [
           'delivery_accepted',
           'preparing',
           'ready',
@@ -2828,15 +3410,13 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
       ].contains(_currentOrder.status)) {
         destination = _restaurantLatLng ?? const LatLng(33.5138, 36.2765);
       } else {
-        destination =
-            _customerLatLng ??
+        destination = _customerLatLng ??
             _restaurantLatLng ??
             const LatLng(33.5138, 36.2765);
       }
     } else {
       origin = _restaurantLatLng ?? const LatLng(33.5138, 36.2765);
-      destination =
-          _customerLatLng ??
+      destination = _customerLatLng ??
           _restaurantLatLng ??
           const LatLng(33.5138, 36.2765);
     }
@@ -2849,15 +3429,13 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
     setState(() => _isLoadingRoute = true);
 
     try {
-      final url =
-          'https://router.project-osrm.org/route/v1/driving/'
+      final url = 'https://router.project-osrm.org/route/v1/driving/'
           '${origin.longitude},${origin.latitude};'
           '${destination.longitude},${destination.latitude}'
           '?overview=full&geometries=geojson';
 
-      final response = await http
-          .get(Uri.parse(url))
-          .timeout(const Duration(seconds: 10));
+      final response =
+          await http.get(Uri.parse(url)).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -2882,7 +3460,8 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
               _hasAutoFitted = true;
               try {
                 final bounds = LatLngBounds.fromPoints(points);
-                _mapController.fitCamera(CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(80)));
+                _mapController.fitCamera(CameraFit.bounds(
+                    bounds: bounds, padding: const EdgeInsets.all(80)));
               } catch (_) {}
             }
           }
@@ -2904,7 +3483,8 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
         try {
           final allPoints = [origin, destination];
           final bounds = LatLngBounds.fromPoints(allPoints);
-          _mapController.fitCamera(CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(80)));
+          _mapController.fitCamera(CameraFit.bounds(
+              bounds: bounds, padding: const EdgeInsets.all(80)));
         } catch (_) {}
       }
     }
@@ -2917,7 +3497,7 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
         _mapController.move(destination, 17.5);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
+            const SnackBar(
               content: Text('عامل التوصيل أصبح قريباً جداً منك'),
               duration: Duration(seconds: 3),
               backgroundColor: AppTheme.primary,
@@ -2936,8 +3516,7 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
     final dLon = (b.longitude - a.longitude) * pi / 180;
     final lat1 = a.latitude * pi / 180;
     final lat2 = b.latitude * pi / 180;
-    final h =
-        sin(dLat / 2) * sin(dLat / 2) +
+    final h = sin(dLat / 2) * sin(dLat / 2) +
         cos(lat1) * cos(lat2) * sin(dLon / 2) * sin(dLon / 2);
     return 2 * R * asin(sqrt(h));
   }
@@ -2957,16 +3536,25 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
     final startTime = DateTime.now();
     const animDuration = Duration(milliseconds: 1500);
 
-    _driverAnimationTimer = Timer.periodic(const Duration(milliseconds: 30), (timer) {
+    _driverAnimationTimer =
+        Timer.periodic(const Duration(milliseconds: 30), (timer) {
       final elapsed = DateTime.now().difference(startTime);
-      final t = (elapsed.inMilliseconds / animDuration.inMilliseconds).clamp(0.0, 1.0);
+      final t = (elapsed.inMilliseconds / animDuration.inMilliseconds)
+          .clamp(0.0, 1.0);
       final eased = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
       final lat = start.latitude + (target.latitude - start.latitude) * eased;
-      final lng = start.longitude + (target.longitude - start.longitude) * eased;
-      if (!mounted) { timer.cancel(); return; }
+      final lng =
+          start.longitude + (target.longitude - start.longitude) * eased;
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
       final newPos = LatLng(lat, lng);
-      _driverHeading = _calculateBearing(_previousDriverLatLng ?? start, newPos);
-      setState(() { _driverLatLng = newPos; });
+      _driverHeading =
+          _calculateBearing(_previousDriverLatLng ?? start, newPos);
+      setState(() {
+        _driverLatLng = newPos;
+      });
       if (t >= 1.0) {
         timer.cancel();
         _previousDriverLatLng = target;
@@ -3006,7 +3594,9 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
       );
       Navigator.pop(context);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(err)),
+      );
     }
   }
 
@@ -3015,8 +3605,7 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
     final orderProv = Provider.of<OrderProvider>(context);
     final textTheme = Theme.of(context).textTheme;
 
-    final mapCenter =
-        _driverLatLng ??
+    final mapCenter = _driverLatLng ??
         _restaurantLatLng ??
         _customerLatLng ??
         const LatLng(33.5138, 36.2765);
@@ -3038,7 +3627,11 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
                   color: Colors.orange.shade800,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Text('المطعم', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                child: const Text('المطعم',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold)),
               ),
               const SizedBox(height: 2),
               Container(
@@ -3047,9 +3640,12 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
                   color: Colors.orange,
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white, width: 2.5),
-                  boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 6)],
+                  boxShadow: const [
+                    BoxShadow(color: Colors.black26, blurRadius: 6)
+                  ],
                 ),
-                child: const Icon(Icons.restaurant, color: Colors.white, size: 20),
+                child:
+                    const Icon(Icons.restaurant, color: Colors.white, size: 20),
               ),
             ],
           ),
@@ -3072,7 +3668,11 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
                   color: Colors.green.shade800,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Text('موقعي', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                child: const Text('موقعي',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold)),
               ),
               const SizedBox(height: 2),
               Container(
@@ -3081,9 +3681,12 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
                   color: Colors.green,
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white, width: 2.5),
-                  boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 6)],
+                  boxShadow: const [
+                    BoxShadow(color: Colors.black26, blurRadius: 6)
+                  ],
                 ),
-                child: const Icon(Icons.person_pin_circle, color: Colors.white, size: 20),
+                child: const Icon(Icons.person_pin_circle,
+                    color: Colors.white, size: 20),
               ),
             ],
           ),
@@ -3091,8 +3694,7 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
       );
     }
 
-    final hasDriver =
-        [
+    final hasDriver = [
           'delivery_accepted',
           'preparing',
           'ready',
@@ -3117,7 +3719,10 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
                 ),
                 child: Text(
                   _getStatusText(_currentOrder.status),
-                  style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold),
                   maxLines: 1,
                 ),
               ),
@@ -3130,11 +3735,15 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 3),
                     boxShadow: const [
-                      BoxShadow(color: Colors.blueAccent, blurRadius: 10, spreadRadius: 2),
+                      BoxShadow(
+                          color: Colors.blueAccent,
+                          blurRadius: 10,
+                          spreadRadius: 2),
                     ],
                   ),
                   padding: const EdgeInsets.all(8),
-                  child: const Icon(Icons.navigation_rounded, color: Colors.white, size: 24),
+                  child: const Icon(Icons.navigation_rounded,
+                      color: Colors.white, size: 24),
                 ),
               ),
             ],
@@ -3161,7 +3770,8 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
             right: 0,
             child: SafeArea(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: Row(
                   children: [
                     // Back button
@@ -3171,7 +3781,8 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
                       shape: const CircleBorder(),
                       color: Theme.of(context).cardColor,
                       child: IconButton(
-                        icon: const Icon(Icons.arrow_back_ios_rounded, size: 18),
+                        icon:
+                            const Icon(Icons.arrow_back_ios_rounded, size: 18),
                         onPressed: () => Navigator.pop(context),
                       ),
                     ),
@@ -3179,19 +3790,24 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
                     // Order ID Card & Refresh
                     Expanded(
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 6),
                         decoration: BoxDecoration(
                           color: Theme.of(context).cardColor,
                           borderRadius: BorderRadius.circular(24),
                           boxShadow: const [
-                            BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 2)),
+                            BoxShadow(
+                                color: Colors.black12,
+                                blurRadius: 8,
+                                offset: Offset(0, 2)),
                           ],
                         ),
                         child: Row(
                           children: [
                             Text(
                               'طلب #${_currentOrder.id.length > 6 ? _currentOrder.id.substring(_currentOrder.id.length - 6) : _currentOrder.id}',
-                              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                  fontSize: 15, fontWeight: FontWeight.bold),
                             ),
                             const Spacer(),
                             IconButton(
@@ -3223,7 +3839,8 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
               return Container(
                 decoration: BoxDecoration(
                   color: Theme.of(context).cardColor,
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(24)),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.15),
@@ -3266,7 +3883,9 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('حالة الطلب', style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                          Text('حالة الطلب',
+                              style: textTheme.titleLarge
+                                  ?.copyWith(fontWeight: FontWeight.bold)),
                           const SizedBox(height: 16),
                           _buildStepTimeline(context),
                         ],
@@ -3285,12 +3904,17 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
                         padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
                         child: Center(
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 12),
                             decoration: BoxDecoration(
                               color: AppTheme.primary.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(16),
                             ),
-                            child: Text('تم توصيل الطلب بنجاح', style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold, fontSize: 15)),
+                            child: Text('تم توصيل الطلب بنجاح',
+                                style: TextStyle(
+                                    color: AppTheme.primary,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15)),
                           ),
                         ),
                       ),
@@ -3300,12 +3924,17 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
                         padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
                         child: Center(
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 12),
                             decoration: BoxDecoration(
                               color: Colors.red.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(16),
                             ),
-                            child: const Text('تم إلغاء الطلب', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 15)),
+                            child: const Text('تم إلغاء الطلب',
+                                style: TextStyle(
+                                    color: Colors.red,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15)),
                           ),
                         ),
                       ),
@@ -3321,7 +3950,8 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
     );
   }
 
-  Widget _buildMapSection(LatLng mapCenter, List<Marker> mapMarkers, OrderProvider orderProv) {
+  Widget _buildMapSection(
+      LatLng mapCenter, List<Marker> mapMarkers, OrderProvider orderProv) {
     return Stack(
       children: [
         FlutterMap(
@@ -3338,8 +3968,14 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
             if (_routePoints.isNotEmpty)
               PolylineLayer(
                 polylines: [
-                  Polyline(points: _routePoints, color: AppTheme.primary.withValues(alpha: 0.3), strokeWidth: 9),
-                  Polyline(points: _routePoints, color: AppTheme.primary, strokeWidth: 5),
+                  Polyline(
+                      points: _routePoints,
+                      color: AppTheme.primary.withValues(alpha: 0.3),
+                      strokeWidth: 9),
+                  Polyline(
+                      points: _routePoints,
+                      color: AppTheme.primary,
+                      strokeWidth: 5),
                 ],
               ),
             MarkerLayer(markers: mapMarkers),
@@ -3348,21 +3984,32 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
         // Loading indicator
         if (_isLoadingRoute)
           Positioned(
-            top: 75, left: 0, right: 0,
+            top: 75,
+            left: 0,
+            right: 0,
             child: Center(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
                   color: Theme.of(context).cardColor.withValues(alpha: 0.9),
                   borderRadius: BorderRadius.circular(20),
-                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8)],
+                  boxShadow: [
+                    BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 8)
+                  ],
                 ),
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
+                    SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2)),
                     SizedBox(width: 6),
-                    Text('جاري تحديث المسار...', style: TextStyle(fontSize: 11)),
+                    Text('جاري تحديث المسار...',
+                        style: TextStyle(fontSize: 11)),
                   ],
                 ),
               ),
@@ -3370,7 +4017,8 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
           ),
         // Zoom controls
         Positioned(
-          top: 75, left: 16,
+          top: 75,
+          left: 16,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -3390,7 +4038,8 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
                   onPressed: () {
                     try {
                       final bounds = LatLngBounds.fromPoints(_routePoints);
-                      _mapController.fitCamera(CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(60)));
+                      _mapController.fitCamera(CameraFit.bounds(
+                          bounds: bounds, padding: const EdgeInsets.all(60)));
                     } catch (_) {}
                   },
                   child: const Icon(Icons.fit_screen_rounded, size: 18),
@@ -3401,7 +4050,9 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
                 heroTag: 'cust_zoom_in_btn',
                 backgroundColor: Theme.of(context).cardColor,
                 foregroundColor: Theme.of(context).textTheme.bodyLarge?.color,
-                onPressed: () => _mapController.move(_mapController.camera.center, _mapController.camera.zoom + 1),
+                onPressed: () => _mapController.move(
+                    _mapController.camera.center,
+                    _mapController.camera.zoom + 1),
                 child: const Icon(Icons.add, size: 20),
               ),
             ],
@@ -3418,18 +4069,29 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 10, offset: const Offset(0, 4))],
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 10,
+              offset: const Offset(0, 4))
+        ],
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: hasDriver ? Colors.blue.withValues(alpha: 0.1) : Colors.orange.withValues(alpha: 0.1),
+              color: hasDriver
+                  ? Colors.blue.withValues(alpha: 0.1)
+                  : Colors.orange.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
-            child: Icon(hasDriver ? Icons.delivery_dining_rounded : Icons.restaurant_rounded,
-                color: hasDriver ? Colors.blue : Colors.orange, size: 24),
+            child: Icon(
+                hasDriver
+                    ? Icons.delivery_dining_rounded
+                    : Icons.restaurant_rounded,
+                color: hasDriver ? Colors.blue : Colors.orange,
+                size: 24),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -3437,15 +4099,20 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(_getStatusText(_currentOrder.status),
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 14)),
                 const SizedBox(height: 4),
                 _isLoadingRoute
-                    ? const Text('جاري حساب الوقت والمسافة...', style: TextStyle(fontSize: 12, color: Colors.grey))
+                    ? const Text('جاري حساب الوقت والمسافة...',
+                        style: TextStyle(fontSize: 12, color: Colors.grey))
                     : Text(
                         hasDriver
                             ? 'الوقت المتوقع للوصول: ${_durationMin.toStringAsFixed(0)} دقيقة (${_distanceKm.toStringAsFixed(1)} كم)'
                             : 'المسافة للمطعم: ${_distanceKm.toStringAsFixed(1)} كم',
-                        style: TextStyle(fontSize: 12, color: hasDriver ? Colors.blue : Colors.grey[700], fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: hasDriver ? Colors.blue : Colors.grey[700],
+                            fontWeight: FontWeight.w600),
                       ),
               ],
             ),
@@ -3469,17 +4136,24 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [AppTheme.primary, AppTheme.primaryDark],
-          begin: Alignment.topLeft, end: Alignment.bottomRight,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(18),
-        boxShadow: [BoxShadow(color: AppTheme.primary.withValues(alpha: 0.3), blurRadius: 12, offset: const Offset(0, 4))],
+        boxShadow: [
+          BoxShadow(
+              color: AppTheme.primary.withValues(alpha: 0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 4))
+        ],
       ),
       child: Row(
         children: [
           CircleAvatar(
             radius: 24,
             backgroundColor: Colors.white.withValues(alpha: 0.2),
-            child: const Icon(Icons.person_rounded, color: Colors.white, size: 28),
+            child:
+                const Icon(Icons.person_rounded, color: Colors.white, size: 28),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -3487,14 +4161,19 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(driverName.isNotEmpty ? driverName : 'عامل التوصيل',
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15)),
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    const Icon(Icons.delivery_dining_rounded, color: Colors.white70, size: 14),
+                    const Icon(Icons.delivery_dining_rounded,
+                        color: Colors.white70, size: 14),
                     const SizedBox(width: 4),
                     Text(_getStatusText(_currentOrder.status),
-                        style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                        style: const TextStyle(
+                            color: Colors.white70, fontSize: 12)),
                   ],
                 ),
               ],
@@ -3508,7 +4187,8 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
                   color: Colors.white.withValues(alpha: 0.2),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.phone_rounded, color: Colors.white, size: 18),
+                child: const Icon(Icons.phone_rounded,
+                    color: Colors.white, size: 18),
               ),
               onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text('رقم السائق: $driverPhone')),
@@ -3525,16 +4205,21 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDelivered ? AppTheme.primary.withValues(alpha: 0.08) : Colors.red.withValues(alpha: 0.08),
+        color: isDelivered
+            ? AppTheme.primary.withValues(alpha: 0.08)
+            : Colors.red.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: (isDelivered ? AppTheme.primary : Colors.red).withValues(alpha: 0.2)),
+        border: Border.all(
+            color: (isDelivered ? AppTheme.primary : Colors.red)
+                .withValues(alpha: 0.2)),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: (isDelivered ? AppTheme.primary : Colors.red).withValues(alpha: 0.15),
+              color: (isDelivered ? AppTheme.primary : Colors.red)
+                  .withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -3549,7 +4234,10 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(isDelivered ? 'تم التوصيل بنجاح' : 'تم إلغاء الطلب',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: isDelivered ? AppTheme.primary : Colors.red)),
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: isDelivered ? AppTheme.primary : Colors.red)),
                 const SizedBox(height: 4),
                 Text(isDelivered ? 'شكراً لطلبك مع وصلني' : 'هذا الطلب ملغى',
                     style: const TextStyle(fontSize: 13, color: Colors.grey)),
@@ -3563,9 +4251,34 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
 
   Widget _buildStepTimeline(BuildContext context) {
     final steps = <List<String>>[
-      ['pending', 'accepted', 'restaurant_accepted', 'preparing', 'ready', 'delivery_accepted', 'onTheWay', 'delivered_pending', 'delivered'],
-      ['accepted', 'restaurant_accepted', 'preparing', 'ready', 'delivery_accepted', 'onTheWay', 'delivered_pending', 'delivered'],
-      ['ready', 'delivery_accepted', 'onTheWay', 'delivered_pending', 'delivered'],
+      [
+        'pending',
+        'accepted',
+        'restaurant_accepted',
+        'preparing',
+        'ready',
+        'delivery_accepted',
+        'onTheWay',
+        'delivered_pending',
+        'delivered'
+      ],
+      [
+        'accepted',
+        'restaurant_accepted',
+        'preparing',
+        'ready',
+        'delivery_accepted',
+        'onTheWay',
+        'delivered_pending',
+        'delivered'
+      ],
+      [
+        'ready',
+        'delivery_accepted',
+        'onTheWay',
+        'delivered_pending',
+        'delivered'
+      ],
       ['onTheWay', 'delivered_pending', 'delivered'],
       ['delivered'],
     ];
@@ -3588,12 +4301,14 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
       children: List.generate(steps.length, (i) {
         final isDone = steps[i].any((s) => _currentOrder.status == s);
         final isActive = _currentOrder.status == steps[i].first;
-        return _buildTimelineStep(labels[i], icons[i], isDone, isActive, i == steps.length - 1);
+        return _buildTimelineStep(
+            labels[i], icons[i], isDone, isActive, i == steps.length - 1);
       }),
     );
   }
 
-  Widget _buildTimelineStep(String title, IconData icon, bool isDone, bool isActive, bool isLast) {
+  Widget _buildTimelineStep(
+      String title, IconData icon, bool isDone, bool isActive, bool isLast) {
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3608,25 +4323,41 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
                   height: 32,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: isDone ? AppTheme.primary : Theme.of(context).cardColor,
+                    color:
+                        isDone ? AppTheme.primary : Theme.of(context).cardColor,
                     border: Border.all(
-                      color: isDone ? AppTheme.primary : (isActive ? AppTheme.primary : Colors.grey.withValues(alpha: 0.3)),
+                      color: isDone
+                          ? AppTheme.primary
+                          : (isActive
+                              ? AppTheme.primary
+                              : Colors.grey.withValues(alpha: 0.3)),
                       width: 2,
                     ),
                     boxShadow: isActive
-                        ? [BoxShadow(color: AppTheme.primary.withValues(alpha: 0.3), blurRadius: 8)]
+                        ? [
+                            BoxShadow(
+                                color: AppTheme.primary.withValues(alpha: 0.3),
+                                blurRadius: 8)
+                          ]
                         : null,
                   ),
-                  child: Icon(icon,
+                  child: Icon(
+                    icon,
                     size: 16,
-                    color: isDone ? Colors.white : (isActive ? AppTheme.primary : Colors.grey.withValues(alpha: 0.5)),
+                    color: isDone
+                        ? Colors.white
+                        : (isActive
+                            ? AppTheme.primary
+                            : Colors.grey.withValues(alpha: 0.5)),
                   ),
                 ),
                 if (!isLast)
                   Expanded(
                     child: Container(
                       width: 2,
-                      color: isDone ? AppTheme.primary.withValues(alpha: 0.4) : Colors.grey.withValues(alpha: 0.15),
+                      color: isDone
+                          ? AppTheme.primary.withValues(alpha: 0.4)
+                          : Colors.grey.withValues(alpha: 0.15),
                     ),
                   ),
               ],
@@ -3639,11 +4370,14 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title,
+                  Text(
+                    title,
                     style: TextStyle(
                       fontFamily: 'Outfit',
                       fontWeight: isDone ? FontWeight.bold : FontWeight.normal,
-                      color: isDone ? Theme.of(context).textTheme.bodyLarge?.color : Colors.grey,
+                      color: isDone
+                          ? Theme.of(context).textTheme.bodyLarge?.color
+                          : Colors.grey,
                       fontSize: 14,
                     ),
                   ),
@@ -3652,9 +4386,14 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
                       padding: const EdgeInsets.only(top: 4),
                       child: Row(
                         children: [
-                          const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
+                          const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2)),
                           const SizedBox(width: 6),
-                          Text('قيد التنفيذ', style: TextStyle(fontSize: 11, color: AppTheme.primary)),
+                          Text('قيد التنفيذ',
+                              style: TextStyle(
+                                  fontSize: 11, color: AppTheme.primary)),
                         ],
                       ),
                     ),
@@ -3676,7 +4415,12 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: Colors.grey.withValues(alpha: 0.12)),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))],
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2))
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3685,11 +4429,18 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
             children: [
               Container(
                 padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(color: AppTheme.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-                child: const Icon(Icons.receipt_long_rounded, size: 18, color: AppTheme.primary),
+                decoration: BoxDecoration(
+                    color: AppTheme.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8)),
+                child: const Icon(Icons.receipt_long_rounded,
+                    size: 18, color: AppTheme.primary),
               ),
               const SizedBox(width: 10),
-              Text('تفاصيل الطلب', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+              Text('تفاصيل الطلب',
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.bold)),
             ],
           ),
           const Divider(height: 24),
@@ -3697,23 +4448,36 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
           ...List.generate(_currentOrder.items.length, (i) {
             final item = _currentOrder.items[i];
             return Padding(
-              padding: EdgeInsets.only(bottom: i < _currentOrder.items.length - 1 ? 10 : 0),
+              padding: EdgeInsets.only(
+                  bottom: i < _currentOrder.items.length - 1 ? 10 : 0),
               child: Row(
                 children: [
                   Container(
-                    width: 26, height: 26,
+                    width: 26,
+                    height: 26,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       color: Colors.grey.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(6),
                     ),
-                    child: Text('${item.quantity}x', style: TextStyle(fontFamily: 'Outfit', fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey[600])),
+                    child: Text('${item.quantity}x',
+                        style: TextStyle(
+                            fontFamily: 'Outfit',
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey[600])),
                   ),
                   const SizedBox(width: 10),
-                  Expanded(child: Text(item.name, style: const TextStyle(fontSize: 13))),
+                  Expanded(
+                      child: Text(item.name,
+                          style: const TextStyle(fontSize: 13))),
                   if (item.price > 0)
-                    Text('${(item.price * item.quantity).toStringAsFixed(0)} ل.س',
-                        style: const TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.bold, fontSize: 13)),
+                    Text(
+                        '${(item.price * item.quantity).toStringAsFixed(0)} ل.س',
+                        style: const TextStyle(
+                            fontFamily: 'Outfit',
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13)),
                 ],
               ),
             );
@@ -3724,16 +4488,24 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
             children: [
               const Text('رسوم التوصيل', style: TextStyle(fontSize: 13)),
               Text('${_currentOrder.deliveryFee.toStringAsFixed(0)} ل.س',
-                  style: const TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.bold, fontSize: 13)),
+                  style: const TextStyle(
+                      fontFamily: 'Outfit',
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13)),
             ],
           ),
           const Divider(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('الإجمالي', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+              const Text('الإجمالي',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
               Text('${total.toStringAsFixed(0)} ل.س',
-                  style: TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.bold, fontSize: 17, color: AppTheme.primary)),
+                  style: TextStyle(
+                      fontFamily: 'Outfit',
+                      fontWeight: FontWeight.bold,
+                      fontSize: 17,
+                      color: AppTheme.primary)),
             ],
           ),
           const SizedBox(height: 12),
@@ -3741,7 +4513,8 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.location_on_rounded, size: 18, color: Colors.grey[400]),
+              Icon(Icons.location_on_rounded,
+                  size: 18, color: Colors.grey[400]),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -3778,10 +4551,12 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
             child: const Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.delivery_dining_rounded, color: Colors.blue, size: 20),
+                Icon(Icons.delivery_dining_rounded,
+                    color: Colors.blue, size: 20),
                 SizedBox(width: 8),
                 Text('وصل السائق! الرجاء تصوير الطلب لتأكيد الاستلام',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    style:
+                        TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
               ],
             ),
           ),
@@ -3791,12 +4566,17 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
             height: 48,
             child: ElevatedButton.icon(
               onPressed: _pickReceiptImage,
-              icon: Icon(_imageFile != null ? Icons.camera_alt_rounded : Icons.camera_alt_rounded),
-              label: Text(_imageFile != null ? 'تغيير الصورة' : 'تصوير الطلب المستلم'),
+              icon: Icon(_imageFile != null
+                  ? Icons.camera_alt_rounded
+                  : Icons.camera_alt_rounded),
+              label: Text(
+                  _imageFile != null ? 'تغيير الصورة' : 'تصوير الطلب المستلم'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: _imageFile != null ? Colors.orange : AppTheme.primary,
+                backgroundColor:
+                    _imageFile != null ? Colors.orange : AppTheme.primary,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
               ),
             ),
           ),
@@ -3806,7 +4586,8 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
               height: 140,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(14),
-                image: DecorationImage(image: FileImage(_imageFile!), fit: BoxFit.cover),
+                image: DecorationImage(
+                    image: FileImage(_imageFile!), fit: BoxFit.cover),
               ),
             ),
             const SizedBox(height: 16),
@@ -3816,11 +4597,14 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
               child: ElevatedButton.icon(
                 onPressed: () => _confirmReceipt(orderProv),
                 icon: const Icon(Icons.check_circle_rounded),
-                label: const Text('تأكيد استلام الطلب', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                label: const Text('تأكيد استلام الطلب',
+                    style:
+                        TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primary,
                   foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
                 ),
               ),
             ),
@@ -3829,30 +4613,5 @@ class _OrderTrackScreenState extends State<OrderTrackScreen> {
       ),
     );
   }
-
-  String _getStatusText(String status) {
-    switch (status) {
-      case 'pending':
-        return 'قيد الانتظار';
-      case 'accepted':
-      case 'restaurant_accepted':
-        return 'تم قبول الطلب من المطعم';
-      case 'delivery_accepted':
-        return 'تم قبول التوصيل من السائق';
-      case 'preparing':
-        return 'يتم التحضير بالمطعم';
-      case 'ready':
-        return 'جاهز للتوصيل وانتظار السائق';
-      case 'onTheWay':
-        return 'السائق في الطريق إليك';
-      case 'delivered_pending':
-        return 'وصل السائق وبانتظار تأكيدك';
-      case 'delivered':
-        return 'تم التوصيل بنجاح';
-      case 'cancelled':
-        return 'تم الإلغاء';
-      default:
-        return status;
-    }
-  }
 }
+

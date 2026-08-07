@@ -160,6 +160,8 @@ class OrderProvider extends ChangeNotifier {
     required Address deliveryAddress,
     required String paymentMethod,
     double deliveryFee = 2500,
+    String? promoCode,
+    double? discountAmount,
   }) async {
     _isLoading = true;
     notifyListeners();
@@ -191,14 +193,18 @@ class OrderProvider extends ChangeNotifier {
         location: Location(coordinates: [pos.longitude, pos.latitude]),
       );
 
-      final res = await ApiService.post('/api/orders', {
+      final Map<String, dynamic> reqBody = {
         'restaurantId': restaurantId,
         'items': items.map((x) => x.toJson()).toList(),
         'totalAmount': totalAmount,
         'deliveryAddress': finalAddress.toJson(),
         'paymentMethod': paymentMethod,
         'deliveryFee': deliveryFee,
-      });
+      };
+      if (promoCode != null) reqBody['promoCode'] = promoCode;
+      if (discountAmount != null) reqBody['discountAmount'] = discountAmount;
+
+      final res = await ApiService.post('/api/orders', reqBody);
 
       _isLoading = false;
       notifyListeners();
@@ -341,6 +347,39 @@ class OrderProvider extends ChangeNotifier {
     } catch (e) {
       _isLoading = false;
       notifyListeners();
+      return e.toString();
+    }
+  }
+
+  Future<Map<String, dynamic>?> validatePromoCode(String code) async {
+    try {
+      final res = await ApiService.post('/api/promos/validate', {'code': code});
+      if (res.statusCode == 200) {
+        return jsonDecode(res.body)['promo'];
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Validate promo code error: $e');
+      return null;
+    }
+  }
+
+  Future<String?> rateOrder(String orderId, int rating, String? review) async {
+    try {
+      final Map<String, dynamic> body = {'rating': rating};
+      if (review != null && review.isNotEmpty) body['review'] = review;
+      final res = await ApiService.post('/api/orders/$orderId/rate', body);
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        final updatedOrder = Order.fromJson(data['order']);
+        final idx = _orders.indexWhere((o) => o.id == orderId);
+        if (idx != -1) _orders[idx] = updatedOrder;
+        notifyListeners();
+        return null;
+      } else {
+        return jsonDecode(res.body)['message'] ?? 'Failed to rate order';
+      }
+    } catch (e) {
       return e.toString();
     }
   }

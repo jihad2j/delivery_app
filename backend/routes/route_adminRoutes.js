@@ -18,5 +18,6 @@ router.get('/admins', adminController.getAllAdmins);
 router.put('/admins/:id/permissions', adminController.updateAdminPermissions);
 router.post('/request-settlement', adminController.requestDriverSettlement);
 router.get('/treasury', adminController.getCompanyTreasury);
+router.post('/broadcast', adminController.sendBroadcast);
 
 module.exports = router;

@@ -7,6 +7,7 @@ import '../providers/providers.dart';
 import '../models/models.dart' as model;
 import '../core/theme.dart';
 import '../core/services.dart';
+import 'admin_modules.dart';
 
 /// تعريف جميع صفحات وصلاحيات الأدمن المتاحة في النظام
 class AdminPermissionItem {
@@ -60,6 +61,27 @@ const List<AdminPermissionItem> allAdminPermissions = [
     description: 'محاسبة الكباتن، ترصيد الكاش وصرف المستحقات',
     icon: Icons.account_balance_wallet_rounded,
     color: Colors.green,
+  ),
+  AdminPermissionItem(
+    key: 'system_settings',
+    title: 'إعدادات النظام',
+    description: 'تعديل رسوم التوصيل وعمولات التطبيق',
+    icon: Icons.settings_rounded,
+    color: Colors.blueGrey,
+  ),
+  AdminPermissionItem(
+    key: 'broadcast_management',
+    title: 'إرسال الإشعارات',
+    description: 'إرسال إشعارات وتنبيهات لجميع المستخدمين',
+    icon: Icons.campaign_rounded,
+    color: Colors.deepPurple,
+  ),
+  AdminPermissionItem(
+    key: 'promo_management',
+    title: 'أكواد الخصم',
+    description: 'إنشاء وإدارة أكواد الخصم والعروض',
+    icon: Icons.discount_rounded,
+    color: Colors.pink,
   ),
   AdminPermissionItem(
     key: 'permissions_management',
@@ -124,6 +146,15 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
         break;
       case 'balances_management':
         screen = const AdminBalancesScreen();
+        break;
+      case 'system_settings':
+        screen = const AdminSystemSettingsScreen();
+        break;
+      case 'broadcast_management':
+        screen = const AdminBroadcastScreen();
+        break;
+      case 'promo_management':
+        screen = const AdminPromoScreen();
         break;
       default:
         screen = const AdminPermissionsScreen();

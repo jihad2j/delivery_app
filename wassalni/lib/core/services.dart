@@ -8,7 +8,6 @@ import 'package:flutter/foundation.dart';
 
 class ApiService {
   static List<String> _serverUrls = [
-    'http://192.168.31.201:3000', // السيرفر الأساسي 1
     'https://delivery-app-1-qlgu.onrender.com',
   ];
   static int _currentServerIndex = 0;
@@ -27,6 +26,10 @@ class ApiService {
       }
     }
     _token = await _secureStorage.read(key: 'auth_token');
+    // Pre-warm remote backend server in background
+    try {
+      http.get(Uri.parse('$baseUrl/api/health')).timeout(const Duration(seconds: 12)).catchError((_) => http.Response('', 500));
+    } catch (_) {}
   }
 
   static String get baseUrl => _serverUrls[_currentServerIndex];
@@ -141,7 +144,7 @@ class ApiService {
       final url = Uri.parse('$currentBase$path');
       return http
           .get(url, headers: _headers)
-          .timeout(const Duration(seconds: 3));
+          .timeout(const Duration(seconds: 15));
     });
   }
 
@@ -153,7 +156,7 @@ class ApiService {
       final url = Uri.parse('$currentBase$path');
       return http
           .post(url, headers: _headers, body: jsonEncode(body))
-          .timeout(const Duration(seconds: 3));
+          .timeout(const Duration(seconds: 15));
     });
   }
 
@@ -165,7 +168,7 @@ class ApiService {
       final url = Uri.parse('$currentBase$path');
       return http
           .put(url, headers: _headers, body: jsonEncode(body))
-          .timeout(const Duration(seconds: 3));
+          .timeout(const Duration(seconds: 15));
     });
   }
 
@@ -174,7 +177,7 @@ class ApiService {
       final url = Uri.parse('$currentBase$path');
       return http
           .delete(url, headers: _headers)
-          .timeout(const Duration(seconds: 3));
+          .timeout(const Duration(seconds: 15));
     });
   }
 }
@@ -205,7 +208,8 @@ class LocationHelper {
 
   /// Attempts to perform reverse geocoding via OpenStreetMap Nominatim
   /// to resolve Governorate and Region in Arabic.
-  static Future<Map<String, String>?> reverseGeocode(double lat, double lng) async {
+  static Future<Map<String, String>?> reverseGeocode(
+      double lat, double lng) async {
     try {
       final url = Uri.parse(
         'https://nominatim.openstreetmap.org/reverse?format=json&lat=$lat&lon=$lng&accept-language=ar',
@@ -218,11 +222,24 @@ class LocationHelper {
         final data = jsonDecode(res.body);
         final addr = data['address'] as Map<String, dynamic>?;
         if (addr != null) {
-          String governorate = (addr['state'] ?? addr['province'] ?? addr['county'] ?? '').toString();
-          String region = (addr['city'] ?? addr['town'] ?? addr['suburb'] ?? addr['district'] ?? addr['village'] ?? addr['neighbourhood'] ?? '').toString();
+          String governorate =
+              (addr['state'] ?? addr['province'] ?? addr['county'] ?? '')
+                  .toString();
+          String region = (addr['city'] ??
+                  addr['town'] ??
+                  addr['suburb'] ??
+                  addr['district'] ??
+                  addr['village'] ??
+                  addr['neighbourhood'] ??
+                  '')
+              .toString();
 
           governorate = governorate.replaceAll('محافظة', '').trim();
-          region = region.replaceAll('منطقة', '').replaceAll('مدينة', '').replaceAll('بلدية', '').trim();
+          region = region
+              .replaceAll('منطقة', '')
+              .replaceAll('مدينة', '')
+              .replaceAll('بلدية', '')
+              .trim();
 
           if (governorate.isNotEmpty || region.isNotEmpty) {
             return {
@@ -251,53 +268,69 @@ class SocketService {
     String? token,
     Function(dynamic) onNewOrder,
     Function(dynamic) onOrderStatus,
+    Function(dynamic)? onBroadcast,
   ) {
     if (_socket != null) {
-      _socket!.disconnect();
+      try {
+        _socket!.disconnect();
+        _socket!.dispose();
+      } catch (_) {}
+      _socket = null;
     }
 
-    final opts = io.OptionBuilder().setTransports([
-      'websocket',
-    ]).disableAutoConnect();
+    final opts = io.OptionBuilder()
+        .setTransports(['websocket'])
+        .setReconnectionDelay(5000)
+        .setReconnectionAttempts(3)
+        .disableAutoConnect();
 
     if (token != null) {
       opts.setAuth({'token': token});
     }
 
-    _socket = io.io(ApiService.baseUrl, opts.build());
+    try {
+      _socket = io.io(ApiService.baseUrl, opts.build());
 
-    _socket!.onConnect((_) {
-      _isConnected = true;
-      debugPrint('Connected to Socket Server: ${ApiService.baseUrl}');
-      for (var room in _joinedRooms) {
-        _socket?.emit('joinOrderRoom', room);
-      }
-    });
+      _socket!.onConnect((_) {
+        _isConnected = true;
+        debugPrint('Connected to Socket Server: ${ApiService.baseUrl}');
+        for (var room in _joinedRooms) {
+          _socket?.emit('joinOrderRoom', room);
+        }
+      });
 
-    _socket!.onConnectError((err) {
-      _isConnected = false;
-      debugPrint(
-        '[Socket Failover] Connect error on ${ApiService.baseUrl}: $err. Rotating server...',
-      );
-      ApiService.rotateToNextServer();
-    });
+      _socket!.onConnectError((err) {
+        _isConnected = false;
+        debugPrint(
+          '[Socket Error] Connect error on ${ApiService.baseUrl}: $err',
+        );
+      });
 
-    _socket!.onDisconnect((_) {
-      _isConnected = false;
-      debugPrint('Disconnected from Socket Server');
-    });
+      _socket!.onDisconnect((_) {
+        _isConnected = false;
+        debugPrint('Disconnected from Socket Server');
+      });
 
-    // Listen to new order for drivers
-    _socket!.on('newOrderAvailable', (data) {
-      onNewOrder(data);
-    });
+      // Listen to new order for drivers
+      _socket!.on('newOrderAvailable', (data) {
+        onNewOrder(data);
+      });
 
-    // Listen to status updates
-    _socket!.on('orderStatus', (data) {
-      onOrderStatus(data);
-    });
+      // Listen to status updates
+      _socket!.on('orderStatus', (data) {
+        onOrderStatus(data);
+      });
 
-    _socket!.connect();
+      _socket!.on('broadcast_message', (data) {
+        if (onBroadcast != null) {
+          onBroadcast(data);
+        }
+      });
+
+      _socket!.connect();
+    } catch (e) {
+      debugPrint('[Socket Exception] Failed to initialize socket: $e');
+    }
   }
 
   static void joinOrderRoom(String orderId) {
@@ -316,7 +349,10 @@ class SocketService {
 
   static void disconnect() {
     if (_socket != null) {
-      _socket!.disconnect();
+      try {
+        _socket!.disconnect();
+        _socket!.dispose();
+      } catch (_) {}
       _socket = null;
       _isConnected = false;
     }

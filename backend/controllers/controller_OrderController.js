@@ -18,7 +18,7 @@ exports.setIoInstance = (ioInstance) => {
 // ============================================================
 exports.createOrder = async (req, res) => {
   try {
-    const { restaurantId, items, deliveryAddress, paymentMethod, deliveryFee } = req.body;
+    const { restaurantId, items, deliveryAddress, paymentMethod, deliveryFee, promoCode, discountAmount } = req.body;
 
     if (!restaurantId) {
       return res.status(400).json({ message: 'معرف المطعم مطلوب' });
@@ -66,7 +66,9 @@ exports.createOrder = async (req, res) => {
     }
 
     const finalDeliveryFee = Number(deliveryFee) || 0;
-    const grandTotal = Number(calculatedTotalAmount) + finalDeliveryFee;
+    const finalDiscount = Number(discountAmount) || 0;
+    let grandTotal = Number(calculatedTotalAmount) + finalDeliveryFee - finalDiscount;
+    if (grandTotal < 0) grandTotal = 0;
 
     // التحقق من وجود طلب جاري للعميل
     const activeOrder = await Order.findOne({
@@ -105,7 +107,9 @@ exports.createOrder = async (req, res) => {
       customerId: req.user.userId,
       currency: 'SYP',
       status: 'pending',
-      paymentStatus: 'unpaid'
+      paymentStatus: 'unpaid',
+      promoCode,
+      discountAmount: Number(discountAmount) || 0
     };
 
     const order = new Order(orderData);
@@ -522,6 +526,43 @@ exports.assignDriver = async (req, res) => {
     }
 
     res.json(populated);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ============================================================
+// إضافة تقييم ومراجعة للطلب (من قبل العميل)
+// ============================================================
+exports.rateOrder = async (req, res) => {
+  try {
+    const { rating, review } = req.body;
+    const orderId = req.params.id;
+
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({ message: 'التقييم يجب أن يكون بين 1 و 5' });
+    }
+
+    const order = await Order.findOne({ _id: orderId, customerId: req.user.userId });
+    if (!order) {
+      return res.status(404).json({ message: 'الطلب غير موجود' });
+    }
+
+    if (order.status !== 'delivered') {
+      return res.status(400).json({ message: 'لا يمكن تقييم الطلب إلا بعد استلامه' });
+    }
+
+    if (order.rating) {
+      return res.status(400).json({ message: 'لقد قمت بتقييم هذا الطلب مسبقاً' });
+    }
+
+    order.rating = rating;
+    if (review) {
+      order.review = review;
+    }
+
+    await order.save();
+    res.json({ message: 'تم حفظ التقييم بنجاح', order });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

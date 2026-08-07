@@ -56,7 +56,13 @@ const orderSchema = new mongoose.Schema({
   restaurantShare: { type: Number }, // سعر الوجبة من المطعم
   driverShare: { type: Number }, // رسوم التوصيل
   packagedPicture: { type: String },// صورة تغليف الطلب
-  receivedPicture: { type: String } // صورة استلام الطلب
+  receivedPicture: { type: String }, // صورة استلام الطلب
+  // الخصم
+  promoCode: { type: String },
+  discountAmount: { type: Number, default: 0 },
+  // التقييم
+  rating: { type: Number, min: 1, max: 5 },
+  review: { type: String }
 }, { timestamps: true });// تاريخ الطلب
 
 orderSchema.index({ 'deliveryAddress.location': '2dsphere' });

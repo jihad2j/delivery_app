@@ -609,7 +609,110 @@ class _RestaurantHomeScreenState extends State<RestaurantHomeScreen> {
               ),
             ],
           ),
+          const SizedBox(height: 24),
+
+          // Top Selling Items Analytics
+          const Text(
+            'الوجبات الأكثر مبيعاً (Analytics)',
+            style: TextStyle(
+              fontFamily: 'Outfit',
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _buildTopSellingItems(completedOrders),
+          const SizedBox(height: 20),
         ],
+      ),
+    );
+  }
+
+  Widget _buildTopSellingItems(List<model.Order> completedOrders) {
+    if (completedOrders.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
+        ),
+        child: Center(
+          child: Text('لا توجد بيانات كافية للإحصائيات', style: TextStyle(color: Colors.grey[500])),
+        ),
+      );
+    }
+
+    // Calculate quantities
+    final Map<String, int> itemQuantities = {};
+    for (var order in completedOrders) {
+      for (var item in order.items) {
+        itemQuantities[item.name] = (itemQuantities[item.name] ?? 0) + item.quantity;
+      }
+    }
+
+    if (itemQuantities.isEmpty) {
+       return const SizedBox();
+    }
+
+    // Sort and get top 3
+    final sortedItems = itemQuantities.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final top3 = sortedItems.take(3).toList();
+    final maxQuantity = top3.first.value;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 8, offset: const Offset(0, 2)),
+        ],
+      ),
+      child: Column(
+        children: top3.map((entry) {
+          final double fraction = maxQuantity > 0 ? entry.value / maxQuantity : 0;
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12.0),
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: Text(
+                    entry.key,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  flex: 5,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: LinearProgressIndicator(
+                      value: fraction,
+                      minHeight: 10,
+                      backgroundColor: Colors.grey.withValues(alpha: 0.2),
+                      color: AppTheme.primary,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: 40,
+                  child: Text(
+                    '${entry.value} طلب',
+                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                    textAlign: TextAlign.end,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
       ),
     );
   }

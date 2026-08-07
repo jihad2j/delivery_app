@@ -18,6 +18,7 @@ const restaurantRoutes = require('./routes/route_restaurantRoutes');
 const productRoutes = require('./routes/route_productRoutes');
 const orderRoutes = require('./routes/route_orderRoutes');
 const adminRoutes = require('./routes/route_adminRoutes');
+const promoRoutes = require('./routes/route_promoRoutes');
 const orderController = require('./controllers/controller_OrderController');
 
 const { initRedis } = require('./config/redis');
@@ -97,6 +98,12 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Attach io to req for broadcast and other features
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
+
 // Apply specific rate limiter to Auth routes
 app.use('/api/auth/login', authRateLimiter);
 app.use('/api/auth/register', authRateLimiter);
@@ -106,6 +113,7 @@ app.use('/api/restaurants', restaurantRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/promos', promoRoutes);
 
 // Global Error Handling Middleware
 app.use(errorHandler);

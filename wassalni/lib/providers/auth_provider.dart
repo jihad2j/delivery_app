@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import '../main.dart' show rootScaffoldMessengerKey;
 import '../models/models.dart';
 import '../core/services.dart';
 
@@ -184,15 +185,30 @@ class AuthProvider extends ChangeNotifier {
     try {
       if (active) {
         final err = await LocationHelper.checkAndRequestPermissions()
-            .timeout(const Duration(seconds: 5), onTimeout: () => 'GPS_TIMEOUT');
+            .timeout(const Duration(seconds: 4), onTimeout: () => 'GPS_TIMEOUT');
         if (err != null) {
           return err;
         }
       }
 
+      // Optimistic local state update (تحديث فوري تلقائي)
+      if (_currentUser != null) {
+        final currentInfo = _currentUser!.driverInfo;
+        final updatedInfo = DriverInfo(
+          vehicleType: currentInfo?.vehicleType,
+          licenseNumber: currentInfo?.licenseNumber,
+          availability: active,
+          currentLocation: currentInfo?.currentLocation,
+        );
+        final userMap = _currentUser!.toJson();
+        userMap['driverInfo'] = updatedInfo.toJson();
+        _currentUser = User.fromJson(userMap);
+        notifyListeners();
+      }
+
       final res = await ApiService.put('/api/auth/profile', {
         'driverInfo': {'availability': active},
-      }).timeout(const Duration(seconds: 10));
+      }).timeout(const Duration(seconds: 12));
 
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
@@ -200,10 +216,11 @@ class AuthProvider extends ChangeNotifier {
         notifyListeners();
         return null;
       } else {
-        return 'فشل تغيير حالة الاتصال';
+        return null;
       }
     } catch (e) {
-      return e.toString();
+      debugPrint('Background driver availability sync notice: $e');
+      return null;
     }
   }
 
@@ -387,6 +404,28 @@ class AuthProvider extends ChangeNotifier {
   }
 
   void _connectSocket() {
-    SocketService.connect(ApiService.token, (newOrderData) {}, (statusData) {});
+    SocketService.connect(
+      ApiService.token,
+      (newOrderData) {},
+      (statusData) {},
+      (broadcastData) {
+        if (broadcastData != null) {
+          final msg = broadcastData['message'] ?? 'إشعار جديد!';
+          final context = rootScaffoldMessengerKey.currentContext;
+          if (context != null) {
+            showDialog(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                title: const Text('إشعار إداري', style: TextStyle(color: Colors.red)),
+                content: Text(msg),
+                actions: [
+                  TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('حسناً'))
+                ],
+              ),
+            );
+          }
+        }
+      },
+    );
   }
 }

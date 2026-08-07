@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/models.dart';
 import '../core/services.dart';
 
@@ -7,10 +8,45 @@ class RestaurantProvider extends ChangeNotifier {
   List<User> _restaurants = [];
   List<Product> _currentMenu = [];
   bool _isLoading = false;
+  List<String> _favoriteRestaurantIds = [];
 
   List<User> get restaurants => _restaurants;
   List<Product> get currentMenu => _currentMenu;
   bool get isLoading => _isLoading;
+  List<String> get favoriteRestaurantIds => _favoriteRestaurantIds;
+
+  RestaurantProvider() {
+    loadFavorites();
+  }
+
+  Future<void> loadFavorites() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _favoriteRestaurantIds = prefs.getStringList('favorite_restaurants') ?? [];
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Load favorites error: $e');
+    }
+  }
+
+  Future<void> toggleFavorite(String restaurantId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (_favoriteRestaurantIds.contains(restaurantId)) {
+        _favoriteRestaurantIds.remove(restaurantId);
+      } else {
+        _favoriteRestaurantIds.add(restaurantId);
+      }
+      await prefs.setStringList('favorite_restaurants', _favoriteRestaurantIds);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Toggle favorite error: $e');
+    }
+  }
+
+  bool isFavorite(String restaurantId) {
+    return _favoriteRestaurantIds.contains(restaurantId);
+  }
 
   Future<void> loadRestaurants({String? governorate, String? region}) async {
     _isLoading = true;

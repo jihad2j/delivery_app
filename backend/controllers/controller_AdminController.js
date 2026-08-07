@@ -191,3 +191,31 @@ exports.getCompanyTreasury = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// ============================================================
+// إرسال إشعار جماعي لجميع المستخدمين عبر Socket.io
+// ============================================================
+exports.sendBroadcast = async (req, res) => {
+  try {
+    const { title, message } = req.body;
+    
+    if (!title || !message) {
+      return res.status(400).json({ message: 'العنوان والرسالة مطلوبان' });
+    }
+
+    // هنا نحن نفترض وجود إعداد مسبق للـ io في الـ req عبر middleware 
+    // أو عبر إرسال حدث. للتبسيط، سنحتاج لربط الـ io بـ req في server.js
+    if (req.io) {
+      req.io.emit('broadcast_message', {
+        title,
+        message,
+        timestamp: new Date()
+      });
+      res.json({ message: 'تم إرسال الإشعار لجميع المستخدمين بنجاح' });
+    } else {
+      res.status(500).json({ message: 'Socket.io غير متصل بالخادم حالياً' });
+    }
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

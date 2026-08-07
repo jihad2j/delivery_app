@@ -401,6 +401,10 @@ class Order {
   final double? driverShare;
   final String? packagedPicture; // تصوير الطلب وتغليفه (من المطعم)
   final String? receivedPicture; // تصوير الطلب عند الاستلام (من العميل)
+  final String? promoCode;
+  final double? discountAmount;
+  final int? rating;
+  final String? review;
   final DateTime? createdAt;
 
   Order({
@@ -422,6 +426,10 @@ class Order {
     this.driverShare,
     this.packagedPicture,
     this.receivedPicture,
+    this.promoCode,
+    this.discountAmount,
+    this.rating,
+    this.review,
     this.createdAt,
   });
 
@@ -466,20 +474,16 @@ class Order {
       expectedDeliveryTime: json['expectedDeliveryTime'] != null
           ? DateTime.tryParse(json['expectedDeliveryTime'].toString())
           : null,
-      platformCommission: json['platformCommission'] != null
-          ? (json['platformCommission'] as num).toDouble()
-          : null,
-      restaurantShare: json['restaurantShare'] != null
-          ? (json['restaurantShare'] as num).toDouble()
-          : null,
-      driverShare: json['driverShare'] != null
-          ? (json['driverShare'] as num).toDouble()
-          : null,
+      platformCommission: json['platformCommission'] != null ? (json['platformCommission'] as num).toDouble() : null,
+      restaurantShare: json['restaurantShare'] != null ? (json['restaurantShare'] as num).toDouble() : null,
+      driverShare: json['driverShare'] != null ? (json['driverShare'] as num).toDouble() : null,
       packagedPicture: json['packagedPicture'],
       receivedPicture: json['receivedPicture'],
-      createdAt: json['createdAt'] != null
-          ? DateTime.tryParse(json['createdAt'].toString())
-          : null,
+      promoCode: json['promoCode'],
+      discountAmount: json['discountAmount'] != null ? (json['discountAmount'] as num).toDouble() : null,
+      rating: json['rating'] != null ? int.tryParse(json['rating'].toString()) : null,
+      review: json['review'],
+      createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt'].toString()) : null,
     );
   }
 

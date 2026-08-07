@@ -6,14 +6,18 @@ import 'providers/providers.dart';
 import 'core/theme.dart';
 import 'screens/auth/screens.dart';
 import 'screens/customer/screens.dart';
-import 'screens/driver/screens.dart';
-import 'screens/restaurant/screens.dart';
+import 'screens/driver_screens.dart';
+import 'screens/restaurant_screens.dart';
+
 import 'screens/admin_screens.dart';
 import 'screens/shared/screens.dart'
     show AppRoutes, ProfileScreen;
 import 'models/models.dart' as model;
 
+final GlobalKey<ScaffoldMessengerState> rootScaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(
     MultiProvider(
       providers: [
@@ -33,6 +37,7 @@ class WassalniApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      scaffoldMessengerKey: rootScaffoldMessengerKey,
       title: 'وصلني',
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,

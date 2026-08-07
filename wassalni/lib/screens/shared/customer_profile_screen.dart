@@ -9,6 +9,7 @@ import '../../core/services.dart';
 import '../../models/models.dart' as model;
 import '../../widgets/widgets.dart';
 import 'screens.dart' show AppRoutes;
+import '../customer/customer_favorites_screen.dart';
 
 class CustomerProfileScreen extends StatefulWidget {
   const CustomerProfileScreen({super.key});
@@ -228,9 +229,10 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
               label: 'المفضلة',
               color: AppColors.error,
               onTap: () {
-                ScaffoldMessenger.of(
+                Navigator.push(
                   context,
-                ).showSnackBar(const SnackBar(content: Text('المفضلة قريباً')));
+                  MaterialPageRoute(builder: (context) => const CustomerFavoritesScreen()),
+                );
               },
             ),
           ),
